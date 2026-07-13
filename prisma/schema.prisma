@@ -1,0 +1,65 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// 가족 단위. code로 서로 다른 기기에서 연동(참여)한다.
+model Family {
+  id        String       @id @default(cuid())
+  name      String
+  code      String       @unique
+  createdAt DateTime     @default(now())
+  members   Member[]
+  sessions  DaySession[]
+}
+
+// 가족 구성원. birthYear로 나이대(질문 층위)를 계산한다.
+model Member {
+  id        String    @id @default(cuid())
+  familyId  String
+  family    Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  nickname  String
+  birthYear Int?
+  role      String // "parent" | "child"
+  createdAt DateTime  @default(now())
+  messages  Message[]
+
+  @@index([familyId])
+}
+
+// 하루 단위 하브루타 세션. 가족당 하루에 하나.
+model DaySession {
+  id            String    @id @default(cuid())
+  familyId      String
+  family        Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  date          String // YYYY-MM-DD (KST 기준)
+  topic         String? // 오늘의 주제 요약
+  topicImageUrl String? // AI 무작위 이미지 주제일 때 이미지 경로
+  topicSource   String    @default("user") // "user" | "ai-random"
+  messages      Message[]
+  createdAt     DateTime  @default(now())
+
+  @@unique([familyId, date])
+  @@index([familyId])
+}
+
+// 대화 메시지. role=user는 가족의 이야기/답변, role=ai는 하브루타 꼬리질문.
+model Message {
+  id         String     @id @default(cuid())
+  sessionId  String
+  session    DaySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  memberId   String?
+  member     Member?    @relation(fields: [memberId], references: [id])
+  role       String // "user" | "ai"
+  content    String
+  depthLevel Int? // 1~5, role=ai(질문)일 때만 채워짐
+  depthLabel String? // 예: "사실 확인", "가치 판단"
+  createdAt  DateTime   @default(now())
+
+  @@index([sessionId])
+  @@index([memberId])
+}
