@@ -25,21 +25,52 @@
 ## 기술 스택
 
 - Next.js 14 (App Router) + TypeScript + Tailwind CSS
-- Prisma + SQLite (가족/구성원/일별 세션/메시지)
-- OpenAI API (`gpt-4o-mini`로 질문 생성, `gpt-image-1`로 무작위 주제 이미지 생성)
+- Prisma + PostgreSQL (가족/구성원/일별 세션/메시지) — Vercel 같은 서버리스 배포에서는
+  로컬 파일(SQLite)이 재배포마다 초기화되기 때문에 Postgres를 씁니다.
+- OpenAI API (`gpt-4o-mini`로 질문 생성, `gpt-image-1`로 무작위 주제 이미지 생성).
+  생성된 이미지는 서버리스 환경이 디스크에 못 쓰므로 base64로 DB에 바로 저장합니다.
 - 로그인은 별도 회원가입 없이 "가족 코드 + 닉네임"만으로 참여하는 경량 방식입니다
   (localStorage에 신원을 저장). 더 강한 보안이 필요하면 NextAuth 등으로 교체하세요.
 
-## 시작하기
+## 로컬 개발
+
+계정 가입 없이 바로 개발하려면 docker로 로컬 Postgres를 띄우세요.
 
 ```bash
 npm install
 cp .env.example .env
 # .env 에 OPENAI_API_KEY 를 실제 키로 채워주세요 (서버에서만 사용, 브라우저에 노출되지 않음)
 
-npm run db:push   # SQLite 스키마 생성
-npm run dev        # http://localhost:3000
+docker compose up -d   # 로컬 Postgres (localhost:5432, .env.example 기본값과 일치)
+npm run db:push         # 스키마 반영
+npm run dev              # http://localhost:3000
 ```
+
+Neon/Vercel Postgres 같은 클라우드 DB를 로컬에서 바로 쓰고 싶다면, docker 없이
+`.env`의 `POSTGRES_PRISMA_URL` / `POSTGRES_URL_NON_POOLING`만 그 DB 주소로 바꾸면 됩니다.
+
+## 배포하기 (Vercel)
+
+로또추첨기(260711)와 같은 방식으로, Vercel에 GitHub 저장소를 연결해서 배포합니다.
+(이 코드를 만든 세션은 vercel.com에 대한 아웃바운드 접속이 막혀 있어서 CLI로 직접
+배포는 못 하고, 아래 순서대로 대시보드에서 클릭 몇 번이면 끝나게 준비해뒀어요.)
+
+1. **저장소 임포트**: [vercel.com/new](https://vercel.com/new) → `choiyeonah-hub/yeonah`
+   저장소 선택 → Import. (Framework는 Next.js로 자동 인식됩니다.)
+2. **Postgres 연결**: 프로젝트 생성 후 상단 **Storage** 탭 → **Create Database** →
+   **Postgres** 선택 → 프로젝트에 연결. 이 순간 `POSTGRES_PRISMA_URL`,
+   `POSTGRES_URL_NON_POOLING` 등 환경변수가 프로젝트에 자동으로 추가됩니다.
+3. **OpenAI 키 등록**: 프로젝트 **Settings → Environment Variables**에서
+   `OPENAI_API_KEY`를 추가합니다 (Production/Preview 둘 다 체크). 필요하면
+   `OPENAI_CHAT_MODEL`, `OPENAI_IMAGE_MODEL`도 같이 등록하세요 (기본값 그대로 써도 됩니다).
+4. **스키마 반영**: 처음 배포하기 전에 로컬에서 한 번, 방금 만든 Vercel Postgres를
+   가리키도록 `.env`를 그 DB 값으로 잠깐 바꾼 뒤 `npm run db:push`를 실행해 테이블을
+   만들어주세요. (Vercel Storage 탭의 `.env.local` 다운로드 버튼으로 값을 바로 받을 수 있습니다.)
+5. **Deploy** 클릭. 이후로는 `claude/habruuta-chatgpt-app-81uq8q` 브랜치(또는 main)에
+   푸시할 때마다 자동 재배포됩니다.
+
+> 이미지 생성 기능을 쓰려면 OpenAI 계정에 `gpt-image-1` 사용 권한이 있어야 합니다.
+> 권한이 없어도 앱은 죽지 않고, 그림 없이 질문만 정상적으로 생성됩니다.
 
 ## 폴더 구조
 

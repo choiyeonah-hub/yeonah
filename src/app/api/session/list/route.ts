@@ -8,8 +8,16 @@ export async function GET(req: NextRequest) {
   const sessions = await prisma.daySession.findMany({
     where: { familyId, messages: { some: {} } },
     orderBy: { date: "desc" },
-    include: { messages: true },
     take: 60,
+    select: {
+      id: true,
+      date: true,
+      topic: true,
+      topicSource: true,
+      // 목록은 이미지 원본(base64)을 내려보내지 않는다 — 응답 크기를 작게 유지하기 위함.
+      _count: { select: { messages: true } },
+      messages: { select: { role: true, depthLevel: true } },
+    },
   });
 
   const list = sessions.map((s) => {
@@ -19,9 +27,8 @@ export async function GET(req: NextRequest) {
       id: s.id,
       date: s.date,
       topic: s.topic,
-      topicImageUrl: s.topicImageUrl,
       topicSource: s.topicSource,
-      messageCount: s.messages.length,
+      messageCount: s._count.messages,
       avgDepth,
     };
   });

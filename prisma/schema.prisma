@@ -2,9 +2,12 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// Vercel Postgres(Neon)의 Storage 연동을 켜면 아래 두 환경변수가 자동으로 주입된다.
+// 로컬 개발은 docker-compose의 postgres 서비스를 가리키면 된다(README 참고).
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("POSTGRES_PRISMA_URL")
+  directUrl = env("POSTGRES_URL_NON_POOLING")
 }
 
 // 가족 단위. code로 서로 다른 기기에서 연동(참여)한다.
@@ -38,7 +41,7 @@ model DaySession {
   family        Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
   date          String // YYYY-MM-DD (KST 기준)
   topic         String? // 오늘의 주제 요약
-  topicImageUrl String? // AI 무작위 이미지 주제일 때 이미지 경로
+  topicImageUrl String? @db.Text // AI 무작위 이미지 주제일 때 base64 data URL (서버리스 환경엔 디스크에 못 쓰므로 DB에 저장)
   topicSource   String    @default("user") // "user" | "ai-random"
   messages      Message[]
   createdAt     DateTime  @default(now())

@@ -9,7 +9,6 @@ type SessionSummary = {
   id: string;
   date: string;
   topic: string | null;
-  topicImageUrl: string | null;
   topicSource: "user" | "ai-random";
   messageCount: number;
   avgDepth: number | null;
@@ -51,13 +50,9 @@ export default function HistoryPage() {
               href={`/history/${s.id}`}
               className="flex items-center gap-3 rounded-xl bg-white/70 p-3 shadow-sm transition hover:bg-white"
             >
-              {s.topicImageUrl ? (
-                <img src={s.topicImageUrl} alt="" className="h-14 w-14 rounded-lg object-cover" />
-              ) : (
-                <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-havruta-100 text-xl">
-                  {s.topicSource === "ai-random" ? "🎨" : "💬"}
-                </div>
-              )}
+              <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-havruta-100 text-xl">
+                {s.topicSource === "ai-random" ? "🎨" : "💬"}
+              </div>
               <div className="min-w-0 flex-1">
                 <p className="text-xs text-havruta-500">{s.date}</p>
                 <p className="truncate text-sm font-medium text-havruta-800">{s.topic || "(주제 없음)"}</p>

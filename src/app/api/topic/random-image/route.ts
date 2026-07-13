@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { promises as fs } from "fs";
-import path from "path";
 import { prisma } from "@/lib/db";
 import { ageTierFromBirthYear } from "@/lib/depth";
 import { generateRandomTopic, generateTopicImage } from "@/lib/openai";
@@ -34,11 +32,8 @@ export async function POST(req: NextRequest) {
     let topicImageUrl: string | null = null;
     try {
       const b64 = await generateTopicImage(topic.imagePrompt);
-      const uploadsDir = path.join(process.cwd(), "public", "uploads");
-      await fs.mkdir(uploadsDir, { recursive: true });
-      const fileName = `${sessionId}-${Date.now()}.png`;
-      await fs.writeFile(path.join(uploadsDir, fileName), Buffer.from(b64, "base64"));
-      topicImageUrl = `/uploads/${fileName}`;
+      // 서버리스 배포(Vercel)는 파일시스템에 쓸 수 없으므로 base64 data URL로 DB에 바로 저장한다.
+      topicImageUrl = `data:image/png;base64,${b64}`;
     } catch (imgErr) {
       // 이미지 생성에 실패해도(예: 이미지 API 미지원/크레딧 부족) 주제와 질문은 진행한다.
       console.error("이미지 생성 실패:", imgErr);
