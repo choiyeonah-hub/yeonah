@@ -57,20 +57,27 @@ Neon/Vercel Postgres 같은 클라우드 DB를 로컬에서 바로 쓰고 싶다
 
 1. **저장소 임포트**: [vercel.com/new](https://vercel.com/new) → `choiyeonah-hub/yeonah`
    저장소 선택 → Import. (Framework는 Next.js로 자동 인식됩니다.)
-2. **Postgres 연결**: 프로젝트 생성 후 상단 **Storage** 탭 → **Create Database** →
-   **Postgres** 선택 → 프로젝트에 연결. 이 순간 `POSTGRES_PRISMA_URL`,
-   `POSTGRES_URL_NON_POOLING` 등 환경변수가 프로젝트에 자동으로 추가됩니다.
-3. **OpenAI 키 등록**: 프로젝트 **Settings → Environment Variables**에서
-   `OPENAI_API_KEY`를 추가합니다 (Production/Preview 둘 다 체크). 필요하면
-   `OPENAI_CHAT_MODEL`, `OPENAI_IMAGE_MODEL`도 같이 등록하세요 (기본값 그대로 써도 됩니다).
-4. **스키마 반영**: 처음 배포하기 전에 로컬에서 한 번, 방금 만든 Vercel Postgres를
-   가리키도록 `.env`를 그 DB 값으로 잠깐 바꾼 뒤 `npm run db:push`를 실행해 테이블을
-   만들어주세요. (Vercel Storage 탭의 `.env.local` 다운로드 버튼으로 값을 바로 받을 수 있습니다.)
-5. **Deploy** 클릭. 이후로는 `claude/habruuta-chatgpt-app-81uq8q` 브랜치(또는 main)에
-   푸시할 때마다 자동 재배포됩니다.
+2. **Postgres 준비**: Vercel의 Storage 연동을 써도 되고(있다면), 아니면
+   [neon.tech](https://neon.tech)에서 무료로 DB를 하나 만들어서 나오는
+   **Connection string**을 그대로 써도 됩니다.
+3. **환경변수 등록**: 프로젝트 **Settings → Environment Variables**에서 아래 세 개를
+   추가합니다 (Production 체크). Neon처럼 연결 문자열이 하나뿐이면 두 값에 똑같이
+   넣으면 됩니다.
+   - `POSTGRES_PRISMA_URL`
+   - `POSTGRES_URL_NON_POOLING`
+   - `OPENAI_API_KEY`
+4. **Deploy** 클릭. **테이블은 따로 만들 필요 없습니다** — `package.json`의
+   `vercel-build` 스크립트가 빌드할 때마다 `prisma db push`를 자동으로 실행해서
+   스키마를 최신 상태로 맞춰줍니다(Vercel이 이 스크립트를 자동으로 감지해서 씁니다).
+   이후로는 `claude/habruuta-chatgpt-app-81uq8q` 브랜치(또는 main)에 푸시할 때마다
+   자동 재배포되고, 그때마다 스키마도 같이 동기화됩니다.
 
 > 이미지 생성 기능을 쓰려면 OpenAI 계정에 `gpt-image-1` 사용 권한이 있어야 합니다.
 > 권한이 없어도 앱은 죽지 않고, 그림 없이 질문만 정상적으로 생성됩니다.
+>
+> `vercel-build`는 `prisma db push --accept-data-loss`를 씁니다. 이후 스키마를 바꿀 때
+> 컬럼을 지우거나 타입을 바꾸는 등 파괴적인 변경이 있으면 데이터가 조용히 사라질 수 있으니,
+> 실제 가족 데이터가 쌓인 뒤에 스키마를 바꿀 땐 이 부분을 참고하세요.
 
 ## 폴더 구조
 
