@@ -9,66 +9,72 @@ export async function GET(req: NextRequest) {
 
   const today = todayKstString();
 
-  const [todaySession, familyAgg, memberAgg] = await Promise.all([
-    prisma.daySession.findUnique({
-      where: { familyId_date: { familyId, date: today } },
-      include: { messages: true },
-    }),
-    prisma.message.aggregate({
-      where: { role: "ai", depthLevel: { not: null }, session: { familyId } },
-      _avg: { depthLevel: true },
-      _count: { depthLevel: true },
-    }),
-    memberId
-      ? prisma.message.aggregate({
-          where: { role: "ai", depthLevel: { not: null }, memberId },
-          _avg: { depthLevel: true },
-          _count: { depthLevel: true },
-        })
-      : Promise.resolve(null),
-  ]);
+  try {
+    const [todaySession, familyAgg, memberAgg] = await Promise.all([
+      prisma.daySession.findUnique({
+        where: { familyId_date: { familyId, date: today } },
+        include: { messages: true },
+      }),
+      prisma.message.aggregate({
+        where: { role: "ai", depthLevel: { not: null }, session: { familyId } },
+        _avg: { depthLevel: true },
+        _count: { depthLevel: true },
+      }),
+      memberId
+        ? prisma.message.aggregate({
+            where: { role: "ai", depthLevel: { not: null }, memberId },
+            _avg: { depthLevel: true },
+            _count: { depthLevel: true },
+          })
+        : Promise.resolve(null),
+    ]);
 
-  const todayAiMessages = (todaySession?.messages ?? []).filter(
-    (m) => m.role === "ai" && m.depthLevel != null
-  );
-  const todayAvgDepth =
-    todayAiMessages.length > 0
-      ? todayAiMessages.reduce((sum, m) => sum + (m.depthLevel ?? 0), 0) / todayAiMessages.length
-      : null;
+    const todayAiMessages = (todaySession?.messages ?? []).filter(
+      (m) => m.role === "ai" && m.depthLevel != null
+    );
+    const todayAvgDepth =
+      todayAiMessages.length > 0
+        ? todayAiMessages.reduce((sum, m) => sum + (m.depthLevel ?? 0), 0) / todayAiMessages.length
+        : null;
 
-  // 최근 30일 내에서, 메시지가 있는 날짜들을 기준으로 오늘부터 거꾸로 연속 참여일수를 센다.
-  const sessionsWithMessages = await prisma.daySession.findMany({
-    where: {
-      familyId,
-      date: { gte: dateStringNDaysAgo(30) },
-      messages: { some: {} },
-    },
-    select: { date: true },
-  });
-  const activeDates = new Set(sessionsWithMessages.map((s) => s.date));
-  let streakDays = 0;
-  for (let i = 0; i < 30; i++) {
-    const d = dateStringNDaysAgo(i, today);
-    if (activeDates.has(d)) streakDays++;
-    else break;
+    // 최근 30일 내에서, 메시지가 있는 날짜들을 기준으로 오늘부터 거꾸로 연속 참여일수를 센다.
+    const sessionsWithMessages = await prisma.daySession.findMany({
+      where: {
+        familyId,
+        date: { gte: dateStringNDaysAgo(30) },
+        messages: { some: {} },
+      },
+      select: { date: true },
+    });
+    const activeDates = new Set(sessionsWithMessages.map((s) => s.date));
+    let streakDays = 0;
+    for (let i = 0; i < 30; i++) {
+      const d = dateStringNDaysAgo(i, today);
+      if (activeDates.has(d)) streakDays++;
+      else break;
+    }
+
+    return NextResponse.json({
+      today: {
+        date: today,
+        avgDepth: todayAvgDepth,
+        questionCount: todayAiMessages.length,
+      },
+      family: {
+        avgDepth: familyAgg._avg.depthLevel,
+        totalQuestions: familyAgg._count.depthLevel,
+        streakDays,
+      },
+      member: memberAgg
+        ? {
+            avgDepth: memberAgg._avg.depthLevel,
+            totalQuestions: memberAgg._count.depthLevel,
+          }
+        : null,
+    });
+  } catch (err) {
+    console.error("통계 조회 실패:", err);
+    const message = err instanceof Error ? err.message : "서버 오류가 발생했습니다.";
+    return NextResponse.json({ error: `통계를 불러오지 못했습니다: ${message}` }, { status: 500 });
   }
-
-  return NextResponse.json({
-    today: {
-      date: today,
-      avgDepth: todayAvgDepth,
-      questionCount: todayAiMessages.length,
-    },
-    family: {
-      avgDepth: familyAgg._avg.depthLevel,
-      totalQuestions: familyAgg._count.depthLevel,
-      streakDays,
-    },
-    member: memberAgg
-      ? {
-          avgDepth: memberAgg._avg.depthLevel,
-          totalQuestions: memberAgg._count.depthLevel,
-        }
-      : null,
-  });
 }

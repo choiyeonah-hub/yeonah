@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { clearIdentity, loadIdentity, StoredIdentity } from "@/lib/clientAuth";
 import { FamilyDTO, MessageDTO, SessionDTO } from "@/lib/types";
+import { safeParseJson } from "@/lib/api";
 import CurrentQuestionCard from "@/components/CurrentQuestionCard";
 import MessageBubble from "@/components/MessageBubble";
 import StatsBar from "@/components/StatsBar";
@@ -38,14 +39,17 @@ export default function ChatPage() {
 
   async function refreshStats(familyId: string, memberId: string) {
     const res = await fetch(`/api/stats?familyId=${familyId}&memberId=${memberId}`);
-    if (res.ok) setStats(await res.json());
+    if (res.ok) {
+      const data = await safeParseJson<Stats>(res);
+      if (data) setStats(data);
+    }
   }
 
   async function loadToday(id: StoredIdentity) {
     const res = await fetch(`/api/session/today?familyId=${id.familyId}`);
-    const data = await res.json();
-    if (!res.ok) {
-      setError(data.error || "불러오기에 실패했습니다.");
+    const data = await safeParseJson<{ session: SessionDTO; family: FamilyDTO; error?: string }>(res);
+    if (!res.ok || !data) {
+      setError(data?.error || `불러오기에 실패했습니다 (HTTP ${res.status}).`);
       return;
     }
     setSession(data.session);
@@ -75,12 +79,15 @@ export default function ChatPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sessionId: session.id, memberId: identity.memberId, content }),
       });
-      const data = await res.json();
-      if (!res.ok && !data.userMessage) throw new Error(data.error || "전송에 실패했습니다.");
+      const data = await safeParseJson<{ userMessage?: MessageDTO; aiMessage?: MessageDTO; error?: string }>(res);
+      if (!data?.userMessage) {
+        throw new Error(data?.error || `전송에 실패했습니다 (HTTP ${res.status}).`);
+      }
+      const userMessage = data.userMessage;
 
       setSession((prev) => {
         if (!prev) return prev;
-        const next = { ...prev, messages: [...prev.messages, data.userMessage] };
+        const next = { ...prev, messages: [...prev.messages, userMessage] };
         if (data.aiMessage) next.messages.push(data.aiMessage);
         return next;
       });
@@ -105,8 +112,8 @@ export default function ChatPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sessionId: session.id, memberId: identity.memberId }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "주제 생성에 실패했습니다.");
+      const data = await safeParseJson<{ session: SessionDTO; aiMessage: MessageDTO; error?: string }>(res);
+      if (!res.ok || !data) throw new Error(data?.error || `주제 생성에 실패했습니다 (HTTP ${res.status}).`);
 
       setSession((prev) => {
         if (!prev) return prev;

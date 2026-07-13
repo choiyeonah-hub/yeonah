@@ -6,6 +6,7 @@ import Link from "next/link";
 import { loadIdentity } from "@/lib/clientAuth";
 import { SessionDTO } from "@/lib/types";
 import MessageBubble from "@/components/MessageBubble";
+import { safeParseJson } from "@/lib/api";
 
 export default function HistoryDetailPage() {
   const params = useParams<{ id: string }>();
@@ -23,11 +24,13 @@ export default function HistoryDetailPage() {
     setMemberId(id.memberId);
     fetch(`/api/session/${params.id}`)
       .then(async (res) => {
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error);
+        const data = await safeParseJson<{ session?: SessionDTO; error?: string }>(res);
+        if (!res.ok || !data?.session) {
+          throw new Error(data?.error || `기록을 불러오지 못했습니다 (HTTP ${res.status}).`);
+        }
         setSession(data.session);
       })
-      .catch((err) => setError(err.message));
+      .catch((err) => setError(err instanceof Error ? err.message : "알 수 없는 오류가 발생했습니다."));
   }, [params.id, router]);
 
   return (

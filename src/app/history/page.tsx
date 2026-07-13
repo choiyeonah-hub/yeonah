@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { loadIdentity } from "@/lib/clientAuth";
+import { safeParseJson } from "@/lib/api";
 
 type SessionSummary = {
   id: string;
@@ -17,6 +18,7 @@ type SessionSummary = {
 export default function HistoryPage() {
   const router = useRouter();
   const [sessions, setSessions] = useState<SessionSummary[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const id = loadIdentity();
@@ -25,8 +27,19 @@ export default function HistoryPage() {
       return;
     }
     fetch(`/api/session/list?familyId=${id.familyId}`)
-      .then((res) => res.json())
-      .then((data) => setSessions(data.sessions ?? []));
+      .then(async (res) => {
+        const data = await safeParseJson<{ sessions?: SessionSummary[]; error?: string }>(res);
+        if (!res.ok || !data) {
+          setError(data?.error || `기록을 불러오지 못했습니다 (HTTP ${res.status}).`);
+          setSessions([]);
+          return;
+        }
+        setSessions(data.sessions ?? []);
+      })
+      .catch(() => {
+        setError("기록을 불러오지 못했습니다.");
+        setSessions([]);
+      });
   }, [router]);
 
   return (
@@ -38,6 +51,7 @@ export default function HistoryPage() {
         </Link>
       </div>
 
+      {error && <p className="mb-3 text-sm text-rose-600">{error}</p>}
       {sessions === null && <p className="text-sm text-havruta-500">불러오는 중...</p>}
       {sessions?.length === 0 && (
         <p className="text-sm text-havruta-500">아직 기록이 없어요. 오늘 첫 대화를 시작해보세요!</p>

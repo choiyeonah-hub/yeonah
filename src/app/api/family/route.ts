@@ -23,52 +23,58 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "잘못된 요청입니다." }, { status: 400 });
 
-  if (body.action === "create") {
-    const parsed = createSchema.safeParse(body);
-    if (!parsed.success) {
-      return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "입력값을 확인해주세요." }, { status: 400 });
-    }
-    const { familyName, nickname, role, birthYear } = parsed.data;
+  try {
+    if (body.action === "create") {
+      const parsed = createSchema.safeParse(body);
+      if (!parsed.success) {
+        return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "입력값을 확인해주세요." }, { status: 400 });
+      }
+      const { familyName, nickname, role, birthYear } = parsed.data;
 
-    let code = generateFamilyCode();
-    for (let attempts = 0; attempts < 5; attempts++) {
-      const existing = await prisma.family.findUnique({ where: { code } });
-      if (!existing) break;
-      code = generateFamilyCode();
-    }
+      let code = generateFamilyCode();
+      for (let attempts = 0; attempts < 5; attempts++) {
+        const existing = await prisma.family.findUnique({ where: { code } });
+        if (!existing) break;
+        code = generateFamilyCode();
+      }
 
-    const family = await prisma.family.create({
-      data: {
-        name: familyName,
-        code,
-        members: {
-          create: { nickname, role, birthYear: birthYear ?? null },
+      const family = await prisma.family.create({
+        data: {
+          name: familyName,
+          code,
+          members: {
+            create: { nickname, role, birthYear: birthYear ?? null },
+          },
         },
-      },
-      include: { members: true },
-    });
+        include: { members: true },
+      });
 
-    return NextResponse.json({ family, member: family.members[0] });
-  }
-
-  if (body.action === "join") {
-    const parsed = joinSchema.safeParse(body);
-    if (!parsed.success) {
-      return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "입력값을 확인해주세요." }, { status: 400 });
-    }
-    const { code, nickname, role, birthYear } = parsed.data;
-
-    const family = await prisma.family.findUnique({ where: { code: code.toUpperCase() } });
-    if (!family) {
-      return NextResponse.json({ error: "가족 코드를 찾을 수 없습니다. 코드를 다시 확인해주세요." }, { status: 404 });
+      return NextResponse.json({ family, member: family.members[0] });
     }
 
-    const member = await prisma.member.create({
-      data: { familyId: family.id, nickname, role, birthYear: birthYear ?? null },
-    });
+    if (body.action === "join") {
+      const parsed = joinSchema.safeParse(body);
+      if (!parsed.success) {
+        return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "입력값을 확인해주세요." }, { status: 400 });
+      }
+      const { code, nickname, role, birthYear } = parsed.data;
 
-    return NextResponse.json({ family, member });
+      const family = await prisma.family.findUnique({ where: { code: code.toUpperCase() } });
+      if (!family) {
+        return NextResponse.json({ error: "가족 코드를 찾을 수 없습니다. 코드를 다시 확인해주세요." }, { status: 404 });
+      }
+
+      const member = await prisma.member.create({
+        data: { familyId: family.id, nickname, role, birthYear: birthYear ?? null },
+      });
+
+      return NextResponse.json({ family, member });
+    }
+
+    return NextResponse.json({ error: "action은 create 또는 join이어야 합니다." }, { status: 400 });
+  } catch (err) {
+    console.error("가족 생성/참여 실패:", err);
+    const message = err instanceof Error ? err.message : "서버 오류가 발생했습니다.";
+    return NextResponse.json({ error: `가족 정보를 저장하지 못했습니다: ${message}` }, { status: 500 });
   }
-
-  return NextResponse.json({ error: "action은 create 또는 join이어야 합니다." }, { status: 400 });
 }

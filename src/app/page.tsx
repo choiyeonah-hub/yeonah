@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { loadIdentity, saveIdentity } from "@/lib/clientAuth";
+import { parseJsonOrThrow } from "@/lib/api";
 
 type Mode = "create" | "join";
 
@@ -54,8 +55,7 @@ export default function HomePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "요청에 실패했습니다.");
+      const data = await parseJsonOrThrow<{ family: any; member: any }>(res);
 
       saveIdentity({
         familyId: data.family.id,

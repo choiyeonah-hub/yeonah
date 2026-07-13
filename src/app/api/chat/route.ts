@@ -18,26 +18,33 @@ export async function POST(req: NextRequest) {
   }
   const { sessionId, memberId, content } = parsed.data;
 
-  const [session, member] = await Promise.all([
-    prisma.daySession.findUnique({
-      where: { id: sessionId },
-      include: { messages: { orderBy: { createdAt: "asc" }, include: { member: true } } },
-    }),
-    prisma.member.findUnique({ where: { id: memberId } }),
-  ]);
+  let session, member, userMessage;
+  try {
+    [session, member] = await Promise.all([
+      prisma.daySession.findUnique({
+        where: { id: sessionId },
+        include: { messages: { orderBy: { createdAt: "asc" }, include: { member: true } } },
+      }),
+      prisma.member.findUnique({ where: { id: memberId } }),
+    ]);
 
-  if (!session) return NextResponse.json({ error: "세션을 찾을 수 없습니다." }, { status: 404 });
-  if (!member) return NextResponse.json({ error: "가족 구성원을 찾을 수 없습니다." }, { status: 404 });
+    if (!session) return NextResponse.json({ error: "세션을 찾을 수 없습니다." }, { status: 404 });
+    if (!member) return NextResponse.json({ error: "가족 구성원을 찾을 수 없습니다." }, { status: 404 });
 
-  const userMessage = await prisma.message.create({
-    data: { sessionId, memberId, role: "user", content },
-  });
-
-  if (!session.topic) {
-    await prisma.daySession.update({
-      where: { id: sessionId },
-      data: { topic: content.slice(0, 40) },
+    userMessage = await prisma.message.create({
+      data: { sessionId, memberId, role: "user", content },
     });
+
+    if (!session.topic) {
+      await prisma.daySession.update({
+        where: { id: sessionId },
+        data: { topic: content.slice(0, 40) },
+      });
+    }
+  } catch (err) {
+    console.error("답변 저장 실패:", err);
+    const message = err instanceof Error ? err.message : "서버 오류가 발생했습니다.";
+    return NextResponse.json({ error: `답변을 저장하지 못했습니다: ${message}` }, { status: 500 });
   }
 
   const ageTier = ageTierFromBirthYear(member.birthYear);
@@ -72,6 +79,7 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (err) {
+    console.error("질문 생성 실패:", err);
     const message = err instanceof Error ? err.message : "AI 질문 생성 중 오류가 발생했습니다.";
     return NextResponse.json({ userMessage, error: message }, { status: 502 });
   }
