@@ -688,8 +688,10 @@ const PET_TYPES = {
 const LINKS = [
   { name: "쿠팡에서 장보기", desc: "담아둔 목록 그대로 검색", url: "https://www.coupang.com/np/search?q={q}", tag: "추천",
     kw: ["장보기", "구매", "사기", "주문", "생수", "휴지", "세제", "기저귀", "분유", "사료", "모래"], g: ["식단정기", "소모품", "육아소모품", "반려정기"] },
+  { name: "냉장고 관리 앱 찾기", desc: "재고 등록하면 유통기한 알림에 식단까지", url: "https://apps.apple.com/kr/search?term=냉장고 관리", tag: "추천",
+    kw: ["냉장고", "재고", "유통기한", "식재료", "장보기"], g: ["냉장고", "식단정기"] },
   { name: "만개의레시피", desc: "남은 재료로 만들 수 있는 요리", url: "https://www.10000recipe.com/recipe/list.html?q={q}", tag: "추천",
-    kw: ["식단", "반찬", "요리", "밀키트", "레시피"], g: ["식단정기", "냉장고"] },
+    kw: ["식단", "반찬", "요리", "밀키트", "레시피"], g: ["식단정기"] },
   { name: "유튜브 레시피 보기", desc: "따라 하기 쉬운 영상부터", url: "https://www.youtube.com/results?search_query={q}+레시피", tag: "추천",
     kw: ["식단", "반찬", "요리", "밀키트", "레시피"], g: ["식단정기", "냉장고"] },
   { name: "예방접종도우미", desc: "질병관리청 · 접종 이력과 다음 일정", url: "https://nip.kdca.go.kr/", tag: "정보",
@@ -761,8 +763,6 @@ const DEFAULT_STATE = {
   condition: null, conditionShare: true, discoverCache: null,
   /* 기본 분담: 카테고리 → 담당자. 여기 있는 건 매번 정하지 않아도 됩니다 */
   duty: {}, dutyAsk: true,
-  /* 장바구니 — 담아두고 깜박하는 걸 막는 자리 */
-  shopping: [],
   /* 자동차: 연비·주행거리로 주유·엔진오일 시점을 계산합니다 */
   car: { kmPerL: "", tankL: "", dailyKm: "", tripKmPerMonth: "", fuelAt: null, fuelLevel: 1, odo: "", oilLastKm: "", oilEvery: 10000 },
   /* 휴일 날씨 브리핑 */
@@ -1301,14 +1301,6 @@ function App() {
     return rows.length;
   };
 
-  /* 장바구니 — 담아두고 잊는 걸 막는 자리 */
-  const addShopping = (names, from) => {
-    const rows = names.filter(Boolean).map((n) => ({ id: uid("s"), name: String(n).trim(), by: me, from: from || null, at: Date.now(), got: false }));
-    if (!rows.length) return 0;
-    setSt((s) => ({ ...s, shopping: [...rows, ...(s.shopping || [])] }));
-    log("shop_add", { n: rows.length });
-    return rows.length;
-  };
   /* 일 넘기기 — 받는 사람 화면에 "확인해주세요"로 뜹니다 */
   const tossTask = (taskId, to, msg) => {
     setSt((s) => ({
@@ -1341,7 +1333,7 @@ function App() {
   );
 
   return (
-    <Ctx.Provider value={{ st, setSt, me, setMe, cats, addTasks, addShopping, tossTask, complete, assign, setPref, setRoutine, routineAction, say, log, tab, setTab, openCat, setOpenCat }}>
+    <Ctx.Provider value={{ st, setSt, me, setMe, cats, addTasks, tossTask, complete, assign, setPref, setRoutine, routineAction, say, log, tab, setTab, openCat, setOpenCat }}>
       <div className="hae" style={{ background: C.bg, minHeight: "100vh", color: C.ink, WebkitFontSmoothing: "antialiased" }}>
         <style dangerouslySetInnerHTML={{ __html: FONTS }} />
         <div style={{ maxWidth: 440, margin: "0 auto", paddingBottom: 100, position: "relative" }}>
@@ -1353,7 +1345,6 @@ function App() {
                 {tab === "cat" && <Categories />}
                 {tab === "speak" && <Speak />}
                 {tab === "time" && <Timeline />}
-                {tab === "shop" && <Shopping />}
                 {tab === "share" && <Share />}
                 {tab === "set" && <Settings />}
               </div>
@@ -1694,7 +1685,7 @@ function RoutineRow({ r, delay = 0, last, compact, manage }) {
 
 /* ── Task 행 ──────────────────────────────────── */
 function TaskRow({ t, delay = 0, last }) {
-  const { st, cats, complete, assign, tossTask, addShopping, setSt, say } = use();
+  const { st, cats, complete, assign, tossTask, setSt, say } = use();
   const [rep2, setRep2] = useState(false);
   const [own, setOwn] = useState(false);
   const [edit, setEdit] = useState(false);
@@ -1731,10 +1722,6 @@ function TaskRow({ t, delay = 0, last }) {
               style={{ background: C.bg, border: `1px solid ${C.line}`, borderRadius: R.pill, padding: "5px 11px", fontSize: 11.5, color: C.ink2 }}>반복으로</button>}
             {st.members.length > 1 && <button className="press" onClick={() => setToss(true)}
               style={{ background: C.bg, border: `1px solid ${C.line}`, borderRadius: R.pill, padding: "5px 11px", fontSize: 11.5, color: C.ink2 }}>넘기기</button>}
-            {(t.status === "buy" || /사기|구매|주문|장보기/.test(t.title)) && (
-              <button className="press" onClick={() => { addShopping([t.title.replace(/\s*(사기|구매|주문)$/, "")], t.id); say("장바구니에 담았어요"); }}
-                style={{ background: C.mossSoft, border: `1px solid ${C.mossSoft}`, borderRadius: R.pill, padding: "5px 11px", fontSize: 11.5, color: C.moss, fontWeight: 600 }}>🛒 장바구니에</button>
-            )}
           </div>
         )}
         {!t.done && <LinkCards group={null} text={`${t.title} ${t.note || ""}`} compact />}
@@ -2404,22 +2391,6 @@ function Home() {
       <CarWatch />
       <MovePlan />
 
-      {/* 장바구니에 담아두고 잊은 것 */}
-      {(st.shopping || []).filter((x) => !x.got).length > 0 && (
-        <button className="press w-full text-left" onClick={() => setTab("shop")}
-          style={{ marginTop: 12, background: C.card, border: `1px solid ${C.lineSoft}`, borderRadius: R.lg, padding: "14px 16px", boxShadow: SHADOW }}>
-          <span className="flex items-center gap-3">
-            <span style={{ fontSize: 20 }}>🛒</span>
-            <span className="flex-1 min-w-0">
-              <span style={{ display: "block", fontSize: 14, fontWeight: 600 }}>장바구니에 {(st.shopping || []).filter((x) => !x.got).length}개가 남아 있어요</span>
-              <span style={{ display: "block", fontSize: 12, color: C.ink3, marginTop: 3 }}>
-                {(st.shopping || []).filter((x) => !x.got).slice(0, 3).map((x) => x.name).join(" · ")}
-              </span>
-            </span>
-            <span style={{ fontSize: 14, color: C.moss }}>›</span>
-          </span>
-        </button>
-      )}
 
       {/* 오늘 컨디션 */}
       <Card style={{ marginTop: 12 }}>
@@ -2536,19 +2507,7 @@ function Home() {
         </Section>
       )}
 
-      <button className="press w-full text-left" onClick={() => setTab("time")}
-        style={{ marginTop: 26, background: C.card, border: `1px solid ${C.lineSoft}`, borderRadius: R.lg, padding: "15px 17px", boxShadow: SHADOW }}>
-        <span className="flex items-center gap-3">
-          <span style={{ fontSize: 19 }}>🕰</span>
-          <span className="flex-1 min-w-0">
-            <span style={{ display: "block", fontSize: 14, fontWeight: 600 }}>앞으로 챙길 일 보기</span>
-            <span style={{ display: "block", fontSize: 12, color: C.ink3, marginTop: 3 }}>지금 시작해야 늦지 않는 것들 · {recs.length}건</span>
-          </span>
-          <span style={{ fontSize: 14, color: C.moss }}>›</span>
-        </span>
-      </button>
-
-      <div style={{ marginTop: 14 }}>
+      <div style={{ marginTop: 22 }}>
         <button onClick={() => setAll((v) => !v)} style={{ width: "100%", background: "none", border: "none", color: C.ink3, fontSize: 12.5, padding: 10 }}>
           {all ? "접기" : `기억하고 있는 ${Math.max(remain, 0)}개 보기`}
         </button>
@@ -2575,7 +2534,7 @@ function Home() {
 
 /* ── 말하기 ───────────────────────────────────── */
 function Speak() {
-  const { st, setSt, cats, addTasks, addShopping, me, say, setTab, log } = use();
+  const { st, setSt, cats, addTasks, me, say, setTab, log } = use();
   const [text, setText] = useState("");
   const [phase, setPhase] = useState("input");
   const [result, setResult] = useState([]);
@@ -2734,12 +2693,6 @@ function Speak() {
             );
           })}</Card>
           <LinkCards group={null} text={g.items.map((t) => t.title).join(" ")} />
-          {g.s === "buy" && (
-            <button className="press w-full" onClick={() => { const n = addShopping(g.items.map((t) => t.title.replace(/\s*(사기|구매|주문)$/, ""))); say(`장바구니에 ${n}개 담았어요`); }}
-              style={{ marginTop: 8, background: C.mossSoft, color: C.moss, border: "none", borderRadius: R.sm, padding: "12px 0", fontSize: 13, fontWeight: 600 }}>
-              🛒 이 항목들 장바구니에도 담기
-            </button>
-          )}
         </Section>
       ))}
       {menu && menu.length > 0 && (
@@ -2946,109 +2899,6 @@ function Speak() {
   );
 }
 
-/* ── 장보기 ───────────────────────────────────────
-   "담아놓고 깜박한다"는 문제를 앱 안에서 해결하는 자리.
-   담은 지 오래된 것은 스스로 위로 올라옵니다. */
-function Shopping() {
-  const { st, setSt, me, addTasks, say, log } = use();
-  const [txt, setTxt] = useState("");
-  const list = st.shopping || [];
-  const open = list.filter((x) => !x.got);
-  const got = list.filter((x) => x.got);
-  const stale = open.filter((x) => Date.now() - x.at > 7 * DAY);
-
-  const add = () => {
-    const names = txt.split(/[,\n·]+/).map((x) => x.trim()).filter(Boolean);
-    if (!names.length) return;
-    setSt((sv) => ({ ...sv, shopping: [...names.map((n) => ({ id: uid("s"), name: n, by: me, at: Date.now(), got: false })), ...(sv.shopping || [])] }));
-    setTxt(""); say(`${names.length}개 담았어요`);
-  };
-  const toggle = (id) => setSt((sv) => ({ ...sv, shopping: sv.shopping.map((x) => x.id === id ? { ...x, got: !x.got, gotBy: !x.got ? me : undefined, gotAt: !x.got ? Date.now() : undefined } : x) }));
-  const drop = (id) => setSt((sv) => ({ ...sv, shopping: sv.shopping.filter((x) => x.id !== id) }));
-
-  return (
-    <>
-      <div style={{ marginTop: 18, paddingLeft: 2 }}>
-        <div className="disp" style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-.03em" }}>장보기</div>
-        <p style={{ fontSize: 13.5, color: C.ink2, marginTop: 9, lineHeight: 1.7 }}>
-          누가 담아도 둘 다 보입니다. 오래 담겨 있으면 제가 다시 꺼내드릴게요.
-        </p>
-      </div>
-
-      <Card style={{ marginTop: 16 }}>
-        <div style={{ padding: 15 }} className="flex gap-2">
-          <input className="hae" value={txt} onChange={(e) => setTxt(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") add(); }}
-            placeholder="휴지, 두부, 아이 양말 — 쉼표로 여러 개"
-            style={{ flex: 1, border: `1px solid ${C.line}`, borderRadius: R.sm, padding: "12px 13px", fontSize: 14, background: C.bg, color: C.ink }} />
-          <button className="press" onClick={add}
-            style={{ background: C.moss, color: "#fff", border: "none", borderRadius: R.sm, padding: "0 18px", fontSize: 13.5, fontWeight: 600 }}>담기</button>
-        </div>
-      </Card>
-
-      {stale.length > 0 && (
-        <Card style={{ marginTop: 12, borderColor: C.sun }}>
-          <div style={{ padding: "14px 16px" }}>
-            <div className="mono" style={{ fontSize: 9.5, color: C.sun }}>담아두고 잊으신 것</div>
-            <div style={{ fontSize: 13.5, marginTop: 7, lineHeight: 1.6 }}>
-              <b>{stale.map((x) => x.name).join(" · ")}</b> · 담은 지 일주일이 넘었어요.
-            </div>
-            <div className="flex gap-2" style={{ marginTop: 11 }}>
-              <button className="press" onClick={() => { addTasks([{ title: "장보기", category: "food", status: "week", note: stale.map((x) => x.name).slice(0, 3).join(", ") }], me); say("할 일로 올렸어요"); }}
-                style={{ flex: 1, background: C.sunSoft, color: C.sun, border: "none", borderRadius: R.sm, padding: "11px 0", fontSize: 12.5, fontWeight: 600 }}>이번 주 할 일로 올리기</button>
-              <button className="press" onClick={() => { log("partner_click", { name: "쿠팡", g: "shop" }); window.open(`https://www.coupang.com/np/search?q=${encodeURIComponent(stale[0].name)}`, "_blank", "noopener"); }}
-                style={{ flex: 1, background: C.bg, color: C.ink2, border: `1px solid ${C.line}`, borderRadius: R.sm, padding: "11px 0", fontSize: 12.5 }}>바로 주문하기</button>
-            </div>
-          </div>
-        </Card>
-      )}
-
-      <Section eyebrow="LIST" title="살 것" right={`${open.length}개`}>
-        <Card>
-          {open.length ? open.map((x, i) => {
-            const by = st.members.find((m) => m.id === x.by);
-            const days = Math.floor((Date.now() - x.at) / DAY);
-            return (
-              <div key={x.id} className="flex items-center gap-3" style={{ padding: "13px 16px", borderBottom: i === open.length - 1 ? "none" : `1px solid ${C.lineSoft}` }}>
-                <button className="press" onClick={() => toggle(x.id)} aria-label="샀어요"
-                  style={{ width: 22, height: 22, borderRadius: 7, flexShrink: 0, border: `1.5px solid ${C.line}`, background: "transparent" }} />
-                <span className="flex-1 min-w-0">
-                  <span style={{ display: "block", fontSize: 14.5, fontWeight: 500 }}>{x.name}</span>
-                  <span style={{ display: "block", fontSize: 11.5, color: days >= 7 ? C.sun : C.ink3, marginTop: 3 }}>
-                    {by ? `${by.name}이 담음` : "담김"} · {days === 0 ? "오늘" : `${days}일 전`}
-                  </span>
-                </span>
-                <button className="press" onClick={() => window.open(`https://www.coupang.com/np/search?q=${encodeURIComponent(x.name)}`, "_blank", "noopener")}
-                  style={{ background: C.bg, border: `1px solid ${C.line}`, borderRadius: R.pill, padding: "6px 11px", fontSize: 11.5, color: C.ink2, whiteSpace: "nowrap" }}>검색</button>
-                <button onClick={() => drop(x.id)} style={{ background: "none", border: "none", color: C.ink3, fontSize: 18, padding: 0 }}>×</button>
-              </div>
-            );
-          }) : <div style={{ padding: "26px 18px", textAlign: "center", fontSize: 13.5, color: C.ink3, lineHeight: 1.7 }}>
-            비어 있어요.<br />“말하기”에서 나온 살 것도 여기로 보낼 수 있어요.
-          </div>}
-        </Card>
-      </Section>
-
-      {got.length > 0 && (
-        <Section eyebrow="DONE" title="산 것" right={`${got.length}개`}>
-          <Card>
-            {got.slice(0, 12).map((x, i, a) => (
-              <div key={x.id} className="flex items-center gap-3" style={{ padding: "12px 16px", borderBottom: i === a.length - 1 ? "none" : `1px solid ${C.lineSoft}` }}>
-                <button className="press" onClick={() => toggle(x.id)} aria-label="되돌리기"
-                  style={{ width: 22, height: 22, borderRadius: 7, flexShrink: 0, border: `1.5px solid ${C.moss}`, background: C.moss, color: "#fff", fontSize: 12, lineHeight: "20px" }}>✓</button>
-                <span className="flex-1" style={{ fontSize: 14, color: C.ink3, textDecoration: "line-through" }}>{x.name}</span>
-                <button onClick={() => drop(x.id)} style={{ background: "none", border: "none", color: C.ink3, fontSize: 18, padding: 0 }}>×</button>
-              </div>
-            ))}
-          </Card>
-          <button className="press w-full" onClick={() => setSt((sv) => ({ ...sv, shopping: sv.shopping.filter((x) => !x.got) }))}
-            style={{ marginTop: 9, background: "transparent", border: `1px solid ${C.line}`, borderRadius: R.sm, padding: "11px 0", fontSize: 12.5, color: C.ink2 }}>산 것 목록 비우기</button>
-        </Section>
-      )}
-    </>
-  );
-}
-
 /* ── 영역(카테고리) ───────────────────────────── */
 function Categories() {
   const { st, setSt, cats, openCat, setOpenCat, addTasks, say, log, setTab } = use();
@@ -3188,8 +3038,7 @@ function Timeline() {
 
   return (
     <>
-      <PageHead onBack={() => setTab("home")} backLabel="오늘로" />
-      <div className="rise" style={{ marginTop: 14, borderRadius: R.xl, padding: 22, background: "linear-gradient(165deg, #17332A 0%, #0F1A15 70%)", boxShadow: SHADOW_LIFT }}>
+      <div className="rise" style={{ marginTop: 12, borderRadius: R.xl, padding: 22, background: "linear-gradient(165deg, #17332A 0%, #0F1A15 70%)", boxShadow: SHADOW_LIFT }}>
         <div className="mono" style={{ fontSize: 10, color: "#7FB79E" }}>LIFE TIMELINE</div>
         <div className="disp" style={{ color: "#fff", fontSize: 21, fontWeight: 600, marginTop: 9, lineHeight: 1.45 }}>지금 시작해야<br />늦지 않는 일</div>
         <div style={{ color: "#93A69B", fontSize: 13, marginTop: 10, lineHeight: 1.7 }}>
@@ -3686,13 +3535,12 @@ function Settings() {
 
 /* ── 하단 탭 ──────────────────────────────────── */
 function TabBar() {
-  const { tab, setTab, st } = use();
-  const shopLeft = (st.shopping || []).filter((x) => !x.got).length;
+  const { tab, setTab } = use();
   const items = [
     { id: "home", label: "오늘", icon: "◉" },
     { id: "cat", label: "영역", icon: "▦" },
     { id: "speak", label: "말하기", icon: "✦", primary: true },
-    { id: "shop", label: "장보기", icon: "🛒", badge: shopLeft },
+    { id: "time", label: "타임라인", icon: "◷" },
     { id: "share", label: "나눔", icon: "◑" },
   ];
   return (
