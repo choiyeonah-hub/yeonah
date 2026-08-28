@@ -988,14 +988,15 @@ const Btn = ({ children, onClick, kind = "primary", disabled, style }) => {
   return <button className="press" onClick={disabled ? undefined : onClick} disabled={disabled} style={{ ...base, ...kinds[kind], ...style }}>{children}</button>;
 };
 function Sheet({ children, onClose }) {
-  return (
+  return ReactDOM.createPortal(
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(20,32,27,.4)", zIndex: 60, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
       <div className="sheet hae" onClick={(e) => e.stopPropagation()}
         style={{ background: C.card, width: "100%", maxWidth: 440, borderRadius: "28px 28px 0 0", padding: "10px 20px calc(34px + env(safe-area-inset-bottom))", maxHeight: "84vh", overflowY: "auto", boxShadow: SHADOW_LIFT }}>
         <div style={{ width: 40, height: 4, borderRadius: 99, background: C.line, margin: "0 auto 18px" }} />
         {children}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 /* ── 담당자 고르기 ────────────────────────────────
@@ -2072,7 +2073,17 @@ function CarWatch() {
             <div style={{ height: 7, borderRadius: 99, background: C.line, marginTop: 10, overflow: "hidden" }}>
               <div style={{ width: `${Math.min(100, Math.max(3, (fuel.left / fuel.full) * 100))}%`, height: "100%", background: soon ? C.persim : C.moss }} />
             </div>
-            <div className="flex gap-2" style={{ marginTop: 11 }}>
+            <div style={{ fontSize: 12, color: C.ink2, marginTop: 12 }}>지금 계기판 눈금은 어느 정도예요?</div>
+            <div className="flex gap-1.5" style={{ marginTop: 8 }}>
+              {[["가득", 1], ["⅔", 0.66], ["절반", 0.5], ["¼", 0.25], ["바닥", 0.08]].map(([l, v]) => (
+                <button key={l} className="press" onClick={() => {
+                  setSt((sv) => ({ ...sv, car: { ...sv.car, fuelAt: Date.now(), fuelLevel: v, alertedOn: null } }));
+                  say(v <= 0.25 ? "얼마 안 남았네요. 주유를 오늘 목록에 올릴게요" : "지금 눈금 기준으로 다시 계산했어요");
+                }} style={{ flex: 1, background: (car.fuelLevel === v && car.fuelAt) ? C.mossSoft : C.bg, color: (car.fuelLevel === v && car.fuelAt) ? C.moss : C.ink2,
+                            border: `1px solid ${(car.fuelLevel === v && car.fuelAt) ? C.moss : C.line}`, borderRadius: R.xs, padding: "10px 0", fontSize: 12, fontWeight: 600 }}>{l}</button>
+              ))}
+            </div>
+            <div className="flex gap-2" style={{ marginTop: 10 }}>
               <button className="press" onClick={() => { setSt((sv) => ({ ...sv, car: { ...sv.car, fuelAt: Date.now(), fuelLevel: 1 } })); say("가득 채운 걸로 기록했어요"); }}
                 style={{ flex: 1, background: C.moss, color: "#fff", border: "none", borderRadius: R.sm, padding: "11px 0", fontSize: 12.5, fontWeight: 600 }}>방금 주유함</button>
               <button className="press" onClick={() => { addTasks([{ title: "주유하기", category: "transport", status: fuel.daysLeft <= 2 ? "now" : "week", note: `${fuel.daysLeft}일 남음` }], "ai"); say("할 일에 담았어요"); }}
@@ -2699,7 +2710,7 @@ function Speak() {
                   <span style={{ display: "block", fontSize: 15, fontWeight: 500 }}>{t.title}</span>
                   <span style={{ display: "block", fontSize: 12, color: C.ink3, marginTop: 4 }}>
                     {cat.emoji} {cat.label} · {t.note}
-                    {t.repeatDays ? <span style={{ color: C.moss }}> · {cycleLabel(t.repeatDays)} 반복</span> : null}
+                    {t.repeatDays ? <span style={{ color: C.moss }}> · {patternLabel({ cycle: t.repeatDays, dow: t.repeatDow, dom: t.repeatDom })} 반복</span> : null}
                   </span>
                 </span>
                 <Chip status={t.status} />
@@ -2780,13 +2791,43 @@ function Speak() {
             </div>
             <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 20 }}>반복되는 일인가요?</div>
             <div className="grid grid-cols-4 gap-2" style={{ marginTop: 10 }}>
-              <button className="press" onClick={() => upd({ repeatDays: null })}
+              <button className="press" onClick={() => upd({ repeatDays: null, repeatDow: "", repeatDom: "" })}
                 style={{ background: !t.repeatDays ? C.mossSoft : C.bg, color: !t.repeatDays ? C.moss : C.ink2, border: `1px solid ${!t.repeatDays ? C.moss : C.line}`, borderRadius: 12, padding: "13px 0", fontSize: 13, fontWeight: 600 }}>한 번만</button>
               {CYCLES.map((c) => (
                 <button key={c.d} className="press" onClick={() => upd({ repeatDays: c.d })}
                   style={{ background: t.repeatDays === c.d ? C.mossSoft : C.bg, color: t.repeatDays === c.d ? C.moss : C.ink2, border: `1px solid ${t.repeatDays === c.d ? C.moss : C.line}`, borderRadius: 12, padding: "13px 0", fontSize: 13, fontWeight: 600 }}>{c.label}</button>
               ))}
             </div>
+            {t.repeatDays ? (
+              <>
+                <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 16 }}>정해진 요일이 있나요?</div>
+                <div className="flex gap-1.5" style={{ marginTop: 9 }}>
+                  {WEEKDAY.map((w, wi) => {
+                    const on = String(t.repeatDow) === String(wi);
+                    return (
+                      <button key={wi} className="press" onClick={() => upd({ repeatDow: on ? "" : wi, repeatDom: "", repeatDays: 7 })}
+                        style={{ flex: 1, background: on ? C.moss : C.bg, color: on ? "#fff" : C.ink2, border: `1px solid ${on ? C.moss : C.line}`, borderRadius: R.xs, padding: "10px 0", fontSize: 12.5, fontWeight: 600 }}>{w}</button>
+                    );
+                  })}
+                </div>
+                <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 16 }}>매달 정해진 날짜가 있나요?</div>
+                <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 3 }}>관리비·카드값처럼요. 옆으로 넘기면 말일까지 있어요.</div>
+                <div className="rail" style={{ marginTop: 9 }}>
+                  {Array.from({ length: 31 }, (_, di) => di + 1).map((n) => {
+                    const on = String(t.repeatDom) === String(n);
+                    return (
+                      <button key={n} className="press" onClick={() => upd({ repeatDom: on ? "" : n, repeatDow: "", repeatDays: 30 })}
+                        style={{ background: on ? C.moss : C.bg, color: on ? "#fff" : C.ink2, border: `1px solid ${on ? C.moss : C.line}`, borderRadius: R.pill, padding: "9px 13px", fontSize: 12.5, fontWeight: 600, minWidth: 46 }}>{n === 31 ? "말일" : `${n}일`}</button>
+                    );
+                  })}
+                </div>
+                {(t.repeatDom || t.repeatDow !== "" && t.repeatDow != null) ? (
+                  <div style={{ fontSize: 11.5, color: C.moss, marginTop: 7 }}>
+                    {t.repeatDom ? `매달 ${Number(t.repeatDom) === 31 ? "말일" : t.repeatDom + "일"}에 올려드릴게요` : `${WEEKDAY[Number(t.repeatDow)]}요일마다 올려드릴게요`}
+                  </div>
+                ) : null}
+              </>
+            ) : null}
             <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 20 }}>날짜가 정해져 있나요? (선택)</div>
             <div style={{ fontSize: 12, color: C.ink3, marginTop: 3 }}>생일·기념일이면 넣어주세요. 매년 미리 알려드릴게요.</div>
             <input className="hae" value={t.anchor || ""} onChange={(e) => upd({ anchor: e.target.value, repeatDays: t.repeatDays || 365 })}
@@ -2807,9 +2848,14 @@ function Speak() {
               const cr = [...(sv.customRoutines || [])], ro = { ...sv.routines };
               reps.forEach((r) => {
                 const nid = uid("cr");
+                const cfg = { on: true, cycle: r.repeatDays, anchor: r.anchor || undefined,
+                  dow: r.repeatDow != null && r.repeatDow !== "" ? r.repeatDow : undefined,
+                  dom: r.repeatDom || undefined };
                 cr.push({ id: nid, title: r.title, category: r.category, cycle: r.repeatDays });
-                ro[`c:${nid}`] = { on: true, cycle: r.repeatDays, anchor: r.anchor || undefined,
-                  nextAt: r.anchor ? nextFromAnchor(r.anchor, 7) : Date.now() + r.repeatDays * DAY };
+                ro[`c:${nid}`] = { ...cfg,
+                  nextAt: r.anchor ? nextFromAnchor(r.anchor, 7)
+                    : (cfg.dow != null || cfg.dom) ? nextByPattern(cfg)
+                    : Date.now() + r.repeatDays * DAY };
               });
               return { ...sv, customRoutines: cr, routines: ro };
             });
