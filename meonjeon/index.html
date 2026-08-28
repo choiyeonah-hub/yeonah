@@ -1151,6 +1151,17 @@ function nextFromAnchor(anchor, leadDays) {
   return d.getTime() - (leadDays || 7) * DAY;
 }
 const anchorLabel = (a) => (a ? `${Number(a.split("-")[0])}월 ${Number(a.split("-")[1])}일` : "");
+/* afterMs 이후에 오는 첫 (기념일 - 미리 알릴 일수) 시점 */
+function nextAnchorAfter(anchor, lead, afterMs) {
+  if (!anchor) return null;
+  const [mm, dd] = anchor.split("-").map(Number);
+  const y = new Date(afterMs).getFullYear();
+  for (let i = 0; i <= 2; i++) {
+    const t = new Date(y + i, mm - 1, dd).getTime() - (lead || 0) * DAY;
+    if (t > afterMs) return t;
+  }
+  return null;
+}
 
 /* 주기 고르기 시트 — 주기 + 요일/날짜 패턴까지 한 자리에서 */
 function CyclePicker({ current, onPick, onOff, onClose, title, anchor, onAnchor, pattern, onPattern }) {
@@ -1320,7 +1331,8 @@ function App() {
   const routineAction = (key, cfg, action) => {
     const days = cfg.cycle || 30;
     const patterned = (cfg.dow != null && cfg.dow !== "") || cfg.dom;
-    const next = patterned ? nextByPattern(cfg) : todayKey() + days * DAY;
+    const next = cfg.anchor ? nextAnchorAfter(cfg.anchor, cfg.leadDays != null ? cfg.leadDays : 7, todayKey())
+      : patterned ? nextByPattern(cfg) : todayKey() + days * DAY;
     if (action === "done") { setRoutine(key, { nextAt: next, lastAt: Date.now(), doneBy: me, streak: (cfg.streak || 0) + 1 }); say("해두셨네요"); }
     if (action === "later") { setRoutine(key, { nextAt: Date.now() + DAY }); say("내일 다시 올려드릴게요"); }
     if (action === "skip") { setRoutine(key, { nextAt: next }); say("이번 회차는 건너뛸게요"); }
@@ -2331,8 +2343,9 @@ function Home() {
       daily.forEach((r) => {
         const c = ro[r.key] || { cycle: 30 };
         const patterned = (c.dow != null && c.dow !== "") || c.dom;
-        ro[r.key] = { ...c, nextAt: patterned ? nextByPattern(c) : todayKey() + (c.cycle || 30) * DAY,
-          lastAt: Date.now(), doneBy: me, streak: (c.streak || 0) + 1 };
+        const nx = c.anchor ? nextAnchorAfter(c.anchor, c.leadDays != null ? c.leadDays : 7, todayKey())
+          : patterned ? nextByPattern(c) : todayKey() + (c.cycle || 30) * DAY;
+        ro[r.key] = { ...c, nextAt: nx, lastAt: Date.now(), doneBy: me, streak: (c.streak || 0) + 1 };
       });
       return { ...sv, routines: ro };
     });
@@ -3193,6 +3206,27 @@ function Settings() {
   const [routineCat, setRoutineCat] = useState(null);
   const [pickKey, setPickKey] = useState(null);
   const [newRoutine, setNewRoutine] = useState("");
+  const [annName, setAnnName] = useState("");
+  const [annMM, setAnnMM] = useState("");
+  const [annDD, setAnnDD] = useState("");
+  const [annLead, setAnnLead] = useState(7);
+  /* 날짜가 붙은 직접 등록 항목 = 기념일 목록 */
+  const annList = (st.customRoutines || []).filter((cr) => (st.routines[`c:${cr.id}`] || {}).anchor);
+  const addAnniversary = () => {
+    const name = annName.trim();
+    const mm = Number(annMM), dd = Number(annDD);
+    if (!name) return say("이름을 넣어주세요 (예: 시아버지 생신)");
+    if (!mm || !dd || mm > 12 || dd > 31) return say("월과 일을 골라주세요");
+    const anchor = `${String(mm).padStart(2, "0")}-${String(dd).padStart(2, "0")}`;
+    const cid = uid("cr");
+    setSt((sv) => ({
+      ...sv,
+      customRoutines: [...(sv.customRoutines || []), { id: cid, title: name, category: "event", cycle: 365 }],
+      routines: { ...sv.routines, [`c:${cid}`]: { on: true, cycle: 365, anchor, leadDays: annLead, nextAt: nextAnchorAfter(anchor, annLead, Date.now()) } },
+    }));
+    setAnnName(""); setAnnMM(""); setAnnDD("");
+    say(`${anchorLabel(anchor)} ${annLead === 0 ? "당일에" : annLead + "일 전에"} 올려드릴게요`);
+  };
   const routineGroups = useMemo(() => {
     const g = {};
     eligibleRoutines(st, true).forEach((r) => {
@@ -3300,6 +3334,58 @@ function Settings() {
           ))}
           <button className="press w-full" onClick={() => setD((s) => ({ ...s, children: [...s.children, { id: uid("c"), name: ["첫째", "둘째", "셋째", "넷째"][s.children.length] || "아이", unit: "year", value: "" }] }))}
             style={{ background: "none", border: `1px dashed ${C.line}`, borderRadius: 12, padding: "11px 0", fontSize: 13, color: C.ink2 }}>아이 추가</button>
+        </div></Card>
+      </Section>
+
+      <Section eyebrow="DATES" title="가족 생일·기념일" right="날짜 기준으로 미리 떠요">
+        <Card><div style={{ padding: 15 }}>
+          <div className="rail">
+            {["남편 생일", "아내 생일", "시아버지 생신", "시어머니 생신", "친정아버지 생신", "친정어머니 생신", "결혼기념일",
+              ...st.children.map((c) => `${c.name} 생일`)].map((p) => (
+              <button key={p} className="press" onClick={() => setAnnName(p)}
+                style={{ background: annName === p ? C.mossSoft : C.bg, color: annName === p ? C.moss : C.ink2, border: `1px solid ${annName === p ? C.moss : C.line}`, borderRadius: R.pill, padding: "8px 13px", fontSize: 12 }}>{p}</button>
+            ))}
+          </div>
+          <input className="hae" value={annName} onChange={(e) => setAnnName(e.target.value)} placeholder="직접 입력 (예: 할머니 제사)"
+            style={{ ...inp, marginTop: 10 }} />
+          <div className="flex gap-2" style={{ marginTop: 8 }}>
+            <select className="hae" value={annMM} onChange={(e) => setAnnMM(e.target.value)} style={{ ...inp, flex: 1 }}>
+              <option value="">몇 월</option>
+              {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => <option key={m} value={m}>{m}월</option>)}
+            </select>
+            <select className="hae" value={annDD} onChange={(e) => setAnnDD(e.target.value)} style={{ ...inp, flex: 1 }}>
+              <option value="">며칠</option>
+              {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => <option key={d} value={d}>{d}일</option>)}
+            </select>
+          </div>
+          <div style={{ fontSize: 12, color: C.ink2, marginTop: 12 }}>얼마나 미리 알려드릴까요?</div>
+          <div className="flex gap-1.5" style={{ marginTop: 7 }}>
+            {[[0, "당일"], [3, "3일 전"], [7, "1주 전"], [14, "2주 전"]].map(([v, l]) => (
+              <button key={v} className="press" onClick={() => setAnnLead(v)}
+                style={{ flex: 1, background: annLead === v ? C.mossSoft : C.bg, color: annLead === v ? C.moss : C.ink2, border: `1px solid ${annLead === v ? C.moss : C.line}`, borderRadius: R.xs, padding: "10px 0", fontSize: 12.5, fontWeight: 600 }}>{l}</button>
+            ))}
+          </div>
+          <Btn kind="accent" style={{ marginTop: 12, padding: "13px 0" }} onClick={addAnniversary}>기념일 넣기</Btn>
+
+          {annList.length > 0 && (
+            <div style={{ marginTop: 14, borderTop: `1px solid ${C.lineSoft}`, paddingTop: 6 }}>
+              {annList.map((cr) => {
+                const cfg = st.routines[`c:${cr.id}`] || {};
+                return (
+                  <div key={cr.id} className="flex items-center gap-2" style={{ padding: "9px 0" }}>
+                    <span className="flex-1 min-w-0" style={{ fontSize: 13.5, fontWeight: 500 }}>{cr.title}</span>
+                    <span style={{ fontSize: 12, color: C.moss, whiteSpace: "nowrap" }}>{anchorLabel(cfg.anchor)}</span>
+                    <span style={{ fontSize: 11.5, color: C.ink3, whiteSpace: "nowrap" }}>{(cfg.leadDays || 0) === 0 ? "당일" : `${cfg.leadDays}일 전`}</span>
+                    <button onClick={() => setSt((sv) => ({ ...sv, customRoutines: (sv.customRoutines || []).filter((x) => x.id !== cr.id) }))}
+                      aria-label="지우기" style={{ background: "none", border: "none", color: C.ink3, fontSize: 17, padding: 0 }}>×</button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 10, lineHeight: 1.6 }}>
+            등록하면 행사·경조사 영역에 매년 그 날짜 기준으로 올라오고, 담당자도 나눌 수 있어요.
+          </div>
         </div></Card>
       </Section>
 
