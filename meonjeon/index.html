@@ -262,7 +262,7 @@ function patternLabel(cfg) {
   if (!cfg) return "";
   const base = cycleLabel(cfg.cycle);
   if (cfg.dow != null && cfg.dow !== "") return `${base} · ${WEEKDAY[Number(cfg.dow)]}요일`;
-  if (cfg.dom) return `${base} · ${cfg.dom}일`;
+  if (cfg.dom) return `${base} · ${Number(cfg.dom) === 31 ? "말일" : cfg.dom + "일"}`;
   if (cfg.anchor) return `매년 · ${Number(cfg.anchor.split("-")[0])}월 ${Number(cfg.anchor.split("-")[1])}일`;
   return base;
 }
@@ -276,9 +276,13 @@ function nextByPattern(cfg, fromMs) {
     }
   }
   if (cfg.dom) {
+    const dom = Number(cfg.dom);
     const now = new Date(base);
-    for (let i = 0; i < 2; i++) {
-      const d = new Date(now.getFullYear(), now.getMonth() + i, Number(cfg.dom));
+    for (let i = 0; i < 4; i++) {
+      const d = dom === 31
+        ? new Date(now.getFullYear(), now.getMonth() + i + 1, 0)   /* 말일: 2월이면 28일 */
+        : new Date(now.getFullYear(), now.getMonth() + i, dom);
+      if (dom !== 31 && d.getDate() !== dom) continue;             /* 2월 30일처럼 없는 날짜는 건너뜀 */
       if (d.getTime() >= base) return d.getTime();
     }
   }
@@ -428,6 +432,9 @@ const SEED = [
   { id: "N005", cat: "home", f: null, lead: 0, st: "repeat", t: "화장실 곰팡이 제거", tg: "장마·환절기", ask: "실리콘 이음새에 곰팡이가 보이나요?", cy: "월 1회", g: "청소", src: "" },
   { id: "N006", cat: "home", f: null, lead: 0, st: "repeat", t: "창틀·방충망 닦기", tg: "환절기", ask: "", cy: "2~3개월", g: "청소", src: "" },
   { id: "N007", cat: "home", f: null, lead: 0, st: "repeat", t: "행주 삶기", tg: "주간", ask: "", cy: "주 1회", g: "청소", src: "" },
+  { id: "N058", cat: "home", f: null, lead: 0, st: "repeat", t: "설거지", tg: "매일", ask: "", cy: "매일", g: "청소", src: "" },
+  { id: "N059", cat: "home", f: null, lead: 0, st: "repeat", t: "싱크대·배수구 청소", tg: "물때 끼기 전", ask: "배수구 냄새가 나기 시작했나요?", cy: "주 1회", g: "청소", src: "" },
+  { id: "N060", cat: "home", f: null, lead: 0, st: "repeat", t: "수저·커트러리 삶기", tg: "주기", ask: "", cy: "2주", g: "청소", src: "" },
   { id: "N008", cat: "appliance", f: null, lead: 0, st: "repeat", t: "인덕션 청소", tg: "주간", ask: "", cy: "주 1회", g: "가전관리", src: "" },
   { id: "N009", cat: "appliance", f: null, lead: 0, st: "repeat", t: "전자레인지 청소", tg: "냄새 배기 전", ask: "", cy: "2주", g: "가전관리", src: "" },
   { id: "N010", cat: "appliance", f: null, lead: 0, st: "repeat", t: "건조기 콘덴서 케어", tg: "건조력 떨어지기 전", ask: "건조 시간이 길어지지 않았나요?", cy: "월 1회", g: "가전관리", src: "" },
@@ -1170,14 +1177,16 @@ function CyclePicker({ current, onPick, onOff, onClose, title, anchor, onAnchor,
           <div style={{ fontSize: 12.5, color: C.ink2, fontWeight: 600, marginTop: 16 }}>매달 정해진 날짜가 있나요?</div>
           <div style={{ fontSize: 12, color: C.ink3, marginTop: 3, lineHeight: 1.6 }}>관리비·카드값처럼 날짜가 있는 일이요. 단지마다 달라서 직접 넣으셔야 해요.</div>
           <div className="rail" style={{ marginTop: 10 }}>
-            {[1, 5, 10, 15, 20, 25, 31].map((n) => {
+            {Array.from({ length: 31 }, (_, i) => i + 1).map((n) => {
               const on = String(pat.dom) === String(n);
               return (
                 <button key={n} className="press" onClick={() => onPattern({ dom: on ? "" : n, dow: "" })}
-                  style={{ background: on ? C.moss : C.bg, color: on ? "#fff" : C.ink2, border: `1px solid ${on ? C.moss : C.line}`, borderRadius: R.pill, padding: "9px 15px", fontSize: 12.5, fontWeight: 600 }}>{n === 31 ? "말일" : `${n}일`}</button>
+                  style={{ background: on ? C.moss : C.bg, color: on ? "#fff" : C.ink2, border: `1px solid ${on ? C.moss : C.line}`, borderRadius: R.pill, padding: "9px 13px", fontSize: 12.5, fontWeight: 600, minWidth: 46 }}>{n === 31 ? "말일" : `${n}일`}</button>
               );
             })}
           </div>
+          {pat.dom ? <div style={{ fontSize: 11.5, color: C.moss, marginTop: 7 }}>매달 {Number(pat.dom) === 31 ? "말일" : `${pat.dom}일`}에 올려드릴게요 · 옆으로 넘겨 다른 날짜도 고를 수 있어요</div>
+                   : <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 7 }}>옆으로 넘기면 말일까지 있어요</div>}
         </div>
       )}
       {onAnchor && (
