@@ -1035,7 +1035,7 @@ function OwnerPicker({ title, current, onPick, onClose, withKids, onWithKids, ca
       {onWithKids && st.children.length > 0 && (
         <div style={{ marginTop: 18 }}>
           <div style={{ fontSize: 12.5, color: C.ink2, fontWeight: 600 }}>아이도 같이 하나요?</div>
-          <div style={{ fontSize: 12, color: C.ink3, marginTop: 3, lineHeight: 1.6 }}>고르면 그 아이 영역에도 같이 보입니다.</div>
+          <div style={{ fontSize: 12, color: C.ink3, marginTop: 3, lineHeight: 1.6 }}>아이 계정 같은 건 없어요. 할 일에 “첫째와 함께”로 표시만 되고, 부부가 같이 보는 목록에 그대로 뜹니다.</div>
           <div className="rail" style={{ marginTop: 9 }}>
             {st.children.map((c) => {
               const on = kids.includes(c.id);
