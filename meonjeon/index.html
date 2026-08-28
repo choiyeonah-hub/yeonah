@@ -1568,12 +1568,15 @@ function Onboarding() {
         <Btn onClick={() => {
           if (step < 3) return setStep(step + 1);
           if (page < cids.length - 1) { setPage(page + 1); window.scrollTo({ top: 0, behavior: "smooth" }); return; }
+          /* 첫 회차를 주기에 맞게 흩뿌립니다 — 첫날에 다 몰리지 않게.
+             매일 일은 오늘, 주간 일은 일주일 안, 월간 이상은 2주 안 어딘가에서 시작 */
           const init = {};
           Object.keys(routines).forEach((k) => {
             const c = routines[k];
             const patterned = (c.dow != null && c.dow !== "") || c.dom;
+            const spread = Math.min(c.cycle, 14);
             init[k] = { on: c.on, cycle: c.cycle, dow: c.dow, dom: c.dom,
-              nextAt: patterned ? nextByPattern(c) : Date.now() + Math.floor(Math.random() * Math.min(c.cycle, 3)) * DAY };
+              nextAt: patterned ? nextByPattern(c) : Date.now() + Math.floor(Math.random() * spread) * DAY };
           });
           setSt({ ...d, members: d.members.filter((m) => m.name.trim()), routines: init, onboarded: true });
         }}>{step < 3 ? "다음" : (page < cids.length - 1 ? "다음 영역" : "시작하기")}</Btn>
