@@ -1,0 +1,9 @@
+{
+  "name": "먼저ON",
+  "short_name": "먼저ON",
+  "description": "내가 생각하기 전에 먼저 오는 것",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F6F8F7",
+  "theme_color": "#F6F8F7"
+}
