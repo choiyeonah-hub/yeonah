@@ -898,10 +898,10 @@ function eligibleRoutines(st, ignoreSeason) {
 }
 /* 오늘 떠야 할 반복 업무 */
 function dueRoutines(st) {
-  const now = Date.now();
+  const endOfToday = todayKey() + DAY;
   return eligibleRoutines(st)
     .map((r) => ({ ...r, cfg: st.routines[r.key] }))
-    .filter((r) => r.cfg && r.cfg.on !== false && (r.cfg.nextAt || 0) <= now + DAY)
+    .filter((r) => r.cfg && r.cfg.on !== false && (r.cfg.nextAt || 0) < endOfToday)
     .sort((a, b) => (a.cfg.nextAt || 0) - (b.cfg.nextAt || 0));
 }
 
@@ -1319,7 +1319,7 @@ function App() {
   const routineAction = (key, cfg, action) => {
     const days = cfg.cycle || 30;
     const patterned = (cfg.dow != null && cfg.dow !== "") || cfg.dom;
-    const next = patterned ? nextByPattern(cfg) : Date.now() + days * DAY;
+    const next = patterned ? nextByPattern(cfg) : todayKey() + days * DAY;
     if (action === "done") { setRoutine(key, { nextAt: next, lastAt: Date.now(), doneBy: me, streak: (cfg.streak || 0) + 1 }); say("해두셨네요"); }
     if (action === "later") { setRoutine(key, { nextAt: Date.now() + DAY }); say("내일 다시 올려드릴게요"); }
     if (action === "skip") { setRoutine(key, { nextAt: next }); say("이번 회차는 건너뛸게요"); }
@@ -1519,7 +1519,7 @@ function Onboarding() {
                         {r.seed.season && <span style={{ display: "block", fontSize: 11, color: C.sun, marginTop: 2 }}>{r.seed.season === "summer" ? "여름에만" : "겨울에만"}</span>}
                       </span>
                       <button className="press" onClick={() => setPick(r.key)}
-                        style={{ background: C.bg, border: `1px solid ${C.line}`, borderRadius: 999, padding: "5px 11px", fontSize: 12, color: C.ink2, whiteSpace: "nowrap" }}>{cycleLabel(cfg.cycle)}</button>
+                        style={{ background: C.bg, border: `1px solid ${C.line}`, borderRadius: 999, padding: "5px 11px", fontSize: 12, color: C.ink2, whiteSpace: "nowrap" }}>{patternLabel(cfg)}</button>
                       <button className="press" onClick={() => setRoutines((pv) => ({ ...pv, [r.key]: { ...cfg, on: !cfg.on } }))} aria-label="사용 여부"
                         style={{ width: 42, height: 25, borderRadius: 99, border: "none", background: cfg.on ? C.moss : C.line, position: "relative", flexShrink: 0 }}>
                         <span style={{ position: "absolute", top: 3, left: cfg.on ? 20 : 3, width: 19, height: 19, borderRadius: 99, background: "#fff", transition: "left .18s" }} />
@@ -1552,8 +1552,9 @@ function Onboarding() {
                 {cids.map((_, i) => <span key={i} onClick={() => setPage(i)} style={{ width: i === page ? 16 : 6, height: 6, borderRadius: 99, background: i === page ? C.moss : C.line, cursor: "pointer", transition: "width .2s" }} />)}
               </div>
               {pick && (
-                <CyclePicker current={(routines[pick] || {}).cycle} title="얼마마다 할까요?"
+                <CyclePicker current={(routines[pick] || {}).cycle} title="얼마마다 할까요?" pattern={routines[pick] || {}}
                   onPick={(dd) => { setRoutines((pv) => ({ ...pv, [pick]: { ...pv[pick], cycle: dd, on: true } })); setPick(null); }}
+                  onPattern={(p) => setRoutines((pv) => ({ ...pv, [pick]: { ...pv[pick], ...p, on: true } }))}
                   onOff={() => { setRoutines((pv) => ({ ...pv, [pick]: { ...pv[pick], on: false } })); setPick(null); }}
                   onClose={() => setPick(null)} />
               )}
@@ -1569,7 +1570,9 @@ function Onboarding() {
           const init = {};
           Object.keys(routines).forEach((k) => {
             const c = routines[k];
-            init[k] = { on: c.on, cycle: c.cycle, nextAt: Date.now() + Math.floor(Math.random() * Math.min(c.cycle, 3)) * DAY };
+            const patterned = (c.dow != null && c.dow !== "") || c.dom;
+            init[k] = { on: c.on, cycle: c.cycle, dow: c.dow, dom: c.dom,
+              nextAt: patterned ? nextByPattern(c) : Date.now() + Math.floor(Math.random() * Math.min(c.cycle, 3)) * DAY };
           });
           setSt({ ...d, members: d.members.filter((m) => m.name.trim()), routines: init, onboarded: true });
         }}>{step < 3 ? "다음" : (page < cids.length - 1 ? "다음 영역" : "시작하기")}</Btn>
@@ -2211,7 +2214,7 @@ function DiscoverCard({ item, onAdd, onLater, onNo, delay = 0 }) {
    판단이 필요한 일은 3가지만. 매일 루틴은 체크리스트로 따로.
    컨디션이 안 좋은 날엔 목록을 줄이고 가족에게 넘길 수 있게. */
 function Home() {
-  const { st, setSt, me, cats, setTab, addTasks, say, setRoutine, routineAction } = use();
+  const { st, setSt, me, cats, setTab, addTasks, say, log, setRoutine, routineAction } = use();
   const [all, setAll] = useState(false);
   const [only, setOnly] = useState("all");   /* all = 다 같이 보기 / mine = 내 몫만 */
   const [openRoutine, setOpenRoutine] = useState(true);
@@ -2315,6 +2318,22 @@ function Home() {
       return { ...sv, routines: ro };
     });
     say(`오늘 ${n}개를 ${spouse.name}에게 넘겼어요`);
+  };
+  /* 오늘 루틴 전부 완료 — 요일·날짜 지정은 그 패턴대로 다음 회차 계산 */
+  const doneAll = () => {
+    const n = daily.length;
+    setSt((sv) => {
+      const ro = { ...sv.routines };
+      daily.forEach((r) => {
+        const c = ro[r.key] || { cycle: 30 };
+        const patterned = (c.dow != null && c.dow !== "") || c.dom;
+        ro[r.key] = { ...c, nextAt: patterned ? nextByPattern(c) : todayKey() + (c.cycle || 30) * DAY,
+          lastAt: Date.now(), doneBy: me, streak: (c.streak || 0) + 1 };
+      });
+      return { ...sv, routines: ro };
+    });
+    log("routine_done_all", { n });
+    say(`오늘 루틴 ${n}개를 모두 완료했어요`);
   };
   const pushAll = () => {
     setSt((sv) => {
@@ -2501,8 +2520,9 @@ function Home() {
             {openRoutine && daily.map((r, i, a) => <RoutineRow key={r.key} r={r} delay={i * 30} last={i === a.length - 1} compact={level === "low"} />)}
           </Card>
           <div className="flex gap-2" style={{ marginTop: 8 }}>
-            <button className="press" onClick={pushAll} style={{ flex: 1, background: "transparent", border: `1px solid ${C.line}`, borderRadius: 12, padding: "10px 0", fontSize: 12.5, color: C.ink2 }}>오늘은 통째로 내일로</button>
-            {spouse && <button className="press" onClick={handOver} style={{ flex: 1, background: "transparent", border: `1px solid ${C.line}`, borderRadius: 12, padding: "10px 0", fontSize: 12.5, color: C.ink2 }}>{spouse.name}에게 넘기기</button>}
+            <button className="press" onClick={doneAll} style={{ flex: 1.2, background: C.moss, border: "none", borderRadius: 12, padding: "10px 0", fontSize: 12.5, color: "#fff", fontWeight: 600 }}>✓ 전부 완료</button>
+            <button className="press" onClick={pushAll} style={{ flex: 1, background: "transparent", border: `1px solid ${C.line}`, borderRadius: 12, padding: "10px 0", fontSize: 12.5, color: C.ink2 }}>통째로 내일로</button>
+            {spouse && <button className="press" onClick={handOver} style={{ flex: 1, background: "transparent", border: `1px solid ${C.line}`, borderRadius: 12, padding: "10px 0", fontSize: 12.5, color: C.ink2 }}>{spouse.name}에게</button>}
           </div>
         </Section>
       )}
@@ -3462,7 +3482,7 @@ function Settings() {
                         {r.seed.t}{r.child ? <span style={{ color: C.ink3, fontWeight: 400 }}> · {r.child.name}</span> : null}
                       </span>
                       <button className="press" onClick={() => setPickKey(r.key)}
-                        style={{ background: C.bg, border: `1px solid ${C.line}`, borderRadius: 999, padding: "5px 11px", fontSize: 12, color: C.ink2, whiteSpace: "nowrap" }}>{cycleLabel(cfg.cycle)}</button>
+                        style={{ background: C.bg, border: `1px solid ${C.line}`, borderRadius: 999, padding: "5px 11px", fontSize: 12, color: C.ink2, whiteSpace: "nowrap" }}>{patternLabel(cfg)}</button>
                       <button className="press" onClick={() => setRoutine(r.key, { on: !cfg.on, cycle: cfg.cycle, nextAt: cfg.nextAt || Date.now() })} aria-label="사용 여부"
                         style={{ width: 42, height: 25, borderRadius: 99, border: "none", background: cfg.on ? C.moss : C.line, position: "relative", flexShrink: 0 }}>
                         <span style={{ position: "absolute", top: 3, left: cfg.on ? 20 : 3, width: 19, height: 19, borderRadius: 99, background: "#fff", transition: "left .18s" }} />
@@ -3510,8 +3530,9 @@ function Settings() {
         {pickKey && (() => {
           const r = eligibleRoutines(st, true).find((x) => x.key === pickKey);
           const cfg = st.routines[pickKey] || { cycle: cycleToDays(r ? r.seed.cy : "") };
-          return <CyclePicker current={cfg.cycle} title={r ? r.seed.t : "주기"}
-            onPick={(dd) => { setRoutine(pickKey, { cycle: dd, on: true, nextAt: Date.now() + dd * DAY }); setPickKey(null); say(`${cycleLabel(dd)}로 바꿨어요`); }}
+          return <CyclePicker current={cfg.cycle} title={r ? r.seed.t : "주기"} pattern={cfg}
+            onPick={(dd) => { setRoutine(pickKey, { cycle: dd, on: true, nextAt: nextByPattern({ ...cfg, cycle: dd }) }); setPickKey(null); say(`${cycleLabel(dd)}로 바꿨어요`); }}
+            onPattern={(p) => { setRoutine(pickKey, { ...p, on: true, nextAt: nextByPattern({ ...cfg, ...p }) }); say(p.dow !== "" && p.dow != null ? `${WEEKDAY[Number(p.dow)]}요일마다 올려드릴게요` : p.dom ? `매달 ${Number(p.dom) === 31 ? "말" : p.dom}일에 올려드릴게요` : "요일·날짜 지정을 풀었어요"); }}
             onOff={() => { setRoutine(pickKey, { on: false }); setPickKey(null); }}
             onClose={() => setPickKey(null)} />;
         })()}
