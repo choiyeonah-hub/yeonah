@@ -435,6 +435,10 @@ const SEED = [
   { id: "N058", cat: "home", f: null, lead: 0, st: "repeat", t: "설거지", tg: "매일", ask: "", cy: "매일", g: "청소", src: "" },
   { id: "N059", cat: "home", f: null, lead: 0, st: "repeat", t: "싱크대·배수구 청소", tg: "물때 끼기 전", ask: "배수구 냄새가 나기 시작했나요?", cy: "주 1회", g: "청소", src: "" },
   { id: "N060", cat: "home", f: null, lead: 0, st: "repeat", t: "수저·커트러리 삶기", tg: "주기", ask: "", cy: "2주", g: "청소", src: "" },
+  { id: "N061", cat: "food", f: null, lead: 0, st: "repeat", t: "물 끓이기", tg: "떨어지기 전", ask: "보리차·둥굴레차 끓여 드시는 집이면 켜두세요", cy: "2~3일", g: "식단정기", src: "" },
+  { id: "N062", cat: "home", f: null, lead: 0, st: "repeat", t: "도마 소독", tg: "주기", ask: "고기용·야채용 둘 다요", cy: "주 1회", g: "청소", src: "" },
+  { id: "N063", cat: "appliance", f: null, lead: 0, st: "repeat", t: "커피머신 청소", tg: "물때·찌꺼기 쌓이기 전", ask: "물통·찌꺼기통·스팀노즐까지", cy: "주 1회", g: "가전관리", src: "" },
+  { id: "N064", cat: "food", f: null, lead: 0, st: "repeat", t: "커피 원두·캡슐 채우기", tg: "떨어지기 전", ask: "며칠 분량 남았나요?", cy: "주 1회", g: "소모품", src: "" },
   { id: "N008", cat: "appliance", f: null, lead: 0, st: "repeat", t: "인덕션 청소", tg: "주간", ask: "", cy: "주 1회", g: "가전관리", src: "" },
   { id: "N009", cat: "appliance", f: null, lead: 0, st: "repeat", t: "전자레인지 청소", tg: "냄새 배기 전", ask: "", cy: "2주", g: "가전관리", src: "" },
   { id: "N010", cat: "appliance", f: null, lead: 0, st: "repeat", t: "건조기 콘덴서 케어", tg: "건조력 떨어지기 전", ask: "건조 시간이 길어지지 않았나요?", cy: "월 1회", g: "가전관리", src: "" },
@@ -2254,9 +2258,11 @@ function Home() {
   const think = [
     ...visTasks.filter((t) => t.status === "now").map((t) => ({ kind: "task", t })),
     ...occasional.map((r) => ({ kind: "routine", r })),
-    ...recs.filter((r) => r.dateKnown).map((r) => ({ kind: "rec", r })),
+    /* 추천 카드는 아직 누구 몫도 아니라서 "내 몫만"에서는 뺍니다 */
+    ...(only === "mine" ? [] : recs.filter((r) => r.dateKnown).map((r) => ({ kind: "rec", r }))),
     ...visTasks.filter((t) => t.status === "week").map((t) => ({ kind: "task", t })),
   ].slice(0, limit);
+  const unowned = openTasks.filter((t) => !t.owner).length + due.filter((r) => !(st.routines[r.key] || {}).owner).length;
   const remain = openTasks.length + due.length + recs.length - think.length - daily.length;
 
   useEffect(() => {
@@ -2379,12 +2385,19 @@ function Home() {
 
       {/* 보기 전환: 다 같이 / 내 몫만 */}
       {st.members.length > 1 && (
-        <div className="flex gap-1.5" style={{ marginTop: 12, background: C.card, border: `1px solid ${C.lineSoft}`, borderRadius: R.pill, padding: 4, boxShadow: SHADOW }}>
-          {[["all", "다 같이 보기"], ["mine", `${meName} 몫만`]].map(([k, l]) => (
-            <button key={k} className="press" onClick={() => setOnly(k)}
-              style={{ flex: 1, background: only === k ? C.ink : "transparent", color: only === k ? "#fff" : C.ink2, border: "none", borderRadius: R.pill, padding: "9px 0", fontSize: 12.5, fontWeight: only === k ? 600 : 400 }}>{l}</button>
-          ))}
-        </div>
+        <>
+          <div className="flex gap-1.5" style={{ marginTop: 12, background: C.card, border: `1px solid ${C.lineSoft}`, borderRadius: R.pill, padding: 4, boxShadow: SHADOW }}>
+            {[["all", "다 같이 보기"], ["mine", `${meName} 몫만`]].map(([k, l]) => (
+              <button key={k} className="press" onClick={() => setOnly(k)}
+                style={{ flex: 1, background: only === k ? C.ink : "transparent", color: only === k ? "#fff" : C.ink2, border: "none", borderRadius: R.pill, padding: "9px 0", fontSize: 12.5, fontWeight: only === k ? 600 : 400 }}>{l}</button>
+            ))}
+          </div>
+          {only === "mine" && (
+            <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 7, paddingLeft: 4, lineHeight: 1.6 }}>
+              내 몫으로 정해진 일만 보여요. AI 추천과 담당 없는 일 {unowned}개는 ‘다 같이 보기’에 있어요.
+            </div>
+          )}
+        </>
       )}
 
       <HolidayBrief />
@@ -2463,13 +2476,15 @@ function Home() {
         ) : (
           <Card flat style={{ background: "transparent", borderStyle: "dashed", boxShadow: "none" }}>
             <div style={{ padding: "26px 18px", textAlign: "center", fontSize: 13.5, color: C.ink3, lineHeight: 1.7 }}>
-              오늘 따로 생각할 일은 없어요.<br />떠오르는 게 있으면 말하기로 비워두세요.
+              {only === "mine"
+                ? <>아직 {meName} 몫으로 정해진 일이 없어요.<br />항목 오른쪽 동그라미를 눌러 담당을 정해보세요.</>
+                : <>오늘 따로 생각할 일은 없어요.<br />떠오르는 게 있으면 말하기로 비워두세요.</>}
             </div>
           </Card>
         )}
       </Section>
 
-      {level !== "low" && (disc.length > 0 || loadingDisc) && (
+      {only !== "mine" && level !== "low" && (disc.length > 0 || loadingDisc) && (
         <Section eyebrow="AI FOUND" title={`${BRAND}이 찾은 것`} right="DB에 없던 상황">
           {loadingDisc && !disc.length && (
             <Card><div style={{ padding: 18 }}>
