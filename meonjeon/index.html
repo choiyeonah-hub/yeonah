@@ -1770,6 +1770,7 @@ function App() {
                 {tab === "time" && <Timeline />}
                 {tab === "ann" && <AnnScreen />}
                 {tab === "meal" && <MealScreen />}
+                {tab === "news" && <NewsScreen />}
                 {tab === "share" && <Share />}
                 {tab === "set" && <Settings />}
               </div>
@@ -2741,6 +2742,48 @@ function Home() {
     })();
   }, [st.onboarded]);
 
+  /* 이달의 소식 — 한 달에 한 번만. 아이 나이대에 따라 봐야 하는 곳이 다릅니다 */
+  const askedNews = useRef(false);
+  useEffect(() => {
+    if (askedNews.current || !st.onboarded) return;
+    askedNews.current = true;
+    const mon = usageMonth();
+    if ((st.news || {}).month === mon) return;
+    (async () => {
+      if (!spendAI("find", 1)) return;
+      try {
+        const r = await askClaude(`당신은 한국 가정의 살림을 대신 기억해주는 AI 비서 '${BRAND}'입니다.
+이 집이 이번 달에 알아두면 좋을 행정·지원 정보를 3~4개 찾아주세요.
+
+가구: ${householdLine(st)}
+오늘 날짜: ${todayStr()}
+사는 곳: ${(st.place && st.place.label) || "한국"}
+
+웹을 검색해서 지금 실제로 열려 있는 것만 쓰세요. 검색은 2~3번.
+아이 나이에 따라 봐야 하는 곳이 완전히 다릅니다. 해당하는 곳만 보세요.
+  · 0~2세  육아종합지원센터(장난감·도서 대여, 부모교육), 보건소 영유아검진,
+           아이사랑 어린이집 입소대기, 아이돌봄서비스, 국민행복카드
+  · 3~5세  유치원 처음학교로 신청, 아이행복카드, 누리과정, 지역 문화센터
+  · 초등    늘봄학교·방과후 신청, 교육청 방학 프로그램, 학교알리미 학사일정
+  · 공통    정부24, 복지로, 아동수당, 지자체 홈페이지의 이번 달 신청 공고,
+           지역화폐·육아지원금
+
+지켜주세요
+- 신청 기간이 지났거나 아직 안 열린 것은 넣지 마세요.
+- 광고·후기 블로그 말고 관청·기관 공식 안내를 우선하세요.
+- 이 집 아이 나이에 해당 없는 것은 절대 넣지 마세요.
+- 마감이 있으면 deadline에 "10/15" 처럼 적고, 없으면 빈 문자열로.
+- who에는 누구에게 해당하는지 짧게 (예: "둘째(6개월)", "온 가족").
+
+출력은 마지막에 JSON 배열만:
+[{"title":"18자 이내","body":"무엇을 어떻게 하는지 80자 이내","deadline":"","who":"","category":"추정 카테고리 id","src":"기관 이름 12자 이내","url":"공식 안내 주소, 없으면 빈 문자열"}]`, null, true);
+        const list = Array.isArray(r) ? r.filter((x) => x && x.title).slice(0, 4) : [];
+        setSt((sv) => ({ ...sv, news: { month: mon, items: list, at: Date.now() } }));
+        log("news_fetch", { n: list.length });
+      } catch { refundAI("find", 1); }
+    })();
+  }, [st.onboarded]);
+
   const handOver = () => {
     if (!spouse) return say("설정에서 가족을 먼저 추가해 주세요");
     let n = 0;
@@ -2844,6 +2887,25 @@ function Home() {
           </Card>
         )}
       </Section>
+
+      {/* 이달의 소식 — 안 읽었을 때만 눈에 띕니다 */}
+      {((st.news || {}).items || []).length > 0 && (
+        <button className="press w-full text-left" onClick={() => setTab("news")}
+          style={{ marginTop: 12, background: C.card, border: `1px solid ${C.sprout}`, borderRadius: R.lg, padding: "14px 16px", boxShadow: SHADOW }}>
+          <span className="flex items-center gap-3">
+            <span style={{ fontSize: 19 }}>📬</span>
+            <span className="flex-1 min-w-0">
+              <span style={{ display: "block", fontSize: 14, fontWeight: 600 }}>
+                이달의 소식 {st.news.items.length}건
+              </span>
+              <span style={{ display: "block", fontSize: 12, color: C.ink3, marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {st.news.items.map((n) => n.title).join(" · ")}
+              </span>
+            </span>
+            <span style={{ fontSize: 14, color: C.moss }}>›</span>
+          </span>
+        </button>
+      )}
 
       {/* 살 것은 식단과 한 화면에 있어야 합니다. 여기서는 몇 개인지만 알려주고 넘깁니다 */}
       {st.tasks.some((t) => t.status === "buy" && !t.done) && (
@@ -4132,6 +4194,79 @@ ${want.trim() ? "요청: " + want.trim() : ""}
           </div>
         </Card>
       )}
+    </>
+  );
+}
+
+
+/* ── 이달의 소식 ───────────────────────────────────
+   지자체·정부가 실제로 하고 있는 것은 아이 나이에 따라 완전히 다릅니다.
+   0~2세는 육아종합지원센터, 5세는 처음학교로, 초등은 늘봄학교.
+   부모가 그걸 알아서 찾아다닐 수는 없습니다.
+   한 달에 한 번만 AI가 찾아서 정리해 둡니다. */
+function NewsScreen() {
+  const { st, setSt, cats, addTasks, say, log, setTab } = use();
+  const news = st.news || null;
+  const items = (news && news.items) || [];
+
+  return (
+    <>
+      <PageHead onBack={() => setTab("home")} backLabel="오늘" />
+      <div style={{ marginTop: 14, paddingLeft: 2 }}>
+        <div className="disp" style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-.03em" }}>이달의 소식</div>
+        <p style={{ fontSize: 13.5, color: C.ink2, marginTop: 9, lineHeight: 1.7 }}>
+          {news && news.month ? `${Number(news.month.slice(5))}월에 찾은 것이에요. ` : ""}
+          우리 아이 나이에 <b style={{ color: C.ink }}>지금 해당되는 것</b>만 골랐습니다.
+        </p>
+      </div>
+
+      {items.length === 0 && (
+        <Card style={{ marginTop: 16 }}>
+          <div style={{ padding: "30px 20px", textAlign: "center", fontSize: 13.5, color: C.ink3, lineHeight: 1.8 }}>
+            아직 찾아둔 소식이 없어요.<br />한 달에 한 번, 앱을 열 때 알아서 찾아둡니다.
+          </div>
+        </Card>
+      )}
+
+      {items.map((n, i) => {
+        const cat = cats.find((c) => c.id === n.category) || { emoji: "🗂", label: "기타" };
+        return (
+          <Card key={i} style={{ marginTop: i ? 10 : 16, borderColor: n.deadline ? C.sun : C.lineSoft }}>
+            <div style={{ padding: 17 }}>
+              {n.deadline ? (
+                <div className="mono" style={{ fontSize: 9.5, color: C.sun, marginBottom: 8 }}>{n.deadline} 마감</div>
+              ) : (
+                <div className="mono" style={{ fontSize: 9.5, color: C.ink3, marginBottom: 8 }}>{n.who || "우리 집"}</div>
+              )}
+              <div style={{ fontSize: 16, fontWeight: 600, lineHeight: 1.4 }}>{n.title}</div>
+              <div style={{ fontSize: 13, color: C.ink2, marginTop: 8, lineHeight: 1.75 }}>{n.body}</div>
+              {n.src ? <div style={{ fontSize: 11.5, color: C.moss, marginTop: 10, background: C.mossSoft, borderRadius: 8, padding: "6px 9px", display: "inline-block" }}>🔎 {n.src}</div> : null}
+              <div className="flex gap-2" style={{ marginTop: 13 }}>
+                <button className="press" onClick={() => {
+                  addTasks([{ title: String(n.title).slice(0, 20), category: cat.id !== "기타" ? cat.id : "etc",
+                    status: n.deadline ? "week" : "check", note: n.deadline ? `${n.deadline} 마감` : (n.who || ""), coverage: "new" }], "ai");
+                  setSt((sv) => ({ ...sv, news: { ...(sv.news || {}), items: (sv.news.items || []).filter((x) => x !== n) } }));
+                  log("news_add", { title: n.title });
+                  say("할 일에 담았어요");
+                }} style={{ flex: 1.4, background: C.moss, color: "#fff", border: "none", borderRadius: R.sm, padding: "11px 0", fontSize: 13, fontWeight: 600 }}>할 일에 담기</button>
+                {n.url ? (
+                  <button className="press" onClick={() => { log("news_open", { title: n.title }); window.open(n.url, "_blank", "noopener"); }}
+                    style={{ flex: 1, background: C.bg, color: C.ink2, border: `1px solid ${C.line}`, borderRadius: R.sm, padding: "11px 0", fontSize: 12.5 }}>자세히 보기</button>
+                ) : null}
+                <button className="press" onClick={() => {
+                  setSt((sv) => ({ ...sv, news: { ...(sv.news || {}), items: (sv.news.items || []).filter((x) => x !== n) } }));
+                  log("news_skip", { title: n.title });
+                }} style={{ background: "transparent", color: C.ink3, border: "none", padding: "11px 12px", fontSize: 12.5 }}>해당 없음</button>
+              </div>
+            </div>
+          </Card>
+        );
+      })}
+
+      <div style={{ marginTop: 16, background: C.mossSoft, borderRadius: R.sm, padding: "13px 15px", fontSize: 12.5, color: C.moss, lineHeight: 1.7 }}>
+        아이 나이가 바뀌면 보는 곳도 바뀝니다. 0~2세는 육아종합지원센터,
+        5세는 유치원 신청, 초등은 늘봄학교 — 매달 다시 찾습니다.
+      </div>
     </>
   );
 }
