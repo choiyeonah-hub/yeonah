@@ -1,4 +1,4 @@
-/* 매일 정해진 시각에 "오늘 머리 쓸 일"을 보냅니다.
+/* 매일 정해진 시각에 "오늘 살펴둘 일"을 보냅니다.
    Vercel Cron이 매시 정각에 부릅니다. 지금 시각이 그 집이 고른 시각인
    구독에만 보냅니다.
 
@@ -42,7 +42,7 @@ function todayLine(state, tzOffset) {
   const shown = all.slice(0, 3).map((t) => t.slice(0, 24));
   const more = all.length - shown.length;
   return {
-    title: `오늘 챙길 일 ${all.length}가지`,
+    title: `오늘 살펴둘 일 ${all.length}가지`,
     body: shown.join(" · ") + (more > 0 ? ` 외 ${more}개` : ""),
   };
 }

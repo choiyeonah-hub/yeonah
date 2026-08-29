@@ -473,6 +473,22 @@ function patternLabel(cfg) {
   return base;
 }
 /* 요일·날짜가 지정된 반복의 다음 차례 */
+/* 처음 켠 정기 일정의 "첫 회차"를 언제로 잡을 것인가.
+   6개월마다 하는 일을 오늘 하라고 띄우면, 그날 안 해도 되는 일이 떠서 짜증만 납니다.
+   그렇다고 전부 첫날에 몰면 첫 화면이 벽이 됩니다. 그래서 주기에 비례해 뒤로 밉니다.
+     매일류(3일 이하) → 오늘부터. 이건 오늘 해야 맞습니다
+     주간(7일 이하)   → 이번 주 안 아무 날
+     그 이상          → 주기의 1/4 ~ 1/2 지점 (6개월이면 45~90일 뒤) */
+function firstRunAt(cycle) {
+  const c = Math.max(Number(cycle) || 30, 1);
+  const rand = (n) => Math.floor(Math.random() * Math.max(n, 1));
+  if (c <= 3) return todayKey();
+  if (c <= 7) return todayKey() + (1 + rand(c)) * DAY;
+  const lo = Math.max(3, Math.round(c * 0.25));
+  const hi = Math.max(lo + 1, Math.round(c * 0.5));
+  return todayKey() + (lo + rand(hi - lo)) * DAY;
+}
+
 function nextByPattern(cfg, fromMs) {
   const base = startOfDay(fromMs || Date.now()) + DAY;
   const ds = dowList(cfg);
@@ -1293,7 +1309,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0829-ab";
+const BUILD = "0829-ac";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -2045,7 +2061,7 @@ function PushBox() {
           {nt.on ? `매일 ${hourLabel(hour)} · 켜짐` : "매일 아침 한 번, 폰으로"}
         </div>
         <div style={{ fontSize: 12, color: C.ink3, marginTop: 5, lineHeight: 1.7 }}>
-          앱을 닫아둬도 그날 <b>머리 쓸 일</b>만 한 줄로 보내드립니다. 하루 한 번이고, 그 이상 보내지 않아요.
+          앱을 닫아둬도 그날 <b>살펴둘 일</b>만 한 줄로 보내드립니다. 하루 한 번이고, 그 이상 보내지 않아요.
         </div>
 
         <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 13, marginBottom: 7 }}>받을 시각</div>
@@ -2648,15 +2664,19 @@ function Onboarding() {
         <Btn onClick={() => {
           if (step < LAST) return setStep(nextStep(step + 1));
           if (page < cids.length - 1) { setPage(page + 1); window.scrollTo({ top: 0, behavior: "smooth" }); return; }
-          /* 첫 회차를 주기에 맞게 흩뿌립니다 — 첫날에 다 몰리지 않게.
-             매일 일은 오늘, 주간 일은 일주일 안, 월간 이상은 2주 안 어딘가에서 시작 */
+          /* 첫 회차를 언제로 잡을지는 firstRunAt이 정합니다.
+             설정하다 지쳐서 "6개월"을 눌렀다고 그 일이 오늘 뜨면 안 됩니다.
+             음력·기준일(제사, 명절 예매, 보험 만기)은 이미 날짜가 정해져 있으니
+             그 값을 그대로 둡니다 — 여기서 덮어쓰면 음력 계산이 통째로 날아갑니다. */
           const init = {};
           Object.keys(routines).forEach((k) => {
             const c = routines[k];
             const patterned = dowList(c).length > 0 || domList(c).length > 0;
-            const spread = Math.min(c.cycle, 14);
-            init[k] = { on: c.on, cycle: c.cycle, dow: c.dow, dows: c.dows, dom: c.dom, doms: c.doms,
-              nextAt: patterned ? nextByPattern(c) : Date.now() + Math.floor(Math.random() * spread) * DAY };
+            const fixed = c.anchor || c.lunar;
+            init[k] = { ...c, on: c.on,
+              nextAt: fixed ? (c.nextAt || todayKey())
+                    : patterned ? nextByPattern(c)
+                    : firstRunAt(c.cycle) };
           });
           /* 넣어주신 기념일을 정기 일정으로 만듭니다 */
           const cr = [...(d.customRoutines || [])];
@@ -3333,7 +3353,7 @@ function Home() {
   const { st, setSt, me, cats, setTab, addTasks, complete, say, log, setRoutine, routineAction, spendAI, refundAI } = use();
   const [all, setAll] = useState(false);
   const [only, setOnly] = useState("all");   /* all = 다 같이 보기 / mine = 내 몫만 */
-  /* 루틴은 접은 채로 시작합니다. 매일 하는 일은 "머리 쓸 일"이 아니라
+  /* 루틴은 접은 채로 시작합니다. 매일 하는 일은 "살펴둘 일"이 아니라
      하던 대로 하면 되는 것이고, 그게 열일곱 줄 펼쳐져 있으면
      정작 봐야 할 세 가지가 묻힙니다. */
   const [openRoutine, setOpenRoutine] = useState(false);
@@ -3343,6 +3363,8 @@ function Home() {
 
   const recs = useMemo(() => buildRecommendations(st), [st]);
   const due = useMemo(() => dueRoutines(st), [st]);
+  /* 기준 날짜를 아는 것만 오늘 화면에 올립니다 */
+  const datedRecs = useMemo(() => recs.filter((r) => r.dateKnown), [recs]);
   const openTasks = st.tasks.filter((t) => !t.done);
   const meName = (st.members.find((m) => m.id === me) || {}).name || "";
   const spouse = st.members.find((m) => m.id !== me);
@@ -3350,7 +3372,7 @@ function Home() {
   /* 이미 분담이 끝난 일은 각자 화면에서만 — "내 몫만 보기" */
   const isMine = (owner) => owner === me;
 
-  /* 오늘 머리 쓸 일은 3가지까지만. 그 이상은 목록이 아니라 벽이 됩니다 */
+  /* 오늘 살펴둘 일은 3가지까지만. 그 이상은 목록이 아니라 벽이 됩니다 */
   const limit = 3;
 
   /* 매일 하는 것과 가끔 하는 것을 나눕니다 */
@@ -3385,7 +3407,7 @@ function Home() {
   const thinkShown = [...think, ...doneTasksToday.map((t) => ({ kind: "task", t })), ...occasional.filter(doneToday).map((r) => ({ kind: "routine", r }))];
   /* 살 것은 여기서도 세지 않습니다. 나눌 일이 아니니까요 */
   const unowned = openTasks.filter((t) => !t.owner && t.status !== "buy").length + due.filter((r) => !(st.routines[r.key] || {}).owner).length;
-  const remain = openTasks.length + due.length + recs.length - think.length - daily.length;
+  const remain = openTasks.length + due.length + datedRecs.length - think.length - daily.length;
 
   /* 방금 담은 일은 날짜가 아직 안 와서 위에 안 뜹니다.
      담고 넘어온 직후 한 번만 목록을 펼쳐서 "어디 갔지?"를 없앱니다 */
@@ -3579,7 +3601,7 @@ function Home() {
             {new Date().getMonth() + 1}월 {new Date().getDate()}일 {WEEKDAY[new Date().getDay()]}요일
           </div>
           <div className="disp" style={{ color: "#fff", fontSize: 23, fontWeight: 600, lineHeight: 1.42, marginTop: 10, letterSpacing: "-.03em" }}>
-            {meName} 님, 오늘<br />머리 쓸 일은 {think.length}가지예요.
+            {meName} 님, 오늘<br />살펴둘 일은 {think.length}가지예요.
           </div>
           <div style={{ color: "#9DBDB5", fontSize: 13, marginTop: 10, lineHeight: 1.65 }}>
             {daily.length > 0 ? `루틴 ${daily.length}개는 늘 하던 일이라 세지 않았어요. ` : ""}
@@ -3617,7 +3639,7 @@ function Home() {
 
 
 
-      <Section eyebrow="TODAY" title="오늘 머리 쓸 일" right={think.length ? "나머지는 접어뒀어요" : null}>
+      <Section eyebrow="TODAY" title="오늘 살펴둘 일" right={think.length ? "나머지는 접어뒀어요" : null}>
         {thinkShown.length ? (
           <>
             {thinkShown.filter((x) => x.kind !== "rec").length > 0 && (
@@ -3762,8 +3784,11 @@ function Home() {
             {openTasks.length > 0 && <Section eyebrow="TASKS" title="담아둔 일" right="날짜순">
               <Card>{openTasks.slice().sort((a, b) => (a.dueAt || 0) - (b.dueAt || 0)).map((t, i, a) => <TaskRow key={t.id} t={t} delay={i * 35} last={i === a.length - 1} />)}</Card>
             </Section>}
-            {recs.length > 0 && <Section eyebrow="AHEAD" title="미리 살필 일">
-              {recs.slice(0, 6).map((r, i) => <RecCard key={r.key} rec={r} delay={i * 50} />)}
+            {/* 날짜를 아는 것만 올립니다. 여행 계획도 없는데 "환전"이 뜨는 이유가
+                기준 날짜를 모르는 항목까지 여기 섞였기 때문입니다.
+                시점을 모르는 일은 타임라인 > 시점 미정에 영역별로 접혀 있습니다. */}
+            {datedRecs.length > 0 && <Section eyebrow="AHEAD" title="미리 살필 일">
+              {datedRecs.slice(0, 6).map((r, i) => <RecCard key={r.key} rec={r} delay={i * 50} />)}
             </Section>}
             {st.tasks.some((t) => t.done) && <Section eyebrow="DONE" title="끝낸 일">
               <Card>{st.tasks.filter((t) => t.done).map((t, i, a) => <TaskRow key={t.id} t={t} delay={i * 30} last={i === a.length - 1} />)}</Card>
