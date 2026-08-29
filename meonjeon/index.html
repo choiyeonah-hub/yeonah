@@ -3316,6 +3316,9 @@ function Speak() {
               style={{ background: C.bg, border: `1px solid ${C.line}`, borderRadius: R.pill, padding: "9px 14px", fontSize: 12, color: C.ink2 }}>시연용 예시</button>
           </div>
           <input ref={fileRef} type="file" accept="image/*" multiple style={{ display: "none" }} onChange={onFiles} />
+          <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 9, lineHeight: 1.65 }}>
+            노트북이면 캡처해서 <b style={{ color: C.ink2 }}>붙여넣기(Ctrl+V)</b>가 빨라요. 휴대폰은 버튼을 누르면 카메라가 열립니다.
+          </div>
           {st.plan !== "paid" && leftOf(st, "talk") <= 5 && (
             <div style={{ fontSize: 11.5, color: leftOf(st, "talk") ? C.ink3 : C.persim, marginTop: 10, lineHeight: 1.65 }}>
               {leftOf(st, "talk")
