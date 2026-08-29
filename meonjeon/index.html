@@ -1284,7 +1284,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0829-w";
+const BUILD = "0829-x";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -2174,14 +2174,20 @@ function Onboarding() {
   const skipCar = !d.flags.car;
   const nextStep = (n) => (n === 4 && skipCar ? 5 : n);
   const prevStep = (n) => (n === 4 && skipCar ? 3 : n);
-  /* 경조사 후보 — 이름을 이미 받았으니 물어볼 것만 남깁니다 */
+  /* 경조사 후보 — 이름을 이미 받았으니 물어볼 것만 남깁니다.
+     제사·부모님 생신은 음력이 기본입니다. 사용자가 바꾸면 그게 우선입니다. */
   const [anns, setAnns] = useState({});
+  const isLunar = (a, v) => (v && v.lunar !== undefined ? v.lunar : !!a.lunar);
   const annCandidates = useMemo(() => {
     const out = [];
     d.members.filter((m) => m.name.trim()).forEach((m) => out.push({ key: `b:${m.id}`, label: `${m.name} 생일`, title: `${m.name} 생일` }));
     d.children.filter((c) => c.name.trim()).forEach((c) => out.push({ key: `k:${c.id}`, label: `${c.name} 생일`, title: `${c.name} 생일` }));
     if (d.members.filter((m) => m.name.trim()).length > 1) out.push({ key: "wed", label: "결혼기념일", title: "결혼기념일" });
-    if (d.flags.parents) out.push({ key: "p1", label: "부모님 생신", title: "부모님 생신" });
+    if (d.flags.parents) out.push({ key: "p1", label: "부모님 생신", title: "부모님 생신", lunar: true });
+    /* 제사·기일은 거의 음력이고, 집마다 이름이 다릅니다("할아버지 제사", "시아버님 기일").
+       이름을 직접 적게 둡니다. 안 적으면 안 만들어집니다. */
+    out.push({ key: "je1", label: "제사·기일", title: "제사", lunar: true, editable: true, ph: "예: 할아버지 제사" });
+    out.push({ key: "je2", label: "제사·기일 하나 더", title: "제사", lunar: true, editable: true, ph: "없으면 비워두세요" });
     return out;
   }, [d.members, d.children, d.flags.parents]);
 
@@ -2336,11 +2342,16 @@ function Onboarding() {
               const v = anns[a.key] || {};
               return (
                 <div key={a.key} style={{ marginTop: i ? 13 : 0, paddingTop: i ? 13 : 0, borderTop: i ? `1px solid ${C.lineSoft}` : "none" }}>
+                  {a.editable && <div style={{ fontSize: 11.5, color: C.ink3, marginBottom: 6 }}>{a.label}</div>}
                   <div className="flex items-center gap-2">
-                    <span style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 500 }}>{a.label}</span>
-                    <button className="press" onClick={() => setAnns((p) => ({ ...p, [a.key]: { ...v, lunar: !v.lunar } }))}
-                      style={{ background: v.lunar ? C.mossSoft : C.bg, color: v.lunar ? C.moss : C.ink3, border: `1px solid ${v.lunar ? C.moss : C.line}`, borderRadius: 999, padding: "5px 10px", fontSize: 11.5 }}>
-                      {v.lunar ? "음력" : "양력"}
+                    {a.editable
+                      ? <input className="hae" value={v.name || ""} placeholder={a.ph}
+                          onChange={(e) => setAnns((p) => ({ ...p, [a.key]: { ...v, name: e.target.value } }))}
+                          style={{ ...inp, flex: 1, minWidth: 0, fontSize: 13.5 }} />
+                      : <span style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 500 }}>{a.label}</span>}
+                    <button className="press" onClick={() => setAnns((p) => ({ ...p, [a.key]: { ...v, lunar: !isLunar(a, v) } }))}
+                      style={{ background: isLunar(a, v) ? C.mossSoft : C.bg, color: isLunar(a, v) ? C.moss : C.ink3, border: `1px solid ${isLunar(a, v) ? C.moss : C.line}`, borderRadius: 999, padding: "5px 10px", fontSize: 11.5, flexShrink: 0 }}>
+                      {isLunar(a, v) ? "음력" : "양력"}
                     </button>
                   </div>
                   <div className="flex gap-2" style={{ marginTop: 8 }}>
@@ -2350,7 +2361,7 @@ function Onboarding() {
                     </select>
                     <select className="hae" value={v.d || ""} onChange={(e) => setAnns((p) => ({ ...p, [a.key]: { ...v, d: e.target.value } }))} style={{ ...inp, flex: 1 }}>
                       <option value="">며칠</option>
-                      {Array.from({ length: v.lunar ? 30 : 31 }, (_, k) => k + 1).map((dd) => <option key={dd} value={dd}>{dd}일</option>)}
+                      {Array.from({ length: isLunar(a, v) ? 30 : 31 }, (_, k) => k + 1).map((dd) => <option key={dd} value={dd}>{dd}일</option>)}
                     </select>
                   </div>
                 </div>
@@ -2464,20 +2475,26 @@ function Onboarding() {
             const v = anns[a.key] || {};
             const m = Number(v.m), dd = Number(v.d);
             if (!m || !dd) return;
+            /* 이름을 적게 한 자리(제사)는 안 적었으면 만들지 않습니다 */
+            const title = a.editable ? String(v.name || "").trim() : a.title;
+            if (!title) return;
+            const useLunar = v.lunar !== undefined ? v.lunar : !!a.lunar;
             const md = `${String(m).padStart(2, "0")}-${String(dd).padStart(2, "0")}`;
             let anchor = md, evt;
-            if (v.lunar) {
+            if (useLunar) {
               evt = nextLunarSolarAfter(md, Date.now());
               if (evt == null) return;
               const ad = new Date(evt);
               anchor = `${String(ad.getMonth() + 1).padStart(2, "0")}-${String(ad.getDate()).padStart(2, "0")}`;
             } else evt = nextAnchorAfter(md, 0, Date.now());
             const cid = uid("cr");
-            cr.push({ id: cid, title: a.title, category: "event", cycle: 365 });
-            init[`c:${cid}`] = { on: true, cycle: 365, anchor, leadDays: 7,
-              lunar: v.lunar || undefined, lunarMD: v.lunar ? md : undefined,
-              lunarLabel: v.lunar ? `음력 ${m}월 ${dd}일` : undefined,
-              nextAt: Math.max(evt - 7 * DAY, todayKey()) };
+            cr.push({ id: cid, title, category: "event", cycle: 365 });
+            /* 제사는 준비할 게 많아 2주 전부터 올립니다 */
+            const lead = /제사|기일|차례/.test(title) ? 14 : 7;
+            init[`c:${cid}`] = { on: true, cycle: 365, anchor, leadDays: lead,
+              lunar: useLunar || undefined, lunarMD: useLunar ? md : undefined,
+              lunarLabel: useLunar ? `음력 ${m}월 ${dd}일` : undefined,
+              nextAt: Math.max(evt - lead * DAY, todayKey()) };
           });
           /* 차 단계에서 넣은 값은 CarDates가 st에 바로 씁니다. 그것을 살려서 넘깁니다 */
           const cars = (st.cars && st.cars.length) ? st.cars : carsOf(d);
