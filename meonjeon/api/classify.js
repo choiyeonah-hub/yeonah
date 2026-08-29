@@ -83,8 +83,16 @@ export default async function handler(req, res) {
   };
   const base = {
     model: "claude-sonnet-5",
-    /* 한글은 토큰을 많이 먹습니다. 식단 7개 정도면 1400에서 잘려요 */
-    max_tokens: useSearch ? 3000 : shots.length ? 2600 : 2400,
+    /* ⚠ 이 모델은 thinking을 안 적으면 "적응형 사고"가 켜집니다.
+       식단을 짤 때 생각에만 2,400토큰을 다 쓰고 답을 한 글자도 못 쓴 일이 있었습니다
+       (화면에는 "AI가 빈 답을 보냈어요 · 받은 것: thinking · 글자 0"로 찍혔습니다).
+       여기서 하는 일은 정해진 모양의 JSON을 뽑는 것이라 깊은 추론이 필요 없습니다.
+       끄면 답이 바로 나오고, 값도 싸고, 빨라집니다.
+       발굴(웹 검색)만은 판단이 필요해서 켜둡니다. */
+    ...(useSearch ? {} : { thinking: { type: "disabled" } }),
+    /* 상한일 뿐이라 올려도 값이 더 들지 않습니다. 쓴 만큼만 냅니다.
+       한글은 토큰을 많이 먹어서 넉넉히 둡니다. */
+    max_tokens: useSearch ? 8000 : shots.length ? 4000 : 4000,
     ...(useSearch ? {
       tools: [{
         type: "web_search_20260209",
