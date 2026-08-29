@@ -7,11 +7,30 @@ const MAX_IMAGES = 3;
 const MAX_IMAGE_BYTES = 1_500_000;          // base64 기준 약 1.5MB
 const OK_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
+/* 로그인한 사용자인지 확인합니다.
+   이 검사가 없으면 누구나 이 주소로 요청을 보내 발주자의 AI 크레딧을 씁니다. */
+async function isSignedIn(req) {
+  const url = process.env.SUPABASE_URL, anon = process.env.SUPABASE_ANON_KEY;
+  if (!url || !anon) return false;
+  const authz = String(req.headers.authorization || "");
+  if (!authz.startsWith("Bearer ")) return false;
+  const token = authz.slice(7).trim();
+  if (!token || token.length > 4000) return false;
+  try {
+    const r = await fetch(`${url}/auth/v1/user`, {
+      headers: { apikey: anon, Authorization: `Bearer ${token}` },
+    });
+    return r.ok;
+  } catch { return false; }
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
 
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) return res.status(500).json({ error: "ANTHROPIC_API_KEY 환경변수가 설정되지 않았습니다." });
+
+  if (!(await isSignedIn(req))) return res.status(401).json({ error: "로그인이 필요합니다." });
 
   const { prompt, images } = req.body || {};
   if (!prompt || typeof prompt !== "string") return res.status(400).json({ error: "prompt 없음" });
@@ -48,13 +67,33 @@ export default async function handler(req, res) {
     });
     const data = await r.json();
     if (!r.ok) {
-      console.error("anthropic error", r.status, data && data.error && data.error.type);
-      return res.status(502).json({ error: "AI 호출 실패" });
+      /* 무엇이 잘못됐는지 화면에 알려줘야 손을 쓸 수 있습니다.
+         키 값 자체는 절대 내보내지 않고, 종류와 사유만 전달합니다. */
+      const type = (data && data.error && data.error.type) || "";
+      const msg = (data && data.error && data.error.message) || "";
+      console.error("anthropic error", r.status, type, msg);
+      const friendly =
+        r.status === 401 || r.status === 403 || type === "authentication_error"
+          ? "AI 키가 올바르지 않아요. Vercel의 ANTHROPIC_API_KEY를 확인해 주세요."
+        : r.status === 404 || type === "not_found_error"
+          ? "AI 모델을 찾을 수 없어요. 모델 이름을 확인해 주세요."
+        : r.status === 429 || type === "rate_limit_error"
+          ? "AI 요청이 잠시 몰렸어요. 1분 뒤에 다시 해주세요."
+        : /credit balance/i.test(msg)
+          ? "AI 크레딧이 부족해요. console.anthropic.com에서 충전해 주세요."
+        : /spend limit|usage limit/i.test(msg)
+          ? "이번 달 AI 지출 한도에 닿았어요. console.anthropic.com에서 한도를 확인해 주세요."
+        : type === "overloaded_error"
+          ? "AI가 지금 붐벼요. 잠시 뒤에 다시 해주세요."
+        : msg
+          ? `AI 호출 실패 (${r.status}) — ${String(msg).slice(0, 160)}`
+          : `AI 호출 실패 (${r.status})`;
+      return res.status(502).json({ error: friendly });
     }
     // 원문 프롬프트와 사진은 로그에 남기지 않습니다 (개인정보 최소화)
     return res.status(200).json({ content: data.content });
   } catch (e) {
-    console.error("classify failed", e && e.name);
-    return res.status(502).json({ error: "AI 호출 실패" });
+    console.error("classify failed", e && e.name, e && e.message);
+    return res.status(502).json({ error: `AI 서버에 닿지 못했어요 (${(e && e.name) || "네트워크"})` });
   }
 }
