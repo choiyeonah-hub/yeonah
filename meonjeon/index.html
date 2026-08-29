@@ -1177,15 +1177,27 @@ function PromptRail({ list, onUse, note }) {
 }
 
 /* ── 바깥 서비스로 이어주는 카드 ─────────────────── */
+/* 이번 접속에서 이미 센 노출 (같은 카드를 여러 번 세지 않게) */
+const SHOWN = new Set();
 function LinkCards({ group, text, compact }) {
   const { log } = use();
   const hits = linksFor({ group, text });
+  /* 어디에서 뜬 카드인지 — 제휴 협상 때 "돌잔치 화면에서 몇 번" 을 말할 수 있어야 합니다 */
+  const from = String(text || group || "").trim().slice(0, 24);
+  useEffect(() => {
+    hits.forEach((l) => {
+      const key = l.name + "|" + from;
+      if (SHOWN.has(key)) return;
+      SHOWN.add(key);
+      log("partner_show", { name: l.name, g: group || null, from });
+    });
+  }, [hits.map((l) => l.name).join(","), from]);
   if (!hits.length) return null;
   return (
     <div className="flex flex-col gap-1.5" style={{ marginTop: compact ? 8 : 12 }}>
       {hits.map((l) => (
         <button key={l.name} className="press flex items-center gap-2.5 w-full text-left"
-          onClick={() => { log("partner_click", { name: l.name, g: group }); window.open(linkUrl(l, text), "_blank", "noopener"); }}
+          onClick={() => { log("partner_click", { name: l.name, g: group || null, from }); window.open(linkUrl(l, text), "_blank", "noopener"); }}
           style={{ background: C.bg, border: `1px solid ${C.line}`, borderRadius: R.sm, padding: "10px 12px" }}>
           <span className="mono" style={{ fontSize: 9, color: C.ink3, border: `1px solid ${C.line}`, borderRadius: 5, padding: "1px 5px", flexShrink: 0 }}>{l.tag}</span>
           <span className="flex-1 min-w-0">
@@ -1389,7 +1401,7 @@ function App() {
     return () => clearTimeout(t);
   }, [st, ready]);
 
-  const log = (name, props) => setSt((s) => ({ ...s, events: [...s.events.slice(-400), { name, props, ts: Date.now() }] }));
+  const log = (name, props) => setSt((s) => ({ ...s, events: [...s.events.slice(-1200), { name, props, ts: Date.now() }] }));
   const say = (m) => { setToast(m); setTimeout(() => setToast(null), 2300); };
   /* AI를 한 번 씁니다. 상한에 닿으면 세지 않고 false를 돌려줘요 */
   const spendAI = (kind, n = 1) => {
@@ -2319,7 +2331,7 @@ function BuyList() {
           <div className="flex gap-2" style={{ padding: "0 12px 12px", background: C.bg }}>
             <button className="press" onClick={copyList}
               style={{ flex: 1.3, background: C.ink, color: "#fff", border: "none", borderRadius: R.sm, padding: "11px 0", fontSize: 12.5, fontWeight: 600 }}>📋 목록 한꺼번에 복사</button>
-            <button className="press" onClick={() => { log("partner_click", { name: "쿠팡", g: "buy" }); window.open("https://www.coupang.com/np/search?q=" + encodeURIComponent(buys.filter((t) => !t.done)[0].title), "_blank", "noopener"); }}
+            <button className="press" onClick={() => { log("partner_click", { name: "쿠팡", g: "buy", from: "살 것 목록" }); window.open("https://www.coupang.com/np/search?q=" + encodeURIComponent(buys.filter((t) => !t.done)[0].title), "_blank", "noopener"); }}
               style={{ flex: 1, background: C.card, color: C.ink2, border: `1px solid ${C.line}`, borderRadius: R.sm, padding: "11px 0", fontSize: 12.5 }}>쿠팡 열기</button>
           </div>
         )}
