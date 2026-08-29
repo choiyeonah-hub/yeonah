@@ -2540,6 +2540,14 @@ function Home() {
   const unowned = openTasks.filter((t) => !t.owner).length + due.filter((r) => !(st.routines[r.key] || {}).owner).length;
   const remain = openTasks.length + due.length + recs.length - think.length - daily.length;
 
+  /* 방금 담은 일은 날짜가 아직 안 와서 위에 안 뜹니다.
+     담고 넘어온 직후 한 번만 목록을 펼쳐서 "어디 갔지?"를 없앱니다 */
+  useEffect(() => {
+    if (!st.showAll) return;
+    setAll(true);
+    setSt((sv) => ({ ...sv, showAll: 0 }));
+  }, [st.showAll]);
+
   useEffect(() => {
     const dueSnooze = (st.discoverSnoozed || []).filter((x) => x.dueAt <= Date.now());
     if (dueSnooze.length) {
@@ -3047,6 +3055,38 @@ function Speak() {
   ).filter((g) => g.items.length);
   const newCats = [...new Set(result.filter((r) => r.category === "etc" && r.newCategory).map((r) => r.newCategory))];
 
+  /* 담기 — 화면 아래 고정 버튼과 맨 끝 버튼이 같은 동작을 씁니다 */
+  const commit = () => {
+    const n = addTasks(result, me);
+    const reps = result.filter((r) => r.repeatDays);
+    if (reps.length) {
+      setSt((sv) => {
+        const cr = [...(sv.customRoutines || [])], ro = { ...sv.routines };
+        reps.forEach((r) => {
+          const nid = uid("cr");
+          const cfg = { on: true, cycle: r.repeatDays, anchor: r.anchor || undefined,
+            dows: (r.repeatDows && r.repeatDows.length) ? r.repeatDows : undefined,
+            dow: r.repeatDow != null && r.repeatDow !== "" ? r.repeatDow : undefined,
+            dom: r.repeatDom || undefined };
+          cr.push({ id: nid, title: r.title, category: r.category, cycle: r.repeatDays });
+          ro[`c:${nid}`] = { ...cfg,
+            nextAt: r.anchor ? nextFromAnchor(r.anchor, 7)
+              : (dowList(cfg).length || cfg.dom) ? nextByPattern(cfg)
+              : Date.now() + r.repeatDays * DAY };
+        });
+        return { ...sv, customRoutines: cr, routines: ro };
+      });
+    }
+    /* 날짜가 아직 멀면 "담았는데 안 보인다"가 됩니다. 언제 올라오는지 같이 알려줍니다 */
+    const soon = result.map((r) => r.dueAt || 0).filter(Boolean).sort((a, b) => a - b)[0];
+    const far = soon && soon > todayKey() + DAY ? new Date(soon) : null;
+    say(reps.length ? `${n}개를 담고 ${reps.length}개는 정기로 등록했어요`
+      : far ? `${n}개를 담았어요 · ${far.getMonth() + 1}/${far.getDate()}부터 올라와요`
+      : `${n}개를 담았어요`);
+    setSt((sv) => ({ ...sv, showAll: Date.now() }));
+    setTab("home");
+  };
+
   if (capped) {
     const left = leftOf(st, capped), lim = limitOf(st, capped);
     return (
@@ -3123,8 +3163,13 @@ function Speak() {
         <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 16, paddingLeft: 3, fontWeight: 600 }}>이걸 하려면 이런 일이 필요해요 👇</div>
       )}
       {result.length > 1 && (
-        <div className="flex gap-1.5" style={{ marginTop: 18, background: C.card, border: `1px solid ${C.lineSoft}`, borderRadius: R.pill, padding: 4, boxShadow: SHADOW }}>
-          {[["cat", "영역별로 보기"], ["time", "시점별로 보기"]].map(([k, l]) => (
+        <div className="flex items-center gap-2" style={{ marginTop: 16, paddingLeft: 3 }}>
+          <span style={{ fontSize: 11.5, color: C.ink3 }}>묶어 보기</span>
+        </div>
+      )}
+      {result.length > 1 && (
+        <div className="flex gap-1.5" style={{ marginTop: 7, background: C.card, border: `1px solid ${C.lineSoft}`, borderRadius: R.pill, padding: 4, boxShadow: SHADOW }}>
+          {[["cat", "영역별"], ["time", "시점별"]].map(([k, l]) => (
             <button key={k} className="press" onClick={() => setGroupBy(k)}
               style={{ flex: 1, background: groupBy === k ? C.ink : "transparent", color: groupBy === k ? "#fff" : C.ink2, border: "none", borderRadius: R.pill, padding: "9px 0", fontSize: 12.5, fontWeight: groupBy === k ? 600 : 400 }}>{l}</button>
           ))}
@@ -3281,33 +3326,26 @@ function Speak() {
       })()}
 
       <div style={{ marginTop: 24 }}>
-        <Btn kind="accent" onClick={() => {
-          const n = addTasks(result, me);
-          const reps = result.filter((r) => r.repeatDays);
-          if (reps.length) {
-            setSt((sv) => {
-              const cr = [...(sv.customRoutines || [])], ro = { ...sv.routines };
-              reps.forEach((r) => {
-                const nid = uid("cr");
-                const cfg = { on: true, cycle: r.repeatDays, anchor: r.anchor || undefined,
-                  dows: (r.repeatDows && r.repeatDows.length) ? r.repeatDows : undefined,
-                  dow: r.repeatDow != null && r.repeatDow !== "" ? r.repeatDow : undefined,
-                  dom: r.repeatDom || undefined };
-                cr.push({ id: nid, title: r.title, category: r.category, cycle: r.repeatDays });
-                ro[`c:${nid}`] = { ...cfg,
-                  nextAt: r.anchor ? nextFromAnchor(r.anchor, 7)
-                    : (dowList(cfg).length || cfg.dom) ? nextByPattern(cfg)
-                    : Date.now() + r.repeatDays * DAY };
-              });
-              return { ...sv, customRoutines: cr, routines: ro };
-            });
-            say(`${n}개를 담고 ${reps.length}개는 정기로 등록했어요`);
-          } else say(`${n}개를 담았어요`);
-          setTab("home");
-        }}>가족 목록에 담기</Btn>
+        <Btn kind="accent" onClick={commit}>가족 목록에 담기</Btn>
         <div style={{ height: 8 }} />
         <Btn kind="ghost" onClick={() => setPhase("input")}>다시 말하기</Btn>
       </div>
+
+      {/* 목록이 길어지면 담기 버튼이 화면 밖으로 밀립니다.
+          보고 있는 게 아직 안 담긴 목록이라는 걸 계속 알려주는 역할도 합니다 */}
+      <div style={{ height: 78 }} />
+      {result.length > 0 && (
+        <div style={{ position: "fixed", left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 440,
+                      bottom: "calc(60px + env(safe-area-inset-bottom))", zIndex: 40, padding: "16px 20px 12px",
+                      background: "linear-gradient(to top, #F6F8F7 58%, rgba(246,248,247,0))", pointerEvents: "none" }}>
+          <button className="press w-full" onClick={commit}
+            style={{ pointerEvents: "auto", background: C.ink, color: "#fff", border: "none", borderRadius: R.pill,
+                     padding: "15px 0", fontSize: 14.5, fontWeight: 600, boxShadow: SHADOW_LIFT }}>
+            {result.length}개 담기
+          </button>
+          <div style={{ textAlign: "center", fontSize: 11, color: C.ink3, marginTop: 7 }}>담아야 오늘·영역 화면에 남아요</div>
+        </div>
+      )}
     </>
   );
 
