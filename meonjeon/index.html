@@ -131,6 +131,12 @@ const hideGate = () => { gate.style.display = 'none'; };
    값이 있는데도 앱이 이상하게 도는 것보다, 여기서 말해주는 편이 낫습니다. */
 const isExample = (v) => !v || /xxxxxxxx|^sk-ant-\.\.\.$|^eyJ\.\.\.$|^https:\/\/xxx/i.test(String(v).trim());
 
+/* 홈 화면에 추가한 앱으로 들어왔는지 — 사파리와는 다른 방입니다 */
+const isStandalone = () => {
+  try { return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true; }
+  catch { return false; }
+};
+
 async function boot() {
   const cfg = await fetch('/api/config').then(r => r.json()).catch(() => ({}));
   if (!cfg.url || !cfg.anonKey) {
@@ -194,8 +200,53 @@ function askEmail() {
       show('<h1>메일을 못 보냈어요</h1><p>' + why + '</p><button onclick="location.reload()">다시 시도</button>');
       return;
     }
-    show('<h1>메일함을 확인해 주세요</h1><p><b>' + email + '</b>로 로그인 링크를 보냈어요.<br>링크를 누르면 바로 시작됩니다. 메일이 안 보이면 스팸함도 확인해 주세요.</p><button class="ghost" onclick="location.reload()">다른 주소로 다시 받기</button>');
+    askCode(email);
   };
+}
+
+/* 홈 화면에 추가한 앱은 사파리와 다른 방입니다.
+   메일에서 링크를 누르면 사파리가 열리고, 사파리에서만 로그인이 됩니다.
+   아이폰에서 알림을 받으려면 홈 화면 앱으로 들어와야 하는데,
+   그 앱에는 주소창이 없어서 링크를 붙여넣을 수도 없습니다.
+   그래서 링크 말고 숫자 6자리로도 들어올 수 있게 해둡니다. */
+function askCode(email) {
+  const home = isStandalone();
+  show(`
+    <h1>메일함을 확인해 주세요</h1>
+    <p><b>${email}</b>로 보냈어요.<br>메일이 안 보이면 스팸함도 봐주세요.</p>
+    ${home ? `<div class="msg">지금은 <b>홈 화면 앱</b>이라 메일의 링크를 눌러도 여기로 안 들어옵니다.
+       메일에 적힌 <b>숫자 6자리</b>를 아래에 넣어주세요.</div>` : ''}
+    <div style="margin-top:22px">
+      <input id="cd" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6"
+             placeholder="메일에 온 숫자 6자리"
+             style="letter-spacing:.35em;text-align:center;font-size:20px" />
+      <button id="ok">숫자로 들어가기</button>
+      <p id="cderr" style="font-size:12.5px;color:#A84362;min-height:18px"></p>
+      ${home ? '' : '<p style="font-size:12px;color:#6E8C86">메일의 <b>링크를 눌러도</b> 됩니다. 둘 중 편한 쪽으로요.</p>'}
+      <button class="ghost" onclick="location.reload()">다른 주소로 다시 받기</button>
+    </div>`);
+  const inp = document.getElementById('cd');
+  const err = document.getElementById('cderr');
+  inp.oninput = () => { inp.value = inp.value.replace(/[^0-9]/g, ''); err.textContent = ''; };
+  inp.focus();
+  const go = async () => {
+    const token = inp.value.trim();
+    if (token.length < 6) { err.textContent = '숫자 6자리를 다 넣어주세요.'; return; }
+    const b = document.getElementById('ok');
+    b.textContent = '확인 중…'; b.disabled = true;
+    const { error } = await SB.auth.verifyOtp({ email, token, type: 'email' });
+    if (error) {
+      const m = String(error.message || '');
+      err.textContent = /expired/i.test(m) ? '시간이 지난 숫자예요. 다시 받아주세요.'
+        : /invalid|token/i.test(m) ? '숫자가 맞지 않아요. 메일을 다시 봐주세요.'
+        : m;
+      b.textContent = '숫자로 들어가기'; b.disabled = false;
+      return;
+    }
+    boot();
+  };
+  document.getElementById('ok').onclick = go;
+  inp.onkeydown = (e) => { if (e.key === 'Enter') go(); };
 }
 
 async function connectHousehold(user) {
@@ -1309,7 +1360,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0829-ad";
+const BUILD = "0829-ae";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
