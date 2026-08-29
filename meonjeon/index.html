@@ -966,6 +966,11 @@ function parseWhen(v) {
 /* 말에 시점이 없을 때, 분류만 보고 대강 언제쯤인지 정합니다 */
 const DUE_BY_STATUS = { now: 0, conditional: 1, check: 2, week: 3, decide: 5, buy: 5, remember: 7, repeat: 7 };
 const defaultDue = (status) => todayKey() + (DUE_BY_STATUS[status] != null ? DUE_BY_STATUS[status] : 3) * DAY;
+/* "그날"과 "며칠 전"을 따로 받습니다.
+   단수 9/3, 하루 전 → 9/2에 올려드립니다. 사용자가 역산하지 않게. */
+const LEADS = [[0, "당일"], [1, "하루 전"], [2, "2일 전"], [3, "3일 전"], [7, "1주 전"], [14, "2주 전"]];
+const dueFromEvent = (eventAt, lead) => Math.max(startOfDay(eventAt) - (Number(lead) || 0) * DAY, todayKey());
+
 /* 남은 날짜 표시 — 오늘/내일/D-3/3일 지남
    date에는 "9/3(목)"처럼 진짜 날짜를 담습니다.
    D-5만 보여주면 며칠인지 세어봐야 하고, 고치려 해도 뭘 고치는지 모릅니다 */
@@ -1738,7 +1743,8 @@ function App() {
       id: uid("t"), title: it.title, category: it.category, status: it.status || "week", note: it.note || "",
       raisedBy: raisedBy || me, owner: it.owner || (st.duty || {})[it.category] || null,
       done: false, seedId: it.seedId || null, withKids: it.withKids || null,
-      dueAt: it.dueAt || defaultDue(it.status || "week"),
+      eventAt: it.eventAt || null, lead: it.lead != null ? it.lead : null,
+      dueAt: it.eventAt ? dueFromEvent(it.eventAt, it.lead != null ? it.lead : 1) : (it.dueAt || defaultDue(it.status || "week")),
       coverage: it.coverage || "new", createdAt: Date.now(),
     }));
     setSt((s) => ({ ...s, tasks: [...rows, ...s.tasks] }));
@@ -2203,6 +2209,7 @@ function TaskRow({ t, delay = 0, last }) {
             </button>
           )}
           <span>{cat.emoji} {cat.label}</span>
+          {!t.done && t.eventAt ? <span style={{ color: C.sun, fontWeight: 600 }}>· 그날 {dueLabel(t.eventAt).date}</span> : null}
           {kidNames.length ? <span>· 🧒 {kidNames.join(", ")}와 함께</span> : null}
           {t.note && <span>· {t.note}</span>}
           {!t.done && raiser && <span>· {raiser === "ai" ? `${BRAND}이 챙김` : `${raiser.name}이 떠올림`}</span>}
@@ -2236,7 +2243,29 @@ function TaskRow({ t, delay = 0, last }) {
           <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 14 }}>메모</div>
           <input className="hae" value={t.note || ""} onChange={(e) => upd({ note: e.target.value })} placeholder="왜 해야 하는지 짧게"
             style={{ width: "100%", marginTop: 8, border: `1px solid ${C.line}`, borderRadius: R.sm, padding: "12px 14px", fontSize: 13.5, background: C.bg, color: C.ink }} />
-          <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 18 }}>며칠에 올려드릴까요?</div>
+          <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 18 }}>그날이 언제인가요? <span style={{ color: C.ink3, fontWeight: 400 }}>선택</span></div>
+          <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 3, lineHeight: 1.6 }}>단수·소풍·마감처럼 <b style={{ color: C.ink2 }}>그날</b>이 있으면 넣어주세요. 며칠 전에 알려드릴지 정하면 올릴 날짜는 저희가 계산합니다.</div>
+          <input type="date" className="hae" value={t.eventAt ? new Date(t.eventAt - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10) : ""}
+            onChange={(e) => { const ev = parseWhen(e.target.value); upd(ev ? { eventAt: ev, lead: t.lead != null ? t.lead : 1, dueAt: dueFromEvent(ev, t.lead != null ? t.lead : 1) } : { eventAt: null }); }}
+            style={{ width: "100%", marginTop: 9, border: `1px solid ${C.line}`, borderRadius: 12, padding: "12px 13px", fontSize: 15, background: C.bg, color: C.ink, fontFamily: "inherit" }} />
+          {t.eventAt ? (
+            <>
+              <div className="flex flex-wrap gap-1.5" style={{ marginTop: 8 }}>
+                {LEADS.map(([n, lb]) => {
+                  const on = (t.lead != null ? t.lead : 1) === n;
+                  return (
+                    <button key={n} className="press" onClick={() => upd({ lead: n, dueAt: dueFromEvent(t.eventAt, n) })}
+                      style={{ background: on ? C.moss : C.bg, color: on ? "#fff" : C.ink2, border: `1px solid ${on ? C.moss : C.line}`,
+                               borderRadius: R.pill, padding: "8px 13px", fontSize: 12.5, fontWeight: on ? 600 : 400 }}>{lb}</button>
+                  );
+                })}
+              </div>
+              <div style={{ marginTop: 9, background: C.mossSoft, borderRadius: 10, padding: "9px 12px", fontSize: 12.5, color: C.moss, lineHeight: 1.6 }}>
+                그날은 <b>{dueLabel(t.eventAt).date}</b> · <b>{dueLabel(dueFromEvent(t.eventAt, t.lead != null ? t.lead : 1)).date}</b>에 올려드릴게요
+              </div>
+            </>
+          ) : null}
+          <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 18 }}>{t.eventAt ? "올려드릴 날짜를 직접 고치기" : "며칠에 올려드릴까요?"}</div>
           <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 3 }}>
             {t.dueAt ? `지금은 ${dueLabel(t.dueAt).date}예요. ` : ""}이 날이 되면 오늘 화면 맨 위로 올라옵니다.
           </div>
@@ -3182,11 +3211,15 @@ function Speak() {
   어디에도 맞지 않으면 etc로 보내고 newCategory에 새 카테고리 이름을 한글 4자 이내로 제안하세요.
 - status는 하나: now / week / conditional / check / buy / decide / remember / repeat
   반복해서 해야 하는 일이면 repeat으로 두고 cycle에 권장 주기를 적으세요.
-- when: 언제 해야 하는 일인지 날짜를 YYYY-MM-DD로 적으세요. 오늘은 ${todayStr()}입니다.
-  "다음 주 화요일", "9월 20일 만기", "이번 주말"처럼 말에 시점이 있으면 그 날짜를 계산해서 넣고,
-  마감이 있으면 마감일이 아니라 **준비를 시작해야 하는 날**을 넣으세요.
-  (예: 9월 20일 보험 만기 → 비교는 미리 해야 하므로 9월 6일)
-  말에 시점이 전혀 없으면 빈 문자열로 두세요. 없는 날짜를 지어내지 마세요.
+- event: 단수·소풍·마감·만기처럼 **"그날"이 정해진 일**이면 그 날짜를 YYYY-MM-DD로 적으세요.
+  lead에는 며칠 전에 알려야 하는지 숫자로 적으세요 (당일이면 0).
+  예: "다음 주 화요일 단수래" → event: 그 화요일, lead: 1 (전날 물을 받아둬야 하니까)
+      "9월 20일 보험 만기" → event: "2026-09-20", lead: 14 (비교할 시간이 필요하니까)
+      "10일 소풍" → event: 그날, lead: 1 (전날 도시락 준비물을 사야 하니까)
+  그날이 없는 일이면 event는 빈 문자열로 두세요.
+- when: event가 없을 때만 씁니다. 언제 하면 되는지를 YYYY-MM-DD로.
+  오늘은 ${todayStr()}입니다. 말에 시점이 전혀 없으면 빈 문자열로 두세요.
+  없는 날짜를 지어내지 마세요.
 - 말을 그대로 옮기지 말고 실행행동으로. 말한 내용은 하나도 빠뜨리지 말 것. 4~8개.
 - 다만 돌잔치·백일·결혼식·이사처럼 전문 앱/업체가 따로 있는 준비는 세부로 쪼개지 마세요.
   "돌잔치 기획하기" 같은 한 줄로만 만들고, 장소·답례품·의상 같은 하위 항목은 만들지 마세요.
@@ -3205,7 +3238,7 @@ function Speak() {
   ⑤ 정말 빠진 게 없으면 answer에 "지금은 빠진 게 없어 보여요"라고 쓰고 items는 비우세요.
 - 그냥 할 일을 쏟아낸 것이면 answer 없이 items만.
 
-출력은 JSON 객체만: {"answer":"질문이 아니면 빈 문자열","items":[{"title":"12자 이내","category":"...","status":"...","note":"20자 이내","when":"YYYY-MM-DD 또는 빈 문자열","newCategory":"","cycle":""}]}`;
+출력은 JSON 객체만: {"answer":"질문이 아니면 빈 문자열","items":[{"title":"12자 이내","category":"...","status":"...","note":"20자 이내","event":"YYYY-MM-DD 또는 빈 문자열","lead":숫자,"when":"YYYY-MM-DD 또는 빈 문자열","newCategory":"","cycle":""}]}`;
 
     /* 사진이 있으면 무엇을 읽어야 하는지 알려줍니다 */
     const shotPrompt = !shots.length ? "" : `\n\n[사진] 무언가를 알려주는 문서나 화면 캡처입니다. 다음 중 하나일 수 있습니다.
@@ -3229,9 +3262,12 @@ function Speak() {
       const hit = cats.find((c) => c.id === raw) || (raw.startsWith("kid") ? cats.find((c) => c.id.startsWith("kid")) : null)
         || cats.find((c) => c.label.includes(raw)) || cats.find((c) => raw.includes(c.id));
       const stt = STATUS[x.status] ? x.status : "week";
+      const ev = parseWhen(x.event);
+      const ld = ev ? (x.lead != null && !isNaN(Number(x.lead)) ? Math.max(0, Number(x.lead)) : 1) : null;
       return { title: String(x.title).slice(0, 20), category: hit ? hit.id : (raw === "etc" ? "etc" : fb),
         status: stt, note: x.note || "", newCategory: x.newCategory || "", cycle: x.cycle || "",
-        dueAt: parseWhen(x.when) || defaultDue(stt) };
+        eventAt: ev, lead: ld,
+        dueAt: ev ? dueFromEvent(ev, ld) : (parseWhen(x.when) || defaultDue(stt)) };
     });
     let items = [];
     let gotAnswer = "";
@@ -3405,6 +3441,7 @@ function Speak() {
                   <span style={{ display: "block", fontSize: 15, fontWeight: 500 }}>{t.title}</span>
                   <span style={{ display: "block", fontSize: 12, color: C.ink3, marginTop: 4 }}>
                     {t.dueAt ? <span style={{ color: dueLabel(t.dueAt).urgent ? C.persim : C.moss, fontWeight: 600 }}>{dueLabel(t.dueAt).date} · {dueLabel(t.dueAt).text} · </span> : null}
+                    {t.eventAt ? <span style={{ color: C.sun, fontWeight: 600 }}>그날 {dueLabel(t.eventAt).date} · </span> : null}
                     {cat.emoji} {cat.label} · {t.note}
                     {t.repeatDays ? <span style={{ color: C.moss }}> · {patternLabel({ cycle: t.repeatDays, dow: t.repeatDow, dows: t.repeatDows, dom: t.repeatDom, doms: t.repeatDoms })} 반복</span> : null}
                   </span>
@@ -3441,7 +3478,29 @@ function Speak() {
               placeholder="왜 해야 하는지 짧게"
               style={{ width: "100%", marginTop: 8, border: `1px solid ${C.line}`, borderRadius: 12, padding: "11px 13px", fontSize: 13.5, background: C.bg, color: C.ink }} />
 
-            <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 20 }}>며칠에 올려드릴까요?</div>
+            <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 20 }}>그날이 언제인가요? <span style={{ color: C.ink3, fontWeight: 400 }}>선택</span></div>
+            <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 3, lineHeight: 1.6 }}>단수·소풍·마감처럼 <b style={{ color: C.ink2 }}>그날</b>이 있으면 넣어주세요. 며칠 전에 알려드릴지 정하면 올릴 날짜는 저희가 계산합니다.</div>
+            <input type="date" className="hae" value={t.eventAt ? new Date(t.eventAt - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10) : ""}
+              onChange={(e) => { const ev = parseWhen(e.target.value); upd(ev ? { eventAt: ev, lead: t.lead != null ? t.lead : 1, dueAt: dueFromEvent(ev, t.lead != null ? t.lead : 1) } : { eventAt: null }); }}
+              style={{ width: "100%", marginTop: 9, border: `1px solid ${C.line}`, borderRadius: 12, padding: "12px 13px", fontSize: 15, background: C.bg, color: C.ink, fontFamily: "inherit" }} />
+            {t.eventAt ? (
+              <>
+                <div className="flex flex-wrap gap-1.5" style={{ marginTop: 8 }}>
+                  {LEADS.map(([n, lb]) => {
+                    const on = (t.lead != null ? t.lead : 1) === n;
+                    return (
+                      <button key={n} className="press" onClick={() => upd({ lead: n, dueAt: dueFromEvent(t.eventAt, n) })}
+                        style={{ background: on ? C.moss : C.bg, color: on ? "#fff" : C.ink2, border: `1px solid ${on ? C.moss : C.line}`,
+                                 borderRadius: R.pill, padding: "8px 13px", fontSize: 12.5, fontWeight: on ? 600 : 400 }}>{lb}</button>
+                    );
+                  })}
+                </div>
+                <div style={{ marginTop: 9, background: C.mossSoft, borderRadius: 10, padding: "9px 12px", fontSize: 12.5, color: C.moss, lineHeight: 1.6 }}>
+                  그날은 <b>{dueLabel(t.eventAt).date}</b> · <b>{dueLabel(dueFromEvent(t.eventAt, t.lead != null ? t.lead : 1)).date}</b>에 올려드릴게요
+                </div>
+              </>
+            ) : null}
+            <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 18 }}>{t.eventAt ? "올려드릴 날짜를 직접 고치기" : "며칠에 올려드릴까요?"}</div>
             <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 3 }}>
               {t.dueAt ? `지금은 ${dueLabel(t.dueAt).date}예요. ` : ""}이 날이 되면 오늘 화면 맨 위로 올라옵니다.
             </div>
