@@ -432,12 +432,21 @@ function dowList(cfg) {
   if (cfg.dow != null && cfg.dow !== "") return [Number(cfg.dow)];
   return [];
 }
+/* 학원이 여러 곳이면 납부일도 여러 날입니다. 요일처럼 날짜도 여러 개 */
+function domList(cfg) {
+  if (!cfg) return [];
+  if (Array.isArray(cfg.doms) && cfg.doms.length) return cfg.doms.map(Number).sort((a, b) => a - b);
+  if (cfg.dom) return [Number(cfg.dom)];
+  return [];
+}
+function domLabel(n) { return Number(n) === 31 ? "말일" : n + "일"; }
 function patternLabel(cfg) {
   if (!cfg) return "";
   const base = cycleLabel(cfg.cycle);
   const ds = dowList(cfg);
   if (ds.length) return `${ds.length > 1 ? "매주" : base} · ${ds.map((i) => WEEKDAY[i]).join("·")}요일`;
-  if (cfg.dom) return `${base} · ${Number(cfg.dom) === 31 ? "말일" : cfg.dom + "일"}`;
+  const ms = domList(cfg);
+  if (ms.length) return `${ms.length > 1 ? "매달" : base} · ${ms.map(domLabel).join("·")}`;
   if (cfg.anchor) return `매년 · ${Number(cfg.anchor.split("-")[0])}월 ${Number(cfg.anchor.split("-")[1])}일`;
   return base;
 }
@@ -452,16 +461,21 @@ function nextByPattern(cfg, fromMs) {
       if (ds.includes(d.getDay())) return d.getTime();
     }
   }
-  if (cfg.dom) {
-    const dom = Number(cfg.dom);
+  const ms = domList(cfg);
+  if (ms.length) {
+    /* 고른 날짜들 중 가장 먼저 오는 날 */
+    let best = null;
     const now = new Date(base);
-    for (let i = 0; i < 4; i++) {
-      const d = dom === 31
-        ? new Date(now.getFullYear(), now.getMonth() + i + 1, 0)   /* 말일: 2월이면 28일 */
-        : new Date(now.getFullYear(), now.getMonth() + i, dom);
-      if (dom !== 31 && d.getDate() !== dom) continue;             /* 2월 30일처럼 없는 날짜는 건너뜀 */
-      if (d.getTime() >= base) return d.getTime();
-    }
+    ms.forEach((dom) => {
+      for (let i = 0; i < 4; i++) {
+        const d = dom === 31
+          ? new Date(now.getFullYear(), now.getMonth() + i + 1, 0)   /* 말일: 2월이면 28일 */
+          : new Date(now.getFullYear(), now.getMonth() + i, dom);
+        if (dom !== 31 && d.getDate() !== dom) continue;             /* 2월 30일처럼 없는 날짜는 건너뜀 */
+        if (d.getTime() >= base) { if (best == null || d.getTime() < best) best = d.getTime(); break; }
+      }
+    });
+    if (best != null) return best;
   }
   return base - DAY + (cfg.cycle || 30) * DAY;
 }
@@ -1563,22 +1577,25 @@ function CyclePicker({ current, onPick, onOff, onClose, title, anchor, onAnchor,
               );
             })}
           </div>
-          <div style={{ fontSize: 12.5, color: C.ink2, fontWeight: 600, marginTop: 16 }}>매달 정해진 날짜가 있나요?</div>
-          <div style={{ fontSize: 12, color: C.ink3, marginTop: 3, lineHeight: 1.6 }}>관리비·카드값처럼 날짜가 있는 일이요. 단지마다 달라서 직접 넣으셔야 해요.</div>
+          <div style={{ fontSize: 12.5, color: C.ink2, fontWeight: 600, marginTop: 16 }}>매달 정해진 날짜가 있나요? <span style={{ color: C.ink3, fontWeight: 400 }}>여러 개 고를 수 있어요</span></div>
+          <div style={{ fontSize: 12, color: C.ink3, marginTop: 3, lineHeight: 1.6 }}>관리비·카드값·학원비처럼 날짜가 있는 일이요. 학원이 여러 곳이면 납부일을 다 골라두세요.</div>
           {/* 옆으로 넘기게 두면 노트북에서 스크롤이 안 돼 뒤쪽 날짜가 아예 안 보입니다. 한눈에 펼칩니다 */}
           <div className="grid gap-1.5" style={{ marginTop: 10, gridTemplateColumns: "repeat(7, minmax(0, 1fr))" }}>
             {Array.from({ length: 31 }, (_, i) => i + 1).map((n) => {
-              const on = String(pat.dom) === String(n);
+              const cur = domList(pat);
+              const on = cur.includes(n);
+              const next = on ? cur.filter((x) => x !== n) : [...cur, n].sort((a, b) => a - b);
               return (
-                <button key={n} className="press" onClick={() => onPattern({ dom: on ? "" : n, dow: "" })}
+                <button key={n} className="press" onClick={() => onPattern({ doms: next, dom: "", dow: "", dows: [] })}
                   style={{ background: on ? C.moss : C.bg, color: on ? "#fff" : C.ink2, border: `1px solid ${on ? C.moss : C.line}`,
                            borderRadius: 10, padding: "9px 0", fontSize: n === 31 ? 11 : 12.5, fontWeight: 600,
                            gridColumn: n === 31 ? "span 2" : undefined }}>{n === 31 ? "말일" : n}</button>
               );
             })}
           </div>
-          {pat.dom ? <div style={{ fontSize: 11.5, color: C.moss, marginTop: 8 }}>매달 {Number(pat.dom) === 31 ? "말일" : `${pat.dom}일`}에 올려드릴게요 · 다시 누르면 해제됩니다</div>
-                   : <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 8 }}>‘말일’은 그 달의 마지막 날에 맞춰 올려드려요 (2월이면 28·29일)</div>}
+          {domList(pat).length
+            ? <div style={{ fontSize: 11.5, color: C.moss, marginTop: 8 }}>매달 {domList(pat).map(domLabel).join("·")}에 올려드릴게요 · 다시 누르면 해제됩니다</div>
+            : <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 8 }}>‘말일’은 그 달의 마지막 날에 맞춰 올려드려요 (2월이면 28·29일)</div>}
         </div>
       )}
       {onAnchor && (
@@ -1705,6 +1722,17 @@ function App() {
     ...(st.customCats || []),
   ], [st.children, st.flags, st.customCats]);
 
+  /* 말씀하신 원문에는 아이 이름·학교·병원이 섞입니다. 그건 남기지 않습니다.
+     대신 AI가 정리해낸 제목만 남깁니다 — "테니스 라켓 구매"는 개인정보가
+     아니면서 "테니스 수요가 있다"를 알려줍니다. 시드를 어디로 넓힐지
+     추측이 아니라 데이터로 정하기 위한 최소한의 기록입니다. */
+  const logTitles = (rows, how) => {
+    const t = rows.map((r) => String(r.title || "").trim())
+      .filter((x) => x && x.length <= 20 && !/\d{3}/.test(x))   /* 숫자가 길게 붙은 건 뺍니다 (계좌·전화) */
+      .slice(0, 8);
+    if (t.length) log("ai_titles", { how, t });
+  };
+
   const addTasks = (items, raisedBy) => {
     const rows = items.map((it) => ({
       id: uid("t"), title: it.title, category: it.category, status: it.status || "week", note: it.note || "",
@@ -1715,6 +1743,7 @@ function App() {
     }));
     setSt((s) => ({ ...s, tasks: [...rows, ...s.tasks] }));
     log("task_create", { n: rows.length });
+    if (raisedBy === "ai") logTitles(rows, "ai");
     return rows.length;
   };
 
@@ -1726,7 +1755,7 @@ function App() {
   /* 반복 업무 처리 — 완료·미룸·건너뜀 모두 정상 처리 */
   const routineAction = (key, cfg, action) => {
     const days = cfg.cycle || 30;
-    const patterned = dowList(cfg).length > 0 || cfg.dom;
+    const patterned = dowList(cfg).length > 0 || domList(cfg).length > 0;
     let next, lunarPatch = null;
     if (cfg.anchor && cfg.lunar) {
       const lead = cfg.leadDays != null ? cfg.leadDays : 7;
@@ -1756,7 +1785,7 @@ function App() {
   );
 
   return (
-    <Ctx.Provider value={{ st, setSt, me, setMe, cats, addTasks, complete, assign, setPref, setRoutine, routineAction, say, log, spendAI, refundAI, tab, setTab, openCat, setOpenCat }}>
+    <Ctx.Provider value={{ st, setSt, me, setMe, cats, addTasks, complete, assign, setPref, setRoutine, routineAction, say, log, logTitles, spendAI, refundAI, tab, setTab, openCat, setOpenCat }}>
       <div className="hae" style={{ background: C.bg, minHeight: "100vh", color: C.ink, WebkitFontSmoothing: "antialiased" }}>
         <style dangerouslySetInnerHTML={{ __html: FONTS }} />
         <div style={{ maxWidth: 440, margin: "0 auto", paddingBottom: 100, position: "relative" }}>
@@ -2023,9 +2052,9 @@ function Onboarding() {
           const init = {};
           Object.keys(routines).forEach((k) => {
             const c = routines[k];
-            const patterned = dowList(c).length > 0 || c.dom;
+            const patterned = dowList(c).length > 0 || domList(c).length > 0;
             const spread = Math.min(c.cycle, 14);
-            init[k] = { on: c.on, cycle: c.cycle, dow: c.dow, dom: c.dom,
+            init[k] = { on: c.on, cycle: c.cycle, dow: c.dow, dows: c.dows, dom: c.dom, doms: c.doms,
               nextAt: patterned ? nextByPattern(c) : Date.now() + Math.floor(Math.random() * spread) * DAY };
           });
           setSt({ ...d, members: d.members.filter((m) => m.name.trim()), routines: init, onboarded: true });
@@ -2827,7 +2856,7 @@ function Home() {
       const ro = { ...sv.routines };
       daily.forEach((r) => {
         const c = ro[r.key] || { cycle: 30 };
-        const patterned = dowList(c).length > 0 || c.dom;
+        const patterned = dowList(c).length > 0 || domList(c).length > 0;
         const nx = c.anchor ? nextAnchorAfter(c.anchor, c.leadDays != null ? c.leadDays : 7, todayKey())
           : patterned ? nextByPattern(c) : todayKey() + (c.cycle || 30) * DAY;
         ro[r.key] = { ...c, nextAt: nx, lastAt: Date.now(), doneBy: me, streak: (c.streak || 0) + 1 };
@@ -3255,11 +3284,12 @@ function Speak() {
           const cfg = { on: true, cycle: r.repeatDays, anchor: r.anchor || undefined,
             dows: (r.repeatDows && r.repeatDows.length) ? r.repeatDows : undefined,
             dow: r.repeatDow != null && r.repeatDow !== "" ? r.repeatDow : undefined,
-            dom: r.repeatDom || undefined };
+            dom: r.repeatDom || undefined,
+                  doms: (r.repeatDoms && r.repeatDoms.length) ? r.repeatDoms : undefined };
           cr.push({ id: nid, title: r.title, category: r.category, cycle: r.repeatDays });
           ro[`c:${nid}`] = { ...cfg,
             nextAt: r.anchor ? nextFromAnchor(r.anchor, 7)
-              : (dowList(cfg).length || cfg.dom) ? nextByPattern(cfg)
+              : (dowList(cfg).length || domList(cfg).length) ? nextByPattern(cfg)
               : Date.now() + r.repeatDays * DAY };
         });
         return { ...sv, customRoutines: cr, routines: ro };
@@ -3376,7 +3406,7 @@ function Speak() {
                   <span style={{ display: "block", fontSize: 12, color: C.ink3, marginTop: 4 }}>
                     {t.dueAt ? <span style={{ color: dueLabel(t.dueAt).urgent ? C.persim : C.moss, fontWeight: 600 }}>{dueLabel(t.dueAt).date} · {dueLabel(t.dueAt).text} · </span> : null}
                     {cat.emoji} {cat.label} · {t.note}
-                    {t.repeatDays ? <span style={{ color: C.moss }}> · {patternLabel({ cycle: t.repeatDays, dow: t.repeatDow, dom: t.repeatDom })} 반복</span> : null}
+                    {t.repeatDays ? <span style={{ color: C.moss }}> · {patternLabel({ cycle: t.repeatDays, dow: t.repeatDow, dows: t.repeatDows, dom: t.repeatDom, doms: t.repeatDoms })} 반복</span> : null}
                   </span>
                 </span>
                 <Chip status={t.status} />
@@ -3480,18 +3510,22 @@ function Speak() {
                 <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 3 }}>관리비·카드값처럼요. ‘말일’은 그 달의 마지막 날이에요.</div>
                 <div className="grid gap-1.5" style={{ marginTop: 9, gridTemplateColumns: "repeat(7, minmax(0, 1fr))" }}>
                   {Array.from({ length: 31 }, (_, di) => di + 1).map((n) => {
-                    const on = String(t.repeatDom) === String(n);
+                    const cur = domList({ doms: t.repeatDoms, dom: t.repeatDom });
+                    const on = cur.includes(n);
+                    const next = on ? cur.filter((x) => x !== n) : [...cur, n].sort((a, b) => a - b);
                     return (
-                      <button key={n} className="press" onClick={() => upd({ repeatDom: on ? "" : n, repeatDow: "", repeatDays: 30 })}
+                      <button key={n} className="press" onClick={() => upd({ repeatDoms: next, repeatDom: "", repeatDow: "", repeatDows: [], repeatDays: 30 })}
                         style={{ background: on ? C.moss : C.bg, color: on ? "#fff" : C.ink2, border: `1px solid ${on ? C.moss : C.line}`,
                                  borderRadius: 10, padding: "9px 0", fontSize: n === 31 ? 11 : 12.5, fontWeight: 600,
                                  gridColumn: n === 31 ? "span 2" : undefined }}>{n === 31 ? "말일" : n}</button>
                     );
                   })}
                 </div>
-                {(t.repeatDom || t.repeatDow !== "" && t.repeatDow != null) ? (
+                {(domList({ doms: t.repeatDoms, dom: t.repeatDom }).length || dowList({ dows: t.repeatDows, dow: t.repeatDow }).length) ? (
                   <div style={{ fontSize: 11.5, color: C.moss, marginTop: 7 }}>
-                    {t.repeatDom ? `매달 ${Number(t.repeatDom) === 31 ? "말일" : t.repeatDom + "일"}에 올려드릴게요` : `${WEEKDAY[Number(t.repeatDow)]}요일마다 올려드릴게요`}
+                    {domList({ doms: t.repeatDoms, dom: t.repeatDom }).length
+                      ? `매달 ${domList({ doms: t.repeatDoms, dom: t.repeatDom }).map(domLabel).join("·")}에 올려드릴게요`
+                      : `${dowList({ dows: t.repeatDows, dow: t.repeatDow }).map((i) => WEEKDAY[i]).join("·")}요일마다 올려드릴게요`}
                   </div>
                 ) : null}
               </>
@@ -4928,6 +4962,21 @@ function Settings() {
             );
           })}
         </Card>
+      </Section>
+
+      <Section eyebrow="DATA" title="무엇이 남나요">
+        <Card><div style={{ padding: "15px 16px", fontSize: 12.5, color: C.ink2, lineHeight: 1.85 }}>
+          <div style={{ fontWeight: 600, color: C.ink, marginBottom: 6 }}>남지 않는 것</div>
+          말씀하신 <b>원문</b>과 올리신 <b>사진</b>은 저장하지 않습니다.
+          사진은 크기를 줄여 AI에 보내고 바로 버립니다.
+          <div style={{ fontWeight: 600, color: C.ink, marginTop: 12, marginBottom: 6 }}>남는 것</div>
+          서비스 개선을 위해 <b>AI가 정리한 할 일의 제목</b>이 익명으로 수집됩니다.
+          (예: “테니스 라켓 구매”) 누가 말했는지는 함께 남기지 않습니다.
+          <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 10, lineHeight: 1.7 }}>
+            이 기록은 “한국 가정이 실제로 무엇을 챙기는가”를 알아 항목을 넓히는 데만 씁니다.
+            광고에 쓰거나 밖으로 팔지 않습니다.
+          </div>
+        </div></Card>
       </Section>
 
       <Section eyebrow="NOTIFY" title="알림">
