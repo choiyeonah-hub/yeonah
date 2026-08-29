@@ -545,8 +545,13 @@ const SEED = [
   { id: "N047", cat: "home", f: "plant", lead: 0, st: "repeat", t: "화분 잎 닦기·가지치기", tg: "주기", ask: "", cy: "월 1회", g: "식물", src: "" },
   { id: "N048", cat: "home", f: "plant", lead: 0, st: "repeat", t: "화분 해충 확인", tg: "여름 전", ask: "잎 뒷면을 한 번 볼까요?", cy: "3개월", g: "식물", src: "" },
   { id: "N049", cat: "finance", f: "apart", lead: 3, st: "repeat", t: "관리비 납부", tg: "단지 지정 마감일", ask: "우리 단지 마감일이 며칠인가요? 날짜를 넣으면 미리 알려드려요", cy: "월 1회", g: "주거비", src: "" },
-  { id: "N050", cat: "transport", f: "car", lead: 0, st: "repeat", t: "주유", tg: "연료 소진 전", ask: "연비·주행거리를 넣으면 소진일을 계산해드려요", cy: "2주", g: "자동차", src: "" },
-  { id: "N051", cat: "transport", f: "car", lead: 0, st: "repeat", t: "엔진오일 교체", tg: "주행거리 기준", ask: "지금 계기판 주행거리가 얼마인가요?", cy: "6개월", g: "자동차", src: "" },
+  { id: "N050", cat: "transport", f: "car", ct: "ice|hybrid", lead: 0, st: "repeat", t: "주유", tg: "연료 소진 전", ask: "연비·주행거리를 넣으면 소진일을 계산해드려요", cy: "2주", g: "자동차", src: "" },
+  { id: "N051", cat: "transport", f: "car", ct: "ice|hybrid", lead: 0, st: "repeat", t: "엔진오일 교체", tg: "주행거리 기준", ask: "지금 계기판 주행거리가 얼마인가요?", cy: "6개월", g: "자동차", src: "" },
+  { id: "EV01", cat: "transport", f: "car", ct: "ev", lead: 0, st: "repeat", t: "충전하기", tg: "배터리 떨어지기 전", ask: "보통 며칠에 한 번 충전하세요?", cy: "주 1회", g: "자동차", src: "" },
+  { id: "EV02", cat: "transport", f: "car", ct: "ev", lead: 0, st: "repeat", t: "충전 케이블·포트 점검", tg: "월간", ask: "커넥터에 이물질·부식이 없는지요", cy: "월 1회", g: "자동차정기", src: "" },
+  { id: "EV03", cat: "transport", f: "car", ct: "ev|hybrid", lead: 0, st: "repeat", t: "배터리 상태·SW 업데이트 확인", tg: "반기", ask: "제조사 앱에서 배터리 진단을 볼 수 있어요", cy: "6개월", g: "자동차정기", src: "" },
+  { id: "EV04", cat: "transport", f: "car", ct: "ev", lead: 0, st: "repeat", t: "감속기 오일·냉각수 점검", tg: "정기점검", ask: "엔진오일은 없지만 이건 있어요", cy: "1년", g: "자동차정기", src: "" },
+  { id: "EV05", cat: "transport", f: "car", ct: "ev", lead: 0, st: "repeat", t: "타이어 마모 확인", tg: "전기차는 마모가 빨라요", ask: "", cy: "3개월", g: "자동차정기", src: "" },
   { id: "N052", cat: "appliance", f: null, lead: 3, st: "repeat", t: "렌탈 기사님 방문 준비", tg: "방문 예정일 전", ask: "정수기·비데·매트리스 방문 주기를 등록해둘까요?", cy: "3개월", g: "가전정기", src: "" },
   { id: "N053", cat: "pet", f: "pet", pt: "dog|cat", lead: 14, st: "repeat", t: "동물병원 정기검진 예약", tg: "검진 주기", ask: "마지막 진료가 언제였나요?", cy: "6개월", g: "반려정기", src: "" },
   { id: "N054", cat: "event", f: null, lead: 7, st: "repeat", t: "행사 전 장보기", tg: "행사 3~7일 전", ask: "필요한 목록을 장바구니에 미리 담아둘까요?", cy: "3개월", g: "행사정기", src: "" },
@@ -666,6 +671,13 @@ const FLAGS = {
 };
 const FLAG_GROUPS = ["가족", "살림", "소득"];
 
+/* 차는 기름차냐 전기차냐에 따라 챙길 게 다릅니다 */
+const CAR_TYPES = {
+  ice: { emoji: "⛽", label: "휘발유·경유" },
+  ev: { emoji: "⚡", label: "전기차" },
+  hybrid: { emoji: "🔋", label: "하이브리드" },
+};
+
 /* 반려동물은 종류마다 챙길 게 완전히 다릅니다 */
 const PET_TYPES = {
   dog: { emoji: "🐶", label: "강아지" },
@@ -760,6 +772,7 @@ const DEFAULT_STATE = {
   children: [],
   flags: { parents: false, car: true, pet: false, plant: false, apart: true, moving: false, worker: true, biz: false },
   petTypes: {},
+  carType: "ice",
   extra: "",
   tasks: [], routines: {}, customRoutines: [], prefs: {}, groupsOff: {}, customCats: [],
   events: [], feedback: [], discoverSnoozed: [], dismissedDiscover: [],
@@ -880,6 +893,8 @@ function eligibleRoutines(st, ignoreSeason) {
     if (!ignoreSeason && !inSeason(seed)) return;
     /* 반려동물 종류를 고른 집에는 그 종류에 맞는 것만 */
     if (seed.pt && anyPetType && !seed.pt.split("|").some((t) => petTypes[t])) return;
+    /* 차 종류에 맞는 것만 (주유는 기름차, 충전은 전기차) */
+    if (seed.ct && !seed.ct.split("|").includes(st.carType || "ice")) return;
     if (seed.kid) {
       st.children.forEach((ch) => {
         const m = childMonths(ch);
@@ -1498,6 +1513,28 @@ function Onboarding() {
           </div></Card>
         )}
 
+        {step === 2 && d.flags.car && (
+          <div style={{ marginBottom: 14 }}>
+            <Eyebrow>어떤 차인가요?</Eyebrow>
+            <Card style={{ marginTop: 7 }}>
+              <div style={{ padding: 15 }}>
+                <div className="flex gap-2">
+                  {Object.keys(CAR_TYPES).map((k) => {
+                    const on = (d.carType || "ice") === k;
+                    return (
+                      <button key={k} className="press" onClick={() => setD((sv) => ({ ...sv, carType: k }))}
+                        style={{ flex: 1, background: on ? C.mossSoft : C.bg, color: on ? C.moss : C.ink2, border: `1px solid ${on ? C.moss : C.line}`, borderRadius: R.sm, padding: "12px 0", fontSize: 12.5, fontWeight: 600 }}>
+                        {CAR_TYPES[k].emoji} {CAR_TYPES[k].label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div style={{ fontSize: 12, color: C.ink3, marginTop: 10, lineHeight: 1.6 }}>기름차는 주유·엔진오일, 전기차는 충전·배터리 점검이 뜹니다.</div>
+              </div>
+            </Card>
+          </div>
+        )}
+
         {step === 2 && d.flags.pet && (
           <div style={{ marginBottom: 14 }}>
             <Eyebrow>반려동물 종류</Eyebrow>
@@ -2095,9 +2132,10 @@ function HolidayBrief() {
 function CarWatch() {
   const { st, setSt, setTab, addTasks, say } = use();
   const car = st.car || {};
+  if (!st.flags.car) return null;
+  if ((st.carType || "ice") === "ev") return null; /* 전기차: 충전은 정기 일정으로 */
   const fuel = fuelForecast(car);
   const oil = oilForecast(car);
-  if (!st.flags.car) return null;
   if (!fuel && !oil) return (
     <Card style={{ marginTop: 12 }}>
       <div style={{ padding: "14px 16px" }} className="flex items-center gap-3">
@@ -2352,7 +2390,7 @@ function Home() {
 
   /* 기름이 이틀 남으면 오늘 목록에 스스로 올라옵니다 (하루 한 번) */
   useEffect(() => {
-    if (!st.flags.car) return;
+    if (!st.flags.car || (st.carType || "ice") === "ev") return;
     const f = fuelForecast(st.car || {});
     if (!f || f.daysLeft > 2) return;
     if ((st.car || {}).alertedOn === todayStr()) return;
@@ -2646,11 +2684,11 @@ function Speak() {
 
   const startMic = () => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) return setNote("이 브라우저는 음성 입력을 지원하지 않아요. 아래에 적어도 결과는 같습니다.");
+    if (!SR) return setNote("이 브라우저에선 음성 입력이 안 돼요. 카톡 안이라면 Safari·Chrome으로 열어보세요. 아래에 적어도 결과는 같습니다.");
     try {
       const r = new SR(); r.lang = "ko-KR"; r.continuous = true; r.interimResults = true;
       r.onresult = (e) => { let s = ""; for (let i = 0; i < e.results.length; i++) s += e.results[i][0].transcript; setText(s); };
-      r.onerror = () => { setListening(false); setNote("마이크 권한을 허용해 주세요."); };
+      r.onerror = () => { setListening(false); setNote("마이크를 못 켰어요. 팝업이 뜨면 '허용'을 눌러주세요. 카톡 안에서 여셨다면 Safari나 Chrome으로 열어야 마이크가 됩니다. 지금은 아래에 적어주셔도 결과는 같아요."); };
       r.onend = () => setListening(false);
       r.start(); rec.current = r; setListening(true); setNote("");
     } catch { setNote("음성 입력을 시작하지 못했어요."); }
@@ -3678,8 +3716,25 @@ function Settings() {
 
       {/* 자동차 숫자 — 주유·엔진오일 시점 계산에 씁니다 */}
       {d.flags.car && (
-        <Section eyebrow="CAR" title="자동차 숫자" right="넣으면 소진일을 계산해요">
+        <Section eyebrow="CAR" title="자동차" right={(d.carType || "ice") === "ev" ? "충전·점검은 정기 일정에서" : "숫자를 넣으면 소진일을 계산해요"}>
           <Card><div style={{ padding: 15 }}>
+            <div className="flex gap-2" style={{ marginBottom: 14 }}>
+              {Object.keys(CAR_TYPES).map((k) => {
+                const on = (d.carType || "ice") === k;
+                return (
+                  <button key={k} className="press" onClick={() => { setD((sv) => ({ ...sv, carType: k })); setSt((sv) => ({ ...sv, carType: k })); }}
+                    style={{ flex: 1, background: on ? C.mossSoft : C.bg, color: on ? C.moss : C.ink2, border: `1px solid ${on ? C.moss : C.line}`, borderRadius: R.sm, padding: "11px 0", fontSize: 12.5, fontWeight: 600 }}>
+                    {CAR_TYPES[k].emoji} {CAR_TYPES[k].label}
+                  </button>
+                );
+              })}
+            </div>
+            {(d.carType || "ice") === "ev" ? (
+              <div style={{ background: C.mossSoft, borderRadius: R.sm, padding: "12px 13px", fontSize: 12.5, color: C.moss, lineHeight: 1.7 }}>
+                전기차는 연비 계산 대신 <b>충전하기(주기 설정 가능)</b>와 <b>배터리·케이블·감속기 점검</b>이
+                정기 일정에 올라와요. 아래 ‘정기 일정 관리 → 교통수단’에서 주기를 맞춰주세요.
+              </div>
+            ) : (<>
             {[
               ["kmPerL", "연비 (km/L)", "예: 11.5"],
               ["tankL", "연료탱크 (L)", "예: 50"],
@@ -3721,6 +3776,7 @@ function Settings() {
             </div>
             <button className="press w-full" onClick={() => setD((sv) => ({ ...sv, car: { ...(sv.car || {}), fuelAt: Date.now(), fuelLevel: 1 } }))}
               style={{ marginTop: 9, background: C.bg, border: `1px solid ${C.line}`, borderRadius: R.sm, padding: "11px 0", fontSize: 12.5, color: C.ink2 }}>방금 가득 주유했어요 (기준일 다시 잡기)</button>
+            </>)}
           </div></Card>
         </Section>
       )}
@@ -3892,7 +3948,7 @@ function Settings() {
       </Section>
 
       <div style={{ marginTop: 20 }}>
-        <Btn onClick={() => { setSt((s) => ({ ...s, members: d.members.filter((m) => m.name.trim()), children: d.children, flags: d.flags, petTypes: d.petTypes, car: d.car, extra: d.extra })); say("추천을 다시 계산했어요"); setTab("home"); }}>저장하고 추천 다시 계산</Btn>
+        <Btn onClick={() => { setSt((s) => ({ ...s, members: d.members.filter((m) => m.name.trim()), children: d.children, flags: d.flags, petTypes: d.petTypes, carType: d.carType || "ice", car: d.car, extra: d.extra })); say("추천을 다시 계산했어요"); setTab("home"); }}>저장하고 추천 다시 계산</Btn>
         <div style={{ height: 8 }} />
         <Btn kind="ghost" onClick={() => setDash(true)}>베타 지표 보기</Btn>
         <Btn kind="quiet" onClick={() => { if (confirm("모든 데이터를 지우고 처음부터 시작할까요?")) { window.storage.delete("meonjeon").catch(() => {}); setSt(DEFAULT_STATE); } }}>데이터 전체 삭제</Btn>
