@@ -1091,24 +1091,15 @@ function OwnerPicker({ title, current, onPick, onClose, withKids, onWithKids, ca
 /* ── 예시 질문 줄 ─────────────────────────────────
    돌아가며 사라지지 않게 고정해두고, 눌러서 쓰거나 복사합니다. */
 function PromptRail({ list, onUse, note }) {
-  const { say } = use();
-  const copy = async (p) => {
-    try { await navigator.clipboard.writeText(p); say("복사했어요"); }
-    catch { window.prompt("복사해서 쓰세요", p); }
-  };
   return (
     <div>
       <div className="mono" style={{ fontSize: 9.5, color: C.ink3, marginBottom: 8 }}>이렇게 물어보세요</div>
       <div className="flex flex-col gap-2">
         {list.map((p, i) => (
-          <div key={i} className="flex items-stretch gap-1.5">
-            <button className="press flex-1 text-left" onClick={() => onUse(p)}
-              style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: R.sm, padding: "11px 13px", fontSize: 13, color: C.ink, lineHeight: 1.5 }}>
-              💬 {p}
-            </button>
-            <button className="press" onClick={() => copy(p)} aria-label="복사"
-              style={{ background: C.bg, border: `1px solid ${C.line}`, borderRadius: R.sm, padding: "0 12px", fontSize: 12, color: C.ink3 }}>복사</button>
-          </div>
+          <button key={i} className="press w-full text-left" onClick={() => onUse(p)}
+            style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: R.sm, padding: "11px 13px", fontSize: 13, color: C.ink, lineHeight: 1.5 }}>
+            💬 {p}
+          </button>
         ))}
       </div>
       {note && <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 8, lineHeight: 1.6 }}>{note}</div>}
