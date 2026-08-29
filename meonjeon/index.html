@@ -1282,7 +1282,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0829-t";
+const BUILD = "0829-u";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -1389,6 +1389,8 @@ function parseLoose(text, stopReason, diag) {
 const householdLine = (st) =>
   `구성원 ${st.members.map((m) => m.name).join(", ")}${st.children.length ? " / 아이 " + st.children.map((c) => `${c.name}(${childLabel(c)})`).join(", ") : " / 자녀 없음"}${Object.keys(st.flags).filter((k) => st.flags[k]).length ? " / " + Object.keys(st.flags).filter((k) => st.flags[k]).map((k) => FLAGS[k].label).join(", ") : ""}${st.extra ? " / " + st.extra : ""}`;
 
+/* 어느 길로 캘린더에 넣는지 세어둡니다. 나중에 하나만 남길 근거가 됩니다 */
+let log2 = () => {};
 const Ctx = createContext({});
 const use = () => useContext(Ctx);
 
@@ -1861,6 +1863,43 @@ function icsText(title, whenMs, note) {
     "END:VEVENT", "END:VCALENDAR"].join("\r\n");
 }
 
+/* 네이버·카카오 앱 안의 브라우저는 .ics 파일을 캘린더로 못 넘깁니다.
+   자기 다운로드함에 가둬두고 끝입니다. 그런 데서도 되는 건 "웹 페이지를 여는 것"뿐이라
+   구글 캘린더 등록 화면을 링크로 엽니다.
+   시간을 아침 9시로 두는 이유: 종일 일정으로 넣으면 캘린더 기본 알림이 안 붙는 경우가 많습니다. */
+function gcalUrl(title, whenMs, note) {
+  const d = new Date(whenMs);
+  const pad = (n) => String(n).padStart(2, "0");
+  const ymd = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`;
+  const q = new URLSearchParams({
+    action: "TEMPLATE",
+    text: String(title || "").slice(0, 80),
+    dates: `${ymd}T090000/${ymd}T093000`,
+    ctz: "Asia/Seoul",
+    details: String(note || "먼저ON").slice(0, 200),
+  });
+  return `https://calendar.google.com/calendar/render?${q.toString()}`;
+}
+
+/* 캘린더에 넣는 두 갈래를 한 자리에 */
+function CalButtons({ title, whenMs, note, style }) {
+  const { say } = use();
+  const box = { background: "none", border: "none", color: C.moss, fontSize: 11.5, padding: "4px 2px", ...(style || {}) };
+  return (
+    <>
+      <button className="press" style={box}
+        onClick={() => { log2("cal_google"); window.open(gcalUrl(title, whenMs, note), "_blank", "noopener"); }}>
+        구글 캘린더에
+      </button>
+      <button className="press" style={{ ...box, color: C.ink3 }}
+        onClick={() => { log2("cal_ics"); downloadICS(title, whenMs, note);
+          say("파일이 안 열리면 '구글 캘린더에'를 쓰세요. 앱 안 브라우저는 파일을 캘린더로 못 넘깁니다"); }}>
+        파일로(.ics)
+      </button>
+    </>
+  );
+}
+
 function downloadICS(title, whenMs, note) {
   const url = URL.createObjectURL(new Blob([icsText(title, whenMs, note)], { type: "text/calendar;charset=utf-8" }));
   const a = document.createElement("a");
@@ -1920,6 +1959,8 @@ function App() {
   }, []);
 
   const log = (name, props) => setSt((s) => ({ ...s, events: [...s.events.slice(-1200), { name, props, ts: Date.now() }] }));
+  /* CalButtons가 Ctx 밖에서도 셀 수 있게 연결해 둡니다 */
+  log2 = log;
   const say = (m) => { setToast(m); setTimeout(() => setToast(null), 2300); };
   /* AI를 한 번 씁니다. 상한에 닿으면 세지 않고 false를 돌려줘요 */
   const spendAI = (kind, n = 1) => {
@@ -2375,8 +2416,7 @@ function RoutineRow({ r, delay = 0, last, compact, manage }) {
             style={{ background: "none", border: "none", color: C.ink3, fontSize: 11.5, padding: "4px 2px" }}>내일 할게요</button>
           <button className="press" onClick={() => routineAction(r.key, cfg, "skip")}
             style={{ background: "none", border: "none", color: C.ink3, fontSize: 11.5, padding: "4px 2px" }}>이번엔 건너뛰기</button>
-          {cfg.anchor && <button className="press" onClick={() => downloadICS(r.seed.t, nextFromAnchor(cfg.anchor, 0), r.seed.tg)}
-            style={{ background: "none", border: "none", color: C.moss, fontSize: 11.5, padding: "4px 2px" }}>캘린더에 넣기</button>}
+          {cfg.anchor && <CalButtons title={r.seed.t} whenMs={nextFromAnchor(cfg.anchor, 0)} note={r.seed.tg} />}
         </div>}
         {!compact && !doneToday && r.seed.lk && <LinkCards group={null} text={r.seed.lk} compact />}
       </div>
@@ -2674,8 +2714,7 @@ function RecCard({ rec, delay = 0, flat }) {
               {[["시기 조정", "edit"], ["가족에게 넘기기", "give"], ["왜 지금?", "why"]].map(([l, m]) => (
                 <button key={m} onClick={() => setMode(m)} style={{ background: "none", border: "none", color: C.ink3, fontSize: 11.5, padding: 0 }}>{l}</button>
               ))}
-              {rec.dateKnown && <button onClick={() => downloadICS(seed.t, Date.now() + Math.max(rec.dday, 0) * DAY, seed.tg)}
-                style={{ background: "none", border: "none", color: C.moss, fontSize: 11.5, padding: 0 }}>캘린더에 넣기</button>}
+              {rec.dateKnown && <CalButtons title={seed.t} whenMs={Date.now() + Math.max(rec.dday, 0) * DAY} note={seed.tg} style={{ padding: 0 }} />}
             </div>
             <LinkCards group={seed.g} text={seed.t} />
           </div>
