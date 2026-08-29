@@ -1196,6 +1196,9 @@ function buildRecommendations(st) {
 
 /* ── AI 호출 ──────────────────────────────────── */
 const PROMPT_VERSION = "v7.0";
+/* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
+   "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
+const BUILD = "0829-c";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -5354,6 +5357,15 @@ function Settings() {
         <div style={{ height: 8 }} />
         <Btn kind="ghost" onClick={() => setDash(true)}>베타 지표 보기</Btn>
         <Btn kind="quiet" onClick={() => { if (confirm("모든 데이터를 지우고 처음부터 시작할까요?")) { window.storage.delete("meonjeon").catch(() => {}); setSt(DEFAULT_STATE); } }}>데이터 전체 삭제</Btn>
+      </div>
+
+      {/* 폰에서 새로고침이 됐는지 확인하는 자리 */}
+      <div className="flex items-center justify-between" style={{ marginTop: 26, paddingTop: 16, borderTop: `1px solid ${C.lineSoft}` }}>
+        <span className="mono" style={{ fontSize: 10, color: C.ink3, letterSpacing: ".08em" }}>BUILD {BUILD}</span>
+        <button className="press" onClick={() => { location.href = location.pathname + "?v=" + Date.now(); }}
+          style={{ background: "transparent", border: `1px solid ${C.line}`, borderRadius: 999, padding: "7px 13px", fontSize: 11.5, color: C.ink2 }}>
+          최신으로 받기
+        </button>
       </div>
     </>
   );
