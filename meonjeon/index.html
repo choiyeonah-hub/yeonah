@@ -113,7 +113,7 @@ function merge3(base, mine, theirs) {
     if (ID_LISTS.indexOf(k) >= 0) { out[k] = mergeList(base[k], mine[k], theirs[k]); continue; }
     if (KEY_MAPS.indexOf(k) >= 0) { out[k] = mergeMap(base[k], mine[k], theirs[k]); continue; }
     if (k === 'events' || k === 'feedback') { out[k] = mergeEvents(mine[k], theirs[k]); continue; }
-    /* 나머지(설정값·오늘 컨디션 등)는 바꾼 쪽을 남깁니다 */
+    /* 나머지(설정값 등)는 바꾼 쪽을 남깁니다 */
     out[k] = J(mine[k]) !== J(base[k]) ? mine[k] : (k in (theirs || {}) ? theirs[k] : mine[k]);
   }
   return out;
@@ -2604,7 +2604,7 @@ function DiscoverCard({ item, onAdd, onLater, onNo, delay = 0 }) {
 
 /* ── 홈 ───────────────────────────────────────
    판단이 필요한 일은 3가지만. 매일 루틴은 체크리스트로 따로.
-   컨디션이 안 좋은 날엔 목록을 줄이고 가족에게 넘길 수 있게. */
+   나머지는 접어두고, 가족이 각자 자기 몫만 볼 수도 있게. */
 function Home() {
   const { st, setSt, me, cats, setTab, addTasks, complete, say, log, setRoutine, routineAction, spendAI, refundAI } = use();
   const [all, setAll] = useState(false);
