@@ -1151,6 +1151,28 @@ function nextFromAnchor(anchor, leadDays) {
   return d.getTime() - (leadDays || 7) * DAY;
 }
 const anchorLabel = (a) => (a ? `${Number(a.split("-")[0])}월 ${Number(a.split("-")[1])}일` : "");
+/* ── 음력 → 양력 변환 ──────────────────────────────
+   한국천문연구원 데이터 기반(korean-lunar-calendar)으로 생성한
+   2025~2045년 테이블. ny=음력 1월 1일의 양력 날짜,
+   s=각 달 시작 오프셋(일), l=각 달 길이(29/30). 전 구간 검증 완료. */
+const LUNAR_TABLE = {"2025":{"ny":[1,29],"s":[0,30,59,89,118,147,206,236,265,295,325,355],"l":[30,29,30,29,29,30,30,29,30,30,30,29]},"2026":{"ny":[2,17],"s":[0,30,59,89,118,147,177,206,236,265,295,325],"l":[30,29,30,29,29,30,29,30,29,30,30,30]},"2027":{"ny":[2,7],"s":[0,29,59,88,118,147,176,206,235,264,294,324],"l":[29,30,29,30,29,29,30,29,29,30,30,30]},"2028":{"ny":[1,27],"s":[0,29,59,89,118,177,206,236,265,294,324,354],"l":[29,30,30,29,30,29,30,29,29,30,30,29]},"2029":{"ny":[2,13],"s":[0,30,60,89,119,149,178,207,237,266,295,325],"l":[30,30,29,30,30,29,29,30,29,29,30,30]},"2030":{"ny":[2,3],"s":[0,29,59,88,118,148,177,207,236,266,295,325],"l":[29,30,29,30,30,29,30,29,30,29,30,29]},"2031":{"ny":[1,23],"s":[0,30,59,118,148,177,207,237,266,296,325,355],"l":[30,29,30,30,29,30,30,29,30,29,30,29]},"2032":{"ny":[2,11],"s":[0,30,59,88,118,147,177,207,236,266,296,325],"l":[30,29,29,30,29,30,30,29,30,30,29,30]},"2033":{"ny":[1,31],"s":[0,29,59,88,117,147,176,206,235,265,295,354],"l":[29,30,29,29,30,29,30,29,30,30,30,30]},"2034":{"ny":[2,19],"s":[0,29,59,88,117,147,176,206,235,265,295,325],"l":[29,30,29,29,30,29,30,29,30,30,30,29]},"2035":{"ny":[2,8],"s":[0,30,59,89,118,147,177,206,235,265,295,324],"l":[30,29,30,29,29,30,29,29,30,30,29,30]},"2036":{"ny":[1,28],"s":[0,30,60,89,119,148,207,236,265,295,325,354],"l":[30,30,29,30,29,29,29,29,30,30,29,30]},"2037":{"ny":[2,15],"s":[0,30,60,89,119,148,177,207,236,265,295,324],"l":[30,30,29,30,29,29,30,29,29,30,29,30]},"2038":{"ny":[2,4],"s":[0,30,60,89,119,148,178,207,237,266,295,325],"l":[30,30,29,30,29,30,29,30,29,29,30,29]},"2039":{"ny":[1,24],"s":[0,30,60,89,119,178,208,237,267,296,326,355],"l":[30,30,29,30,30,30,29,30,29,30,29,29]},"2040":{"ny":[2,12],"s":[0,30,59,89,119,148,178,208,237,267,296,326],"l":[30,29,30,30,29,30,30,29,30,29,30,29]},"2041":{"ny":[2,1],"s":[0,30,59,88,118,147,177,207,236,266,296,325],"l":[30,29,29,30,29,30,30,29,30,30,29,30]},"2042":{"ny":[1,22],"s":[0,29,88,117,147,176,206,235,265,295,324,354],"l":[29,30,29,30,29,30,29,30,30,29,30,30]},"2043":{"ny":[2,10],"s":[0,29,59,88,117,147,176,205,235,265,294,324],"l":[29,30,29,29,30,29,29,30,30,29,30,30]},"2044":{"ny":[1,30],"s":[0,30,59,89,118,147,177,235,265,294,324,354],"l":[30,29,30,29,29,30,29,30,29,30,30,30]},"2045":{"ny":[2,17],"s":[0,30,59,89,118,147,177,206,235,265,294,324],"l":[30,29,30,29,29,30,29,29,30,29,30,30]}};
+function lunarToSolar(ly, lm, ld) {
+  const t = LUNAR_TABLE[ly];
+  if (!t) return null;
+  const day = Math.min(ld, t.l[lm - 1]); /* 29일까지인 달의 30일 제사는 그 달 말일로 */
+  return new Date(ly, t.ny[0] - 1, t.ny[1] + t.s[lm - 1] + day - 1).getTime();
+}
+/* afterMs 이후 첫 음력 MM-DD의 양력 시점. 테이블 밖이면 null */
+function nextLunarSolarAfter(lunarMD, afterMs) {
+  const [lm, ld] = lunarMD.split("-").map(Number);
+  const y0 = new Date(afterMs).getFullYear();
+  for (let y = y0 - 1; y <= y0 + 2; y++) {
+    const t = lunarToSolar(y, lm, ld);
+    if (t != null && t > afterMs) return t;
+  }
+  return null;
+}
+
 /* afterMs 이후에 오는 첫 (기념일 - 미리 알릴 일수) 시점 */
 function nextAnchorAfter(anchor, lead, afterMs) {
   if (!anchor) return null;
@@ -1333,17 +1355,19 @@ function App() {
     const patterned = (cfg.dow != null && cfg.dow !== "") || cfg.dom;
     let next, lunarPatch = null;
     if (cfg.anchor && cfg.lunar) {
-      /* 음력: 다음 해 양력 날짜를 +354일로 추정하고 확인을 부탁합니다 */
-      const evt = nextAnchorAfter(cfg.anchor, 0, todayKey() - 1);
-      const est = new Date(evt + 354 * DAY);
-      const newAnchor = `${String(est.getMonth() + 1).padStart(2, "0")}-${String(est.getDate()).padStart(2, "0")}`;
-      next = est.getTime() - (cfg.leadDays != null ? cfg.leadDays : 7) * DAY;
-      lunarPatch = { anchor: newAnchor, estimated: true };
+      const lead = cfg.leadDays != null ? cfg.leadDays : 7;
+      const thisEvt = nextAnchorAfter(cfg.anchor, 0, todayKey() - 1);
+      const exact = cfg.lunarMD ? nextLunarSolarAfter(cfg.lunarMD, Math.max(thisEvt, todayKey())) : null;
+      const evtNext = exact != null ? exact : thisEvt + 354 * DAY;
+      const nd = new Date(evtNext);
+      const newAnchor = `${String(nd.getMonth() + 1).padStart(2, "0")}-${String(nd.getDate()).padStart(2, "0")}`;
+      next = evtNext - lead * DAY;
+      lunarPatch = { anchor: newAnchor, estimated: exact == null || undefined };
     } else {
       next = cfg.anchor ? nextAnchorAfter(cfg.anchor, cfg.leadDays != null ? cfg.leadDays : 7, todayKey())
         : patterned ? nextByPattern(cfg) : todayKey() + days * DAY;
     }
-    if (action === "done") { setRoutine(key, { ...(lunarPatch || {}), nextAt: next, lastAt: Date.now(), doneBy: me, streak: (cfg.streak || 0) + 1 }); say(cfg.lunar ? "해두셨네요. 내년 날짜는 예상해뒀으니 경조사 탭에서 확인해주세요" : "해두셨네요"); }
+    if (action === "done") { setRoutine(key, { ...(lunarPatch || {}), nextAt: next, lastAt: Date.now(), doneBy: me, streak: (cfg.streak || 0) + 1 }); say(cfg.lunar ? "해두셨네요. 내년 양력 날짜로 다시 잡아뒀어요" : "해두셨네요"); }
     if (action === "later") { setRoutine(key, { nextAt: Date.now() + DAY }); say("내일 다시 올려드릴게요"); }
     if (action === "skip") { setRoutine(key, { ...(lunarPatch || {}), nextAt: next }); say("이번 회차는 건너뛸게요"); }
     log("routine_" + action, { key });
@@ -2957,13 +2981,16 @@ function Speak() {
    음력 항목은 올해 양력 날짜로 잡고, 지나면 다음 해를
    추정(+354일)해두고 확인을 부탁합니다. */
 function AnnScreen() {
-  const { st, setSt, say } = use();
+  const { st, setSt, addTasks, say } = use();
   const [name, setName] = useState("");
   const [mm, setMM] = useState("");
   const [dd, setDD] = useState("");
   const [lead, setLead] = useState(7);
   const [lunar, setLunar] = useState(false);
-  const [lunarLabel, setLunarLabel] = useState("");
+  const [withPrep, setWithPrep] = useState(true);
+  const isJesa = /제사|기일|차례/.test(name);
+  /* 음력 선택 중이면 고른 날짜의 다음 양력 날짜를 미리 계산해 보여줍니다 */
+  const preview = lunar && mm && dd ? nextLunarSolarAfter(`${String(mm).padStart(2, "0")}-${String(dd).padStart(2, "0")}`, Date.now()) : null;
   const inp = { border: `1px solid ${C.line}`, borderRadius: R.sm, padding: "12px 13px", fontSize: 14.5, background: C.bg, color: C.ink, width: "100%" };
 
   const list = (st.customRoutines || [])
@@ -2975,30 +3002,73 @@ function AnnScreen() {
     })
     .sort((a, b) => a.evt - b.evt);
 
+  /* 제사·차례 준비물 — AI가 만들고, 실패하면 기본 목록으로 */
+  const genPrep = async (title, evtMs) => {
+    const ed = new Date(evtMs);
+    const when = `${ed.getMonth() + 1}월 ${ed.getDate()}일`;
+    const FALLBACK = [
+      { title: "제수 음식 메뉴 정하기", category: "food", daysBefore: 7, note: "어른들께 여쭤볼 것 포함" },
+      { title: "제기·향·초·병풍 확인", category: "event", daysBefore: 5, note: "모자란 건 미리 주문" },
+      { title: "제수 장보기 목록 만들기", category: "food", daysBefore: 4, note: "과일·나물·전·탕국 재료" },
+      { title: "제수 장보기", category: "food", daysBefore: 2, note: "생물은 하루 전에" },
+      { title: "집 정리·상 자리 마련", category: "home", daysBefore: 1, note: "" },
+      { title: "음식 장만·전 부치기", category: "food", daysBefore: 1, note: "" },
+      { title: "지방·축문 준비", category: "event", daysBefore: 1, note: "" },
+    ];
+    let items = FALLBACK;
+    try {
+      const r = await askClaude(`한국 가정의 살림을 돕는 AI '${BRAND}'입니다. "${title}" (${when})을 준비합니다.
+가구: ${householdLine(st)}
+이 행사 전에 해야 할 준비를 5~8개로 나누세요. 장보기·음식·용품·집정리를 구분하고, 며칠 전에 할지 정하세요.
+출력은 JSON 배열만: [{"title":"12자 이내","category":"food|home|event","daysBefore":숫자,"note":"15자 이내"}]`);
+      if (Array.isArray(r) && r.length) items = r.filter((x) => x && x.title).slice(0, 8);
+    } catch {}
+    const rows = items.map((it) => {
+      const due = new Date(evtMs - (Number(it.daysBefore) || 1) * DAY);
+      return { title: String(it.title).slice(0, 20), category: ["food", "home", "event"].includes(it.category) ? it.category : "event",
+        status: "remember", note: `${due.getMonth() + 1}/${due.getDate()}까지${it.note ? " · " + it.note : ""}` };
+    });
+    addTasks(rows, "ai");
+    say(`준비 ${rows.length}개를 영역별로 담았어요`);
+  };
+
   const add = () => {
     const t = name.trim();
     const m = Number(mm), d = Number(dd);
     if (!t) return say("이름을 넣어주세요 (예: 시아버지 생신)");
-    if (!m || !d || m > 12 || d > 31) return say(lunar ? "올해 양력 날짜를 골라주세요" : "월과 일을 골라주세요");
-    const a = `${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    if (!m || !d || m > 12 || d > (lunar ? 30 : 31)) return say(lunar ? "음력 월과 일을 골라주세요" : "월과 일을 골라주세요");
+    const md = `${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    let anchorSolar = md, evtMs;
+    if (lunar) {
+      evtMs = nextLunarSolarAfter(md, Date.now());
+      if (evtMs == null) return say("변환 가능한 날짜 범위를 벗어났어요");
+      const ad = new Date(evtMs);
+      anchorSolar = `${String(ad.getMonth() + 1).padStart(2, "0")}-${String(ad.getDate()).padStart(2, "0")}`;
+    } else {
+      evtMs = nextAnchorAfter(md, 0, Date.now());
+    }
     const cid = uid("cr");
     setSt((sv) => ({
       ...sv,
       customRoutines: [...(sv.customRoutines || []), { id: cid, title: t, category: "event", cycle: 365 }],
-      routines: { ...sv.routines, [`c:${cid}`]: { on: true, cycle: 365, anchor: a, leadDays: lead,
-        lunar: lunar || undefined, lunarLabel: lunar ? lunarLabel.trim() : undefined,
-        nextAt: nextAnchorAfter(a, lead, Date.now()) } },
+      routines: { ...sv.routines, [`c:${cid}`]: { on: true, cycle: 365, anchor: anchorSolar, leadDays: lead,
+        lunar: lunar || undefined, lunarMD: lunar ? md : undefined,
+        lunarLabel: lunar ? `음력 ${m}월 ${d}일` : undefined,
+        nextAt: Math.max(evtMs - lead * DAY, Date.now()) } },
     }));
-    setName(""); setMM(""); setDD(""); setLunarLabel("");
-    say(`${anchorLabel(a)} ${lead === 0 ? "당일에" : lead + "일 전에"} 올려드릴게요`);
+    const doPrep = withPrep && isJesa;
+    setName(""); setMM(""); setDD("");
+    say(lunar ? `음력 ${m}월 ${d}일 → 올해 ${anchorLabel(anchorSolar)} · ${lead === 0 ? "당일" : lead + "일 전"}에 올려드릴게요`
+              : `${anchorLabel(anchorSolar)} ${lead === 0 ? "당일에" : lead + "일 전에"} 올려드릴게요`);
+    if (doPrep) genPrep(t, evtMs);
   };
   const editRow = (row) => {
     setName(row.cr.title);
-    setMM(String(Number(row.cfg.anchor.split("-")[0])));
-    setDD(String(Number(row.cfg.anchor.split("-")[1])));
+    const src = row.cfg.lunar && row.cfg.lunarMD ? row.cfg.lunarMD : row.cfg.anchor;
+    setMM(String(Number(src.split("-")[0])));
+    setDD(String(Number(src.split("-")[1])));
     setLead(row.cfg.leadDays != null ? row.cfg.leadDays : 7);
     setLunar(!!row.cfg.lunar);
-    setLunarLabel(row.cfg.lunarLabel || "");
     setSt((sv) => ({ ...sv, customRoutines: (sv.customRoutines || []).filter((x) => x.id !== row.cr.id) }));
     window.scrollTo({ top: 0, behavior: "smooth" });
     say("아래 칸에 불러왔어요. 고쳐서 다시 넣어주세요");
@@ -3033,30 +3103,30 @@ function AnnScreen() {
             ))}
           </div>
 
-          {lunar && (
-            <>
-              <input className="hae" value={lunarLabel} onChange={(e) => setLunarLabel(e.target.value)}
-                placeholder="음력 날짜 메모 (예: 음력 8월 12일)" style={{ ...inp, marginTop: 10 }} />
-              <div style={{ fontSize: 12, color: C.ink3, marginTop: 8, lineHeight: 1.65 }}>
-                음력은 해마다 양력 날짜가 달라져요. <b style={{ color: C.ink2 }}>올해 양력으로 며칠인지</b> 아래에 골라주세요.
-                내년 날짜는 지나고 나면 예상해두고 확인을 부탁드릴게요.
-                <button className="press" onClick={() => window.open("https://search.naver.com/search.naver?query=음력변환기", "_blank", "noopener")}
-                  style={{ marginLeft: 6, background: "none", border: "none", color: C.moss, fontSize: 12, padding: 0, textDecoration: "underline" }}>음력↔양력 변환기</button>
-              </div>
-            </>
-          )}
-
-          <div style={{ fontSize: 12, color: C.ink2, marginTop: 12 }}>{lunar ? "올해 양력 날짜" : "날짜"}</div>
+          <div style={{ fontSize: 12, color: C.ink2, marginTop: 12 }}>{lunar ? "음력 날짜 (양력은 자동 계산)" : "날짜"}</div>
           <div className="flex gap-2" style={{ marginTop: 7 }}>
             <select className="hae" value={mm} onChange={(e) => setMM(e.target.value)} style={{ ...inp, flex: 1 }}>
-              <option value="">몇 월</option>
+              <option value="">{lunar ? "음력 몇 월" : "몇 월"}</option>
               {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => <option key={m} value={m}>{m}월</option>)}
             </select>
             <select className="hae" value={dd} onChange={(e) => setDD(e.target.value)} style={{ ...inp, flex: 1 }}>
               <option value="">며칠</option>
-              {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => <option key={d} value={d}>{d}일</option>)}
+              {Array.from({ length: lunar ? 30 : 31 }, (_, i) => i + 1).map((d) => <option key={d} value={d}>{d}일</option>)}
             </select>
           </div>
+          {lunar && preview && (
+            <div style={{ marginTop: 9, background: C.mossSoft, borderRadius: R.xs, padding: "10px 12px", fontSize: 12.5, color: C.moss, lineHeight: 1.6 }}>
+              음력 {Number(mm)}월 {Number(dd)}일 → 다음 차례는 <b>{new Date(preview).getFullYear()}년 {new Date(preview).getMonth() + 1}월 {new Date(preview).getDate()}일</b>이에요. 해마다 자동으로 다시 계산합니다.
+            </div>
+          )}
+
+          {isJesa && (
+            <button className="press flex items-center gap-2.5 w-full" onClick={() => setWithPrep((v) => !v)}
+              style={{ marginTop: 12, background: "transparent", border: "none", padding: "2px 0", textAlign: "left" }}>
+              <span style={{ width: 20, height: 20, borderRadius: 6, flexShrink: 0, border: `1.5px solid ${withPrep ? C.moss : C.line}`, background: withPrep ? C.moss : "transparent", color: "#fff", fontSize: 12, lineHeight: "18px", textAlign: "center" }}>{withPrep ? "✓" : ""}</span>
+              <span style={{ fontSize: 12.5, color: C.ink2, lineHeight: 1.5 }}>준비물도 AI가 나눠 담기 — 장보기·제기·음식·집정리를 날짜별로 영역에 넣어드려요</span>
+            </button>
+          )}
 
           <div style={{ fontSize: 12, color: C.ink2, marginTop: 12 }}>얼마나 미리 알려드릴까요?</div>
           <div className="flex gap-1.5" style={{ marginTop: 7 }}>
@@ -3077,7 +3147,7 @@ function AnnScreen() {
                 <span style={{ display: "block", fontSize: 14.5, fontWeight: 500 }}>{row.cr.title}</span>
                 <span style={{ display: "block", fontSize: 12, color: C.ink3, marginTop: 3 }}>
                   {anchorLabel(row.cfg.anchor)}
-                  {row.cfg.lunar ? <span style={{ color: C.sun }}> · {row.cfg.lunarLabel || "음력"}{row.cfg.estimated ? " · 예상 날짜, 확인해주세요" : ""}</span> : null}
+                  {row.cfg.lunar ? <span style={{ color: C.sun }}> · {row.cfg.lunarLabel || "음력"} (자동 변환){row.cfg.estimated ? " · 추정, 확인해주세요" : ""}</span> : null}
                   {" · "}{(row.cfg.leadDays || 0) === 0 ? "당일 알림" : `${row.cfg.leadDays}일 전 알림`}
                 </span>
               </span>
@@ -3571,8 +3641,21 @@ function Settings() {
                 </div>
               );
             })()}
+            <div style={{ fontSize: 12, color: C.ink2, marginTop: 12 }}>지금 계기판 눈금은 어느 정도예요?</div>
+            <div className="flex gap-1.5" style={{ marginTop: 7 }}>
+              {[["가득", 1], ["⅔", 0.66], ["절반", 0.5], ["¼", 0.25], ["바닥", 0.08]].map(([l, v]) => {
+                const on = (d.car || {}).fuelLevel === v && (d.car || {}).fuelAt;
+                return (
+                  <button key={l} className="press" onClick={() => {
+                    setD((sv) => ({ ...sv, car: { ...(sv.car || {}), fuelAt: Date.now(), fuelLevel: v } }));
+                    setSt((sv) => ({ ...sv, car: { ...(sv.car || {}), ...d.car, fuelAt: Date.now(), fuelLevel: v, alertedOn: null } }));
+                    say(v <= 0.25 ? "얼마 안 남았네요. 주유를 오늘 목록에 올릴게요" : "지금 눈금 기준으로 다시 계산했어요");
+                  }} style={{ flex: 1, background: on ? C.mossSoft : C.bg, color: on ? C.moss : C.ink2, border: `1px solid ${on ? C.moss : C.line}`, borderRadius: R.xs, padding: "10px 0", fontSize: 12, fontWeight: 600 }}>{l}</button>
+                );
+              })}
+            </div>
             <button className="press w-full" onClick={() => setD((sv) => ({ ...sv, car: { ...(sv.car || {}), fuelAt: Date.now(), fuelLevel: 1 } }))}
-              style={{ marginTop: 11, background: C.bg, border: `1px solid ${C.line}`, borderRadius: R.sm, padding: "11px 0", fontSize: 12.5, color: C.ink2 }}>방금 가득 주유했어요 (기준일 다시 잡기)</button>
+              style={{ marginTop: 9, background: C.bg, border: `1px solid ${C.line}`, borderRadius: R.sm, padding: "11px 0", fontSize: 12.5, color: C.ink2 }}>방금 가득 주유했어요 (기준일 다시 잡기)</button>
           </div></Card>
         </Section>
       )}
