@@ -3588,6 +3588,7 @@ function Settings() {
   const [routineCat, setRoutineCat] = useState(null);
   const [pickKey, setPickKey] = useState(null);
   const [newRoutine, setNewRoutine] = useState("");
+  const [moveDuty, setMoveDuty] = useState(null);  /* 기본 분담을 바꿀 때 이미 있는 것도 옮길지 */
   const routineGroups = useMemo(() => {
     const g = {};
     eligibleRoutines(st, true).forEach((r) => {
@@ -3779,6 +3780,34 @@ function Settings() {
         </Section>
       )}
 
+      {moveDuty && (() => {
+        const who = st.members.find((m) => m.id === moveDuty.to) || {};
+        const n = moveDuty.tasks.length + moveDuty.routs.length;
+        return (
+          <Sheet onClose={() => setMoveDuty(null)}>
+            <div className="disp" style={{ fontSize: 20, fontWeight: 600 }}>이미 있는 것도 같이 옮길까요?</div>
+            <p style={{ fontSize: 13.5, color: C.ink2, marginTop: 9, lineHeight: 1.7 }}>
+              앞으로 <b>{moveDuty.cat.emoji} {moveDuty.cat.label}</b>에 담기는 일은 {who.name} 몫이 됩니다.
+              지금 이 영역에 이미 있는 <b>{n}개</b>는 아직 예전 담당자 그대로예요.
+            </p>
+            <div style={{ marginTop: 14, background: C.bg, borderRadius: R.sm, padding: "12px 14px", fontSize: 12.5, color: C.ink2, lineHeight: 1.75 }}>
+              {moveDuty.tasks.length > 0 && <div>담아둔 일 {moveDuty.tasks.length}개 · {moveDuty.tasks.slice(0, 3).map((t) => t.title).join(", ")}{moveDuty.tasks.length > 3 ? " 외" : ""}</div>}
+              {moveDuty.routs.length > 0 && <div>정기 일정 {moveDuty.routs.length}개 · {moveDuty.routs.slice(0, 3).map((r) => r.seed.t).join(", ")}{moveDuty.routs.length > 3 ? " 외" : ""}</div>}
+            </div>
+            <Btn kind="accent" style={{ marginTop: 18 }} onClick={() => {
+              setSt((sv) => ({
+                ...sv,
+                tasks: sv.tasks.map((t) => moveDuty.tasks.some((x) => x.id === t.id) ? { ...t, owner: moveDuty.to } : t),
+                routines: moveDuty.routs.reduce((acc, r) => ({ ...acc, [r.key]: { ...(acc[r.key] || {}), owner: moveDuty.to } }), { ...sv.routines }),
+              }));
+              say(`${n}개를 ${who.name} 몫으로 옮겼어요`);
+              setMoveDuty(null);
+            }}>{n}개 모두 {who.name} 몫으로</Btn>
+            <Btn kind="ghost" onClick={() => setMoveDuty(null)}>앞으로 담기는 것만</Btn>
+          </Sheet>
+        );
+      })()}
+
       {/* 기본 분담 — 이미 정해져 있는 일은 매번 안 물어봅니다 */}
       {st.members.length > 1 && (
         <Section eyebrow="SHARE" title="기본 분담" right="새로 담기는 일에 자동 적용">
@@ -3794,7 +3823,18 @@ function Settings() {
                   <span className="flex-1 min-w-0" style={{ fontSize: 13.5 }}>{c.emoji} {c.label}</span>
                   <div className="flex gap-1.5">
                     {st.members.map((m) => (
-                      <button key={m.id} className="press" onClick={() => setSt((sv) => ({ ...sv, duty: { ...(sv.duty || {}), [c.id]: cur === m.id ? null : m.id } }))}
+                      <button key={m.id} className="press" onClick={() => {
+                        const next = cur === m.id ? null : m.id;
+                        setSt((sv) => ({ ...sv, duty: { ...(sv.duty || {}), [c.id]: next } }));
+                        /* 앞으로 담기는 것만 바뀌므로, 이미 있는 것도 옮길지 물어봅니다 */
+                        if (next) {
+                          const tasks = st.tasks.filter((t) => !t.done && t.category === c.id && t.owner !== next);
+                          const routs = eligibleRoutines(st, true)
+                            .filter((r) => (r.child ? `kid:${r.child.id}` : r.seed.cat) === c.id)
+                            .filter((r) => { const cfg = st.routines[r.key]; return cfg && cfg.on !== false && cfg.owner !== next; });
+                          if (tasks.length + routs.length > 0) setMoveDuty({ cat: c, to: next, tasks, routs });
+                        }
+                      }}
                         style={{ background: cur === m.id ? m.color : C.bg, color: cur === m.id ? "#fff" : C.ink3, border: `1px solid ${cur === m.id ? m.color : C.line}`, borderRadius: R.pill, padding: "6px 11px", fontSize: 11.5, fontWeight: 600 }}>
                         {m.name}
                       </button>
