@@ -12,10 +12,10 @@
 <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.4/babel.min.js"></script>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Hahmlet:wght@500;600&family=IBM+Plex+Sans+KR:wght@300;400;500;600&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600;700&family=IBM+Plex+Sans+KR:wght@300;400;500;600&display=swap');
   html,body{margin:0;background:#FBF7F0;font-family:'IBM Plex Sans KR',-apple-system,BlinkMacSystemFont,sans-serif;color:#2A1D12;-webkit-font-smoothing:antialiased}
   #gate{max-width:440px;margin:0 auto;padding:64px 22px calc(40px + env(safe-area-inset-bottom))}
-  #gate h1{font-family:'Hahmlet',serif;font-size:28px;font-weight:600;letter-spacing:-.035em;line-height:1.42;margin:0}
+  #gate h1{font-family:'Noto Serif KR',serif;font-size:28px;font-weight:600;letter-spacing:-.035em;line-height:1.42;margin:0}
   #gate p{font-size:13.5px;color:#57675F;line-height:1.78;margin-top:14px}
   #gate input{width:100%;border:1px solid #EDE4D6;border-radius:16px;padding:15px 16px;font-size:15px;background:#fff;font-family:inherit;box-sizing:border-box;transition:border-color .15s,box-shadow .15s}
   #gate input:focus{outline:none;border-color:#C2521E;box-shadow:0 0 0 3px #FCEDE2}
@@ -367,7 +367,7 @@ const R = { xs: 10, sm: 14, md: 18, lg: 22, xl: 28, pill: 999 };
 const MEMBER_COLORS = ["#8A4A2A", "#3D6B8F", "#6E7A3A", "#8A4A6E"];
 
 const FONTS = `
-@import url('https://fonts.googleapis.com/css2?family=Hahmlet:wght@500;600;700&family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600;700&family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
 * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
 body { margin: 0; }
 input, textarea, select, button { font-family: inherit; }
@@ -375,7 +375,9 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline: non
 button:focus-visible { outline: 2px solid ${C.moss}; outline-offset: 2px; }
 ::-webkit-scrollbar { width: 0; height: 0; }
 .hae { font-family: 'IBM Plex Sans KR', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', sans-serif; }
-.disp { font-family: 'Hahmlet', 'IBM Plex Sans KR', serif; letter-spacing: -0.02em; }
+/* 제목은 본명조. 함렛의 각진 획이 주던 딱딱함을 뺐습니다.
+   본문은 그대로 IBM Plex Sans KR — 읽는 느낌을 흔들지 않으려고요 */
+.disp { font-family: 'Noto Serif KR', 'IBM Plex Sans KR', serif; letter-spacing: -0.02em; }
 .mono { font-family: 'IBM Plex Mono', ui-monospace, monospace; letter-spacing: 0.06em; }
 @keyframes riseIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
 @keyframes driftUp { 0% { opacity: 0; transform: translateY(10px); } 18% { opacity: .85; } 100% { opacity: 0; transform: translateY(-26px); } }
@@ -1198,7 +1200,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0829-c";
+const BUILD = "0829-d";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
