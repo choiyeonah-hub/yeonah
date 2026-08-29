@@ -19,13 +19,31 @@ function todayLine(state, tzOffset) {
   const tasks = (st.tasks || []).filter((t) => t && !t.done);
 
   /* 오늘까지 온 것 + 지금 해야 하는 것. 살 것은 빼둡니다 — 급하지 않으니까요 */
-  const now = tasks.filter((t) => t.status !== "buy" && ((t.dueAt || 0) <= today + DAY || t.status === "now"));
-  if (!now.length) return null;                       /* 없는 날은 안 보냅니다 */
-  const titles = now.slice(0, 3).map((t) => String(t.title || "").slice(0, 24));
-  const more = now.length - titles.length;
+  const now = tasks.filter((t) => t.status !== "buy" && ((t.dueAt || 0) <= today + DAY || t.status === "now"))
+    .map((t) => String(t.title || "").trim()).filter(Boolean);
+
+  /* 매일 하는 루틴 — 개 산책처럼 "매일인데 매일 까먹는" 것이 여기 있습니다.
+     서버는 씨앗 목록을 모르므로 앱이 적어둔 routineTitles를 씁니다.
+     오늘 이미 한 것(lastAt이 오늘)은 뺍니다. */
+  const titles = st.routineTitles || {};
+  const daily = [];
+  for (const [key, cfg] of Object.entries(st.routines || {})) {
+    if (!cfg || cfg.on === false) continue;
+    const name = String(titles[key] || "").trim();
+    if (!name) continue;                              /* 이름을 모르면 안 보냅니다 */
+    if ((cfg.lastAt || 0) >= today) continue;         /* 오늘 이미 했음 */
+    if ((cfg.nextAt || 0) >= today + DAY) continue;   /* 아직 날이 아님 */
+    daily.push(name);
+  }
+
+  /* 매일 까먹는 것을 먼저, 그다음이 그날 잡힌 일입니다 */
+  const all = [...new Set([...daily, ...now])];
+  if (!all.length) return null;                       /* 없는 날은 안 보냅니다 */
+  const shown = all.slice(0, 3).map((t) => t.slice(0, 24));
+  const more = all.length - shown.length;
   return {
-    title: `오늘 머리 쓸 일 ${now.length}가지`,
-    body: titles.join(" · ") + (more > 0 ? ` 외 ${more}개` : ""),
+    title: `오늘 챙길 일 ${all.length}가지`,
+    body: shown.join(" · ") + (more > 0 ? ` 외 ${more}개` : ""),
   };
 }
 

@@ -59,7 +59,7 @@ const J = (x) => JSON.stringify(x === undefined ? null : x);
 /* id로 구분되는 목록들 */
 const ID_LISTS = ['tasks', 'shopping', 'pantry', 'toss', 'customRoutines', 'customCats', 'children', 'members', 'cars', 'discoverSnoozed'];
 /* 키마다 따로 판단해야 하는 사전들 */
-const KEY_MAPS = ['routines', 'prefs', 'duty', 'groupsOff', 'flags', 'petTypes', 'dismissedDiscover'];
+const KEY_MAPS = ['routines', 'prefs', 'duty', 'groupsOff', 'flags', 'petTypes', 'dismissedDiscover', 'routineTitles'];
 
 function mergeList(base, mine, theirs) {
   base = Array.isArray(base) ? base : []; mine = Array.isArray(mine) ? mine : []; theirs = Array.isArray(theirs) ? theirs : [];
@@ -1083,6 +1083,8 @@ const DEFAULT_STATE = {
   carType: "ice",   /* 옛 판에서 넘어온 값. carsOf()가 알아서 옮깁니다 */
   extra: "",
   tasks: [], routines: {}, customRoutines: [], prefs: {}, groupsOff: {}, customCats: [],
+  /* 루틴 key → 제목. 알림 서버가 읽습니다 (서버는 씨앗 목록을 모릅니다) */
+  routineTitles: {},
   events: [], feedback: [], discoverSnoozed: [], dismissedDiscover: [],
   discoverCache: null, pantry: [],
   /* 최근에 낸 식단 메뉴 — 다음에 짤 때 겹치지 않게 씁니다 */
@@ -1291,7 +1293,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0829-aa";
+const BUILD = "0829-ab";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -2167,6 +2169,18 @@ function App() {
     const t = setTimeout(() => { window.storage.set("meonjeon", JSON.stringify(st)).catch(() => {}); }, 500);
     return () => clearTimeout(t);
   }, [st, ready]);
+
+  /* 알림 서버는 씨앗 목록을 모릅니다. 루틴 제목만 따로 적어둡니다 —
+     이게 없으면 "개 산책"처럼 매일 하는 일이 알림에서 통째로 빠집니다. */
+  useEffect(() => {
+    if (!ready) return;
+    const map = {};
+    eligibleRoutines(st).forEach((r) => {
+      const cfg = st.routines[r.key];
+      if (cfg && cfg.on !== false) map[r.key] = r.seed.t + (r.child ? ` (${r.child.name})` : "");
+    });
+    setSt((sv) => (JSON.stringify(sv.routineTitles || {}) === JSON.stringify(map) ? sv : { ...sv, routineTitles: map }));
+  }, [ready, st.routines, st.children, st.flags, st.petTypes, st.cars, st.customRoutines]);
 
   /* 가족이 다른 기기에서 고치면 여기로 들어옵니다.
      "새로고침" 버튼을 누르게 하지 않고 화면에 바로 반영합니다 */
@@ -3348,6 +3362,8 @@ function Home() {
 
   /* 생각·판단이 필요한 일 (여기만 3개 원칙) */
   const doneToday = (r) => { const c = st.routines[r.key] || {}; return !!(c.lastAt && c.lastAt >= todayKey()); };
+  /* 오늘 아직 안 한 매일 루틴 — 접힌 카드에도 이름이 그대로 보입니다 */
+  const dailyLeft = daily.filter((r) => !doneToday(r));
   const visTasks = openTasks.filter((t) => visible(t.owner));
   /* 오늘 끝낸 루틴은 3개 정원에 넣지 않고, 취소선 상태로 뒤에 남겨둡니다 */
   /* 날짜가 오늘까지 온 일은 분류와 상관없이 맨 위로 올립니다.
@@ -3703,14 +3719,24 @@ function Home() {
 
       {/* 매일 루틴은 체크리스트로 따로 */}
       {daily.length > 0 && (
-        <Section eyebrow="ROUTINE" title="오늘의 루틴" right={openRoutine ? "하던 대로면 충분해요" : null}>
+        <Section eyebrow="ROUTINE" title="오늘의 루틴" right="매일 하는 것">
           <Card>
+            {/* 접혀 있어도 무엇이 남았는지 이름으로 보입니다.
+                잘 챙기고 있다고 말해주는 칭찬은 여기 쓰지 않습니다 —
+                매일 하는 일을 매일 까먹는 사람에게는 틀린 말이고, 놀리는 것처럼 들립니다. */}
             <button className="press flex items-center justify-between w-full" onClick={() => setOpenRoutine((v) => !v)}
               style={{ background: "transparent", border: "none", padding: "14px 16px", borderBottom: openRoutine ? `1px solid ${C.line}` : "none" }}>
-              <span style={{ fontSize: 14, color: C.ink2, textAlign: "left" }}>
-                <b style={{ color: C.ink, fontWeight: 600 }}>{daily.length}개</b>
+              <span style={{ fontSize: 14, color: C.ink2, textAlign: "left", minWidth: 0 }}>
+                <b style={{ color: dailyLeft.length ? C.ink : C.moss, fontWeight: 600 }}>
+                  {dailyLeft.length ? `${dailyLeft.length}개 남음` : "오늘 건 다 했어요"}
+                </b>
                 {st.members.length > 1 && mineRoutines.length ? ` · ${meName} 님 몫 ${mineRoutines.length}개` : ""}
-                {!openRoutine && <span style={{ display: "block", fontSize: 11.5, color: C.ink3, marginTop: 3 }}>하던 대로면 충분해요. 눌러서 펼치기</span>}
+                {!openRoutine && dailyLeft.length > 0 && (
+                  <span style={{ display: "block", fontSize: 11.5, color: C.ink3, marginTop: 3, lineHeight: 1.5 }}>
+                    {dailyLeft.slice(0, 3).map((r) => r.seed.t + (r.child ? ` (${r.child.name})` : "")).join(" · ")}
+                    {dailyLeft.length > 3 ? ` 외 ${dailyLeft.length - 3}개` : ""}
+                  </span>
+                )}
               </span>
               <span style={{ fontSize: 12.5, color: C.moss, flexShrink: 0 }}>{openRoutine ? "접기" : "펼치기"}</span>
             </button>
