@@ -1320,17 +1320,20 @@ function CyclePicker({ current, onPick, onOff, onClose, title, anchor, onAnchor,
           </div>
           <div style={{ fontSize: 12.5, color: C.ink2, fontWeight: 600, marginTop: 16 }}>매달 정해진 날짜가 있나요?</div>
           <div style={{ fontSize: 12, color: C.ink3, marginTop: 3, lineHeight: 1.6 }}>관리비·카드값처럼 날짜가 있는 일이요. 단지마다 달라서 직접 넣으셔야 해요.</div>
-          <div className="rail" style={{ marginTop: 10 }}>
+          {/* 옆으로 넘기게 두면 노트북에서 스크롤이 안 돼 뒤쪽 날짜가 아예 안 보입니다. 한눈에 펼칩니다 */}
+          <div className="grid gap-1.5" style={{ marginTop: 10, gridTemplateColumns: "repeat(7, minmax(0, 1fr))" }}>
             {Array.from({ length: 31 }, (_, i) => i + 1).map((n) => {
               const on = String(pat.dom) === String(n);
               return (
                 <button key={n} className="press" onClick={() => onPattern({ dom: on ? "" : n, dow: "" })}
-                  style={{ background: on ? C.moss : C.bg, color: on ? "#fff" : C.ink2, border: `1px solid ${on ? C.moss : C.line}`, borderRadius: R.pill, padding: "9px 13px", fontSize: 12.5, fontWeight: 600, minWidth: 46 }}>{n === 31 ? "말일" : `${n}일`}</button>
+                  style={{ background: on ? C.moss : C.bg, color: on ? "#fff" : C.ink2, border: `1px solid ${on ? C.moss : C.line}`,
+                           borderRadius: 10, padding: "9px 0", fontSize: n === 31 ? 11 : 12.5, fontWeight: 600,
+                           gridColumn: n === 31 ? "span 2" : undefined }}>{n === 31 ? "말일" : n}</button>
               );
             })}
           </div>
-          {pat.dom ? <div style={{ fontSize: 11.5, color: C.moss, marginTop: 7 }}>매달 {Number(pat.dom) === 31 ? "말일" : `${pat.dom}일`}에 올려드릴게요 · 옆으로 넘겨 다른 날짜도 고를 수 있어요</div>
-                   : <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 7 }}>옆으로 넘기면 말일까지 있어요</div>}
+          {pat.dom ? <div style={{ fontSize: 11.5, color: C.moss, marginTop: 8 }}>매달 {Number(pat.dom) === 31 ? "말일" : `${pat.dom}일`}에 올려드릴게요 · 다시 누르면 해제됩니다</div>
+                   : <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 8 }}>‘말일’은 그 달의 마지막 날에 맞춰 올려드려요 (2월이면 28·29일)</div>}
         </div>
       )}
       {onAnchor && (
@@ -3120,13 +3123,15 @@ function Speak() {
                   })}
                 </div>
                 <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 16 }}>매달 정해진 날짜가 있나요?</div>
-                <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 3 }}>관리비·카드값처럼요. 옆으로 넘기면 말일까지 있어요.</div>
-                <div className="rail" style={{ marginTop: 9 }}>
+                <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 3 }}>관리비·카드값처럼요. ‘말일’은 그 달의 마지막 날이에요.</div>
+                <div className="grid gap-1.5" style={{ marginTop: 9, gridTemplateColumns: "repeat(7, minmax(0, 1fr))" }}>
                   {Array.from({ length: 31 }, (_, di) => di + 1).map((n) => {
                     const on = String(t.repeatDom) === String(n);
                     return (
                       <button key={n} className="press" onClick={() => upd({ repeatDom: on ? "" : n, repeatDow: "", repeatDays: 30 })}
-                        style={{ background: on ? C.moss : C.bg, color: on ? "#fff" : C.ink2, border: `1px solid ${on ? C.moss : C.line}`, borderRadius: R.pill, padding: "9px 13px", fontSize: 12.5, fontWeight: 600, minWidth: 46 }}>{n === 31 ? "말일" : `${n}일`}</button>
+                        style={{ background: on ? C.moss : C.bg, color: on ? "#fff" : C.ink2, border: `1px solid ${on ? C.moss : C.line}`,
+                                 borderRadius: 10, padding: "9px 0", fontSize: n === 31 ? 11 : 12.5, fontWeight: 600,
+                                 gridColumn: n === 31 ? "span 2" : undefined }}>{n === 31 ? "말일" : n}</button>
                     );
                   })}
                 </div>
