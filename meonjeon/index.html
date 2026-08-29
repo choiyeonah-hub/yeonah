@@ -272,15 +272,23 @@ const STATUS_ORDER = ["now", "week", "conditional", "check", "buy", "decide", "r
 /* ── 반복 주기 선택지 ─────────────────────────── */
 const CYCLES = [
   { d: 1, label: "매일" }, { d: 3, label: "2~3일" }, { d: 7, label: "매주" },
-  { d: 14, label: "격주" }, { d: 30, label: "매월" }, { d: 90, label: "3개월" },
-  { d: 180, label: "6개월" }, { d: 365, label: "1년" },
+  { d: 14, label: "격주" }, { d: 30, label: "매월" }, { d: 60, label: "2개월" },
+  { d: 90, label: "3개월" }, { d: 180, label: "6개월" }, { d: 365, label: "1년" },
 ];
 const cycleLabel = (d) => (CYCLES.find((c) => c.d === d) || { label: `${d}일마다` }).label;
 /* 반복 패턴을 한 줄로 읽어줍니다 — "매주 · 화요일" 처럼 */
+/* 요일은 여러 개 고를 수 있습니다. 예전 방식(dow 하나)도 그대로 읽습니다 */
+function dowList(cfg) {
+  if (!cfg) return [];
+  if (Array.isArray(cfg.dows) && cfg.dows.length) return cfg.dows.map(Number).sort((a, b) => a - b);
+  if (cfg.dow != null && cfg.dow !== "") return [Number(cfg.dow)];
+  return [];
+}
 function patternLabel(cfg) {
   if (!cfg) return "";
   const base = cycleLabel(cfg.cycle);
-  if (cfg.dow != null && cfg.dow !== "") return `${base} · ${WEEKDAY[Number(cfg.dow)]}요일`;
+  const ds = dowList(cfg);
+  if (ds.length) return `${ds.length > 1 ? "매주" : base} · ${ds.map((i) => WEEKDAY[i]).join("·")}요일`;
   if (cfg.dom) return `${base} · ${Number(cfg.dom) === 31 ? "말일" : cfg.dom + "일"}`;
   if (cfg.anchor) return `매년 · ${Number(cfg.anchor.split("-")[0])}월 ${Number(cfg.anchor.split("-")[1])}일`;
   return base;
@@ -288,10 +296,12 @@ function patternLabel(cfg) {
 /* 요일·날짜가 지정된 반복의 다음 차례 */
 function nextByPattern(cfg, fromMs) {
   const base = startOfDay(fromMs || Date.now()) + DAY;
-  if (cfg.dow != null && cfg.dow !== "") {
+  const ds = dowList(cfg);
+  if (ds.length) {
+    /* 고른 요일 중 가장 먼저 오는 날 */
     for (let i = 0; i < 8; i++) {
       const d = new Date(base + i * DAY);
-      if (d.getDay() === Number(cfg.dow)) return d.getTime();
+      if (ds.includes(d.getDay())) return d.getTime();
     }
   }
   if (cfg.dom) {
@@ -1334,12 +1344,14 @@ function CyclePicker({ current, onPick, onOff, onClose, title, anchor, onAnchor,
       {onPattern && (
         <div style={{ marginTop: 20, borderTop: `1px solid ${C.line}`, paddingTop: 18 }}>
           <div style={{ fontSize: 12.5, color: C.ink2, fontWeight: 600 }}>정해진 요일이 있나요?</div>
-          <div style={{ fontSize: 12, color: C.ink3, marginTop: 3, lineHeight: 1.6 }}>분리수거처럼 요일이 정해진 일이면 골라주세요.</div>
+          <div style={{ fontSize: 12, color: C.ink3, marginTop: 3, lineHeight: 1.6 }}>분리수거처럼 요일이 정해진 일이면 골라주세요. 월·수·금처럼 <b>여러 요일</b>도 됩니다.</div>
           <div className="flex gap-1.5" style={{ marginTop: 10 }}>
             {WEEKDAY.map((w, i) => {
-              const on = String(pat.dow) === String(i);
+              const cur = dowList(pat);
+              const on = cur.includes(i);
+              const next = on ? cur.filter((x) => x !== i) : [...cur, i].sort((a, b) => a - b);
               return (
-                <button key={i} className="press" onClick={() => onPattern({ dow: on ? "" : i, dom: "" })}
+                <button key={i} className="press" onClick={() => onPattern({ dows: next, dow: "", dom: "" })}
                   style={{ flex: 1, background: on ? C.moss : C.bg, color: on ? "#fff" : C.ink2, border: `1px solid ${on ? C.moss : C.line}`, borderRadius: R.xs, padding: "10px 0", fontSize: 12.5, fontWeight: 600 }}>{w}</button>
               );
             })}
@@ -1496,7 +1508,7 @@ function App() {
   /* 반복 업무 처리 — 완료·미룸·건너뜀 모두 정상 처리 */
   const routineAction = (key, cfg, action) => {
     const days = cfg.cycle || 30;
-    const patterned = (cfg.dow != null && cfg.dow !== "") || cfg.dom;
+    const patterned = dowList(cfg).length > 0 || cfg.dom;
     let next, lunarPatch = null;
     if (cfg.anchor && cfg.lunar) {
       const lead = cfg.leadDays != null ? cfg.leadDays : 7;
@@ -1788,7 +1800,7 @@ function Onboarding() {
           const init = {};
           Object.keys(routines).forEach((k) => {
             const c = routines[k];
-            const patterned = (c.dow != null && c.dow !== "") || c.dom;
+            const patterned = dowList(c).length > 0 || c.dom;
             const spread = Math.min(c.cycle, 14);
             init[k] = { on: c.on, cycle: c.cycle, dow: c.dow, dom: c.dom,
               nextAt: patterned ? nextByPattern(c) : Date.now() + Math.floor(Math.random() * spread) * DAY };
@@ -1899,10 +1911,10 @@ function RoutineRow({ r, delay = 0, last, compact, manage }) {
 
       {pick && <CyclePicker current={cfg.cycle} title={r.seed.t} anchor={cfg.anchor} pattern={cfg}
         onPick={(dd) => { setRoutine(r.key, { cycle: dd, nextAt: nextByPattern({ ...cfg, cycle: dd }) }); setPick(false); say(`${cycleLabel(dd)}로 바꿨어요`); }}
-        onPattern={(p) => { setRoutine(r.key, { ...p, nextAt: nextByPattern({ ...cfg, ...p }) }); say(p.dow !== "" && p.dow != null ? `${WEEKDAY[Number(p.dow)]}요일마다 올려드릴게요` : p.dom ? `매달 ${p.dom === 31 ? "말" : p.dom}일에 올려드릴게요` : "요일·날짜 지정을 풀었어요"); }}
+        onPattern={(p) => { setRoutine(r.key, { ...p }); say(dowList(p).length ? `${dowList(p).map((i) => WEEKDAY[i]).join("·")}요일마다 올려드릴게요` : p.dom ? `매달 ${p.dom === 31 ? "말" : p.dom}일에 올려드릴게요` : "요일·날짜 지정을 풀었어요"); }}
         onAnchor={(a) => { setRoutine(r.key, { anchor: a, cycle: a ? 365 : cfg.cycle, nextAt: a ? nextFromAnchor(a, 7) : cfg.nextAt }); setPick(false); say(a ? `${anchorLabel(a)} 기준으로 미리 알려드릴게요` : "날짜를 지웠어요"); }}
         onOff={() => { setRoutine(r.key, { on: false }); setPick(false); say("이 항목은 접어둘게요"); }}
-        onClose={() => setPick(false)} />}
+        onClose={() => { setRoutine(r.key, { nextAt: nextByPattern(cfg) || cfg.nextAt }); setPick(false); }} />}
     </div>
   );
 }
@@ -2564,7 +2576,7 @@ function Home() {
       const ro = { ...sv.routines };
       daily.forEach((r) => {
         const c = ro[r.key] || { cycle: 30 };
-        const patterned = (c.dow != null && c.dow !== "") || c.dom;
+        const patterned = dowList(c).length > 0 || c.dom;
         const nx = c.anchor ? nextAnchorAfter(c.anchor, c.leadDays != null ? c.leadDays : 7, todayKey())
           : patterned ? nextByPattern(c) : todayKey() + (c.cycle || 30) * DAY;
         ro[r.key] = { ...c, nextAt: nx, lastAt: Date.now(), doneBy: me, streak: (c.streak || 0) + 1 };
@@ -3184,12 +3196,14 @@ function Speak() {
             </div>
             {t.repeatDays ? (
               <>
-                <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 16 }}>정해진 요일이 있나요?</div>
+                <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 16 }}>정해진 요일이 있나요? <span style={{ color: C.ink3, fontWeight: 400 }}>여러 개 고를 수 있어요</span></div>
                 <div className="flex gap-1.5" style={{ marginTop: 9 }}>
                   {WEEKDAY.map((w, wi) => {
-                    const on = String(t.repeatDow) === String(wi);
+                    const cur = dowList({ dows: t.repeatDows, dow: t.repeatDow });
+                    const on = cur.includes(wi);
+                    const next = on ? cur.filter((x) => x !== wi) : [...cur, wi].sort((a, b) => a - b);
                     return (
-                      <button key={wi} className="press" onClick={() => upd({ repeatDow: on ? "" : wi, repeatDom: "", repeatDays: 7 })}
+                      <button key={wi} className="press" onClick={() => upd({ repeatDows: next, repeatDow: "", repeatDom: "", repeatDays: 7 })}
                         style={{ flex: 1, background: on ? C.moss : C.bg, color: on ? "#fff" : C.ink2, border: `1px solid ${on ? C.moss : C.line}`, borderRadius: R.xs, padding: "10px 0", fontSize: 12.5, fontWeight: 600 }}>{w}</button>
                     );
                   })}
@@ -3235,12 +3249,13 @@ function Speak() {
               reps.forEach((r) => {
                 const nid = uid("cr");
                 const cfg = { on: true, cycle: r.repeatDays, anchor: r.anchor || undefined,
+                  dows: (r.repeatDows && r.repeatDows.length) ? r.repeatDows : undefined,
                   dow: r.repeatDow != null && r.repeatDow !== "" ? r.repeatDow : undefined,
                   dom: r.repeatDom || undefined };
                 cr.push({ id: nid, title: r.title, category: r.category, cycle: r.repeatDays });
                 ro[`c:${nid}`] = { ...cfg,
                   nextAt: r.anchor ? nextFromAnchor(r.anchor, 7)
-                    : (cfg.dow != null || cfg.dom) ? nextByPattern(cfg)
+                    : (dowList(cfg).length || cfg.dom) ? nextByPattern(cfg)
                     : Date.now() + r.repeatDays * DAY };
               });
               return { ...sv, customRoutines: cr, routines: ro };
@@ -4356,9 +4371,9 @@ function Settings() {
           const cfg = st.routines[pickKey] || { cycle: cycleToDays(r ? r.seed.cy : "") };
           return <CyclePicker current={cfg.cycle} title={r ? r.seed.t : "주기"} pattern={cfg}
             onPick={(dd) => { setRoutine(pickKey, { cycle: dd, on: true, nextAt: nextByPattern({ ...cfg, cycle: dd }) }); setPickKey(null); say(`${cycleLabel(dd)}로 바꿨어요`); }}
-            onPattern={(p) => { setRoutine(pickKey, { ...p, on: true, nextAt: nextByPattern({ ...cfg, ...p }) }); say(p.dow !== "" && p.dow != null ? `${WEEKDAY[Number(p.dow)]}요일마다 올려드릴게요` : p.dom ? `매달 ${Number(p.dom) === 31 ? "말" : p.dom}일에 올려드릴게요` : "요일·날짜 지정을 풀었어요"); }}
+            onPattern={(p) => { setRoutine(pickKey, { ...p, on: true }); say(dowList(p).length ? `${dowList(p).map((i) => WEEKDAY[i]).join("·")}요일마다 올려드릴게요` : p.dom ? `매달 ${Number(p.dom) === 31 ? "말" : p.dom}일에 올려드릴게요` : "요일·날짜 지정을 풀었어요"); }}
             onOff={() => { setRoutine(pickKey, { on: false }); setPickKey(null); }}
-            onClose={() => setPickKey(null)} />;
+            onClose={() => { setRoutine(pickKey, { nextAt: nextByPattern(cfg) || cfg.nextAt }); setPickKey(null); }} />;
         })()}
       </Section>
 
