@@ -547,8 +547,8 @@ const SEED = [
   { id: "N047", cat: "home", f: "plant", lead: 0, st: "repeat", t: "화분 잎 닦기·가지치기", tg: "주기", ask: "", cy: "월 1회", g: "식물", src: "" },
   { id: "N048", cat: "home", f: "plant", lead: 0, st: "repeat", t: "화분 해충 확인", tg: "여름 전", ask: "잎 뒷면을 한 번 볼까요?", cy: "3개월", g: "식물", src: "" },
   { id: "N049", cat: "finance", f: "apart", lead: 3, st: "repeat", t: "관리비 납부", tg: "단지 지정 마감일", ask: "우리 단지 마감일이 며칠인가요? 날짜를 넣으면 미리 알려드려요", cy: "월 1회", g: "주거비", src: "" },
-  { id: "N050", cat: "transport", f: "car", ct: "ice|hybrid", lead: 0, st: "repeat", t: "주유", tg: "연료 소진 전", ask: "연비·주행거리를 넣으면 소진일을 계산해드려요", cy: "2주", g: "자동차", src: "" },
-  { id: "N051", cat: "transport", f: "car", ct: "ice|hybrid", lead: 0, st: "repeat", t: "엔진오일 교체", tg: "주행거리 기준", ask: "지금 계기판 주행거리가 얼마인가요?", cy: "6개월", g: "자동차", src: "" },
+  { id: "N050", cat: "transport", f: "car", ct: "ice|hybrid", lead: 0, st: "repeat", t: "주유", tg: "떨어지기 전", ask: "보통 몇 주에 한 번 넣으세요?", cy: "2주", g: "자동차", src: "" },
+  { id: "N051", cat: "transport", f: "car", ct: "ice|hybrid", lead: 0, st: "repeat", t: "엔진오일 교체", tg: "보통 6개월~1만km", ask: "", cy: "6개월", g: "자동차", src: "" },
   { id: "EV01", cat: "transport", f: "car", ct: "ev", lead: 0, st: "repeat", t: "충전하기", tg: "배터리 떨어지기 전", ask: "보통 며칠에 한 번 충전하세요?", cy: "주 1회", g: "자동차", src: "" },
   { id: "EV02", cat: "transport", f: "car", ct: "ev", lead: 0, st: "repeat", t: "충전 케이블·포트 점검", tg: "월간", ask: "커넥터에 이물질·부식이 없는지요", cy: "월 1회", g: "자동차정기", src: "" },
   { id: "EV03", cat: "transport", f: "car", ct: "ev|hybrid", lead: 0, st: "repeat", t: "배터리 상태·SW 업데이트 확인", tg: "반기", ask: "제조사 앱에서 배터리 진단을 볼 수 있어요", cy: "6개월", g: "자동차정기", src: "" },
@@ -781,8 +781,6 @@ const DEFAULT_STATE = {
   condition: null, conditionShare: true, discoverCache: null,
   /* 기본 분담: 카테고리 → 담당자. 여기 있는 건 매번 정하지 않아도 됩니다 */
   duty: {}, dutyAsk: true,
-  /* 자동차: 연비·주행거리로 주유·엔진오일 시점을 계산합니다 */
-  car: { kmPerL: "", tankL: "", dailyKm: "", tripKmPerMonth: "", fuelAt: null, fuelLevel: 1, odo: "", oilLastKm: "", oilEvery: 10000 },
   /* 휴일 날씨 브리핑 */
   place: { label: "서울", lat: 37.5665, lon: 126.978 },
   brief: null,
@@ -855,28 +853,6 @@ function nextBreak(from) {
   return null;
 }
 const WEEKDAY = ["일", "월", "화", "수", "목", "금", "토"];
-
-/* ── 연료·엔진오일 계산 ────────────────────────────────
-   연비(km/L) × 탱크(L) = 만탱크 주행가능거리
-   하루 평균 + 출장 가산으로 남은 날짜를 셉니다 */
-function fuelForecast(car) {
-  const kmPerL = Number(car.kmPerL || 0), tankL = Number(car.tankL || 0);
-  const daily = Number(car.dailyKm || 0) + Number(car.tripKmPerMonth || 0) / 30.44;
-  if (!kmPerL || !tankL || !daily) return null;
-  const full = kmPerL * tankL;
-  const level = car.fuelLevel == null ? 1 : Number(car.fuelLevel);
-  const since = car.fuelAt ? (Date.now() - car.fuelAt) / DAY : 0;
-  const left = Math.max(full * level - daily * since, 0);
-  const daysLeft = Math.floor(left / daily);
-  return { full: Math.round(full), left: Math.round(left), daysLeft, emptyAt: Date.now() + daysLeft * DAY, daily: Math.round(daily * 10) / 10 };
-}
-function oilForecast(car) {
-  const last = Number(car.oilLastKm || 0), every = Number(car.oilEvery || 10000), odo = Number(car.odo || 0);
-  if (!last || !odo || odo < last) return null;
-  const daily = Number(car.dailyKm || 0) + Number(car.tripKmPerMonth || 0) / 30.44;
-  const kmLeft = last + every - odo;
-  return { kmLeft, daysLeft: daily ? Math.floor(kmLeft / daily) : null, nextKm: last + every };
-}
 
 /* ── ① 반복 업무 ──────────────────────────────── */
 const ROUTINE_SEEDS = SEED.filter((s) => s.st === "repeat");
@@ -2146,69 +2122,6 @@ function HolidayBrief() {
   );
 }
 
-/* ── 자동차: 주유·엔진오일 시점 계산 ────────────────── */
-function CarWatch() {
-  const { st, setSt, setTab, addTasks, say } = use();
-  const car = st.car || {};
-  if (!st.flags.car) return null;
-  if ((st.carType || "ice") === "ev") return null; /* 전기차: 충전은 정기 일정으로 */
-  const fuel = fuelForecast(car);
-  const oil = oilForecast(car);
-  if (!fuel && !oil) return (
-    <Fold icon="⛽" title="주유 시점 계산 켜기" sub="연비·탱크·하루 주행을 넣으면 이틀 전에 알려드려요">
-      <div style={{ fontSize: 13, color: C.ink2, lineHeight: 1.65 }}>설정에서 숫자 세 개만 넣으면 언제 기름이 떨어질지 계산해드려요.</div>
-      <button className="press w-full" onClick={() => setTab("set")}
-        style={{ marginTop: 10, background: C.bg, border: `1px solid ${C.line}`, borderRadius: R.sm, padding: "11px 0", fontSize: 12.5, color: C.ink2 }}>설정에서 넣기</button>
-    </Fold>
-  );
-  const soon = fuel && fuel.daysLeft <= 2;
-  return (
-    <Fold icon="⛽" tone={soon ? C.persim : undefined} defaultOpen={soon}
-      title={fuel ? (fuel.daysLeft <= 0 ? "오늘 주유하셔야 해요" : `기름이 ${fuel.daysLeft}일쯤 남았어요`) : "엔진오일 확인"}
-      sub={oil ? `엔진오일까지 ${oil.kmLeft > 0 ? oil.kmLeft.toLocaleString() + "km" : "지남"}` : null}>
-        <div className="flex items-center justify-end">
-          <button className="press" onClick={() => setTab("set")} style={{ background: "none", border: "none", fontSize: 11.5, color: C.ink3 }}>숫자 고치기</button>
-        </div>
-        {fuel && (
-          <div style={{ marginTop: 2 }}>
-            <div style={{ fontSize: 12.5, color: C.ink2, lineHeight: 1.6 }}>
-              하루 {fuel.daily}km 기준 · 남은 주행 약 {fuel.left}km · 만탱크 {fuel.full}km
-            </div>
-            <div style={{ height: 7, borderRadius: 99, background: C.line, marginTop: 10, overflow: "hidden" }}>
-              <div style={{ width: `${Math.min(100, Math.max(3, (fuel.left / fuel.full) * 100))}%`, height: "100%", background: soon ? C.persim : C.moss }} />
-            </div>
-            <div style={{ fontSize: 12, color: C.ink2, marginTop: 12 }}>지금 계기판 눈금은 어느 정도예요?</div>
-            <div className="flex gap-1.5" style={{ marginTop: 8 }}>
-              {[["가득", 1], ["⅔", 0.66], ["절반", 0.5], ["¼", 0.25], ["바닥", 0.08]].map(([l, v]) => (
-                <button key={l} className="press" onClick={() => {
-                  setSt((sv) => ({ ...sv, car: { ...sv.car, fuelAt: Date.now(), fuelLevel: v, alertedOn: null } }));
-                  say(v <= 0.25 ? "얼마 안 남았네요. 주유를 오늘 목록에 올릴게요" : "지금 눈금 기준으로 다시 계산했어요");
-                }} style={{ flex: 1, background: (car.fuelLevel === v && car.fuelAt) ? C.mossSoft : C.bg, color: (car.fuelLevel === v && car.fuelAt) ? C.moss : C.ink2,
-                            border: `1px solid ${(car.fuelLevel === v && car.fuelAt) ? C.moss : C.line}`, borderRadius: R.xs, padding: "10px 0", fontSize: 12, fontWeight: 600 }}>{l}</button>
-              ))}
-            </div>
-            <div className="flex gap-2" style={{ marginTop: 10 }}>
-              <button className="press" onClick={() => { setSt((sv) => ({ ...sv, car: { ...sv.car, fuelAt: Date.now(), fuelLevel: 1 } })); say("가득 채운 걸로 기록했어요"); }}
-                style={{ flex: 1, background: C.moss, color: "#fff", border: "none", borderRadius: R.sm, padding: "11px 0", fontSize: 12.5, fontWeight: 600 }}>방금 주유함</button>
-              <button className="press" onClick={() => { addTasks([{ title: "주유하기", category: "transport", status: fuel.daysLeft <= 2 ? "now" : "week", note: `${fuel.daysLeft}일 남음` }], "ai"); say("할 일에 담았어요"); }}
-                style={{ flex: 1, background: C.bg, color: C.ink2, border: `1px solid ${C.line}`, borderRadius: R.sm, padding: "11px 0", fontSize: 12.5 }}>할 일로 담기</button>
-            </div>
-            <LinkCards group="자동차" text="주유" compact />
-          </div>
-        )}
-        {oil && (
-          <div style={{ marginTop: fuel ? 14 : 8, paddingTop: fuel ? 14 : 0, borderTop: fuel ? `1px solid ${C.lineSoft}` : "none" }}>
-            <div style={{ fontSize: 13.5, fontWeight: 600 }}>
-              엔진오일까지 {oil.kmLeft > 0 ? `${oil.kmLeft.toLocaleString()}km` : "지났어요"}
-              {oil.daysLeft != null && oil.kmLeft > 0 ? <span style={{ color: C.ink3, fontWeight: 400 }}> · 약 {oil.daysLeft}일 뒤</span> : null}
-            </div>
-            <div style={{ fontSize: 12, color: C.ink3, marginTop: 4 }}>다음 교체 {oil.nextKm.toLocaleString()}km · 지금 {Number(car.odo).toLocaleString()}km</div>
-          </div>
-        )}
-    </Fold>
-  );
-}
-
 /* ── 이사: 날짜를 넣으면 방별로 나눠 계획을 짭니다 ──
    한 번에 다 싸려니 못 하는 일이라, 역산해서 하루치로 쪼갭니다. */
 const PACK_PLAN = [
@@ -2463,20 +2376,6 @@ function Home() {
     })();
   }, [st.onboarded, level]);
 
-  /* 기름이 이틀 남으면 오늘 목록에 스스로 올라옵니다 (하루 한 번) */
-  useEffect(() => {
-    if (!st.flags.car || (st.carType || "ice") === "ev") return;
-    const f = fuelForecast(st.car || {});
-    if (!f || f.daysLeft > 2) return;
-    if ((st.car || {}).alertedOn === todayStr()) return;
-    if (st.tasks.some((t) => !t.done && t.title === "주유하기")) {
-      setSt((sv) => ({ ...sv, car: { ...(sv.car || {}), alertedOn: todayStr() } }));
-      return;
-    }
-    addTasks([{ title: "주유하기", category: "transport", status: f.daysLeft <= 1 ? "now" : "week", note: `기름 ${Math.max(f.daysLeft, 0)}일 남음`, coverage: "system" }], "ai");
-    setSt((sv) => ({ ...sv, car: { ...(sv.car || {}), alertedOn: todayStr() } }));
-  }, [st.onboarded, st.car && st.car.fuelAt, st.car && st.car.dailyKm]);
-
   const setCondition = (lv) => {
     setSt((sv) => ({ ...sv, condition: { date: todayStr(), level: lv, by: me } }));
     say(lv === "low" ? "오늘은 꼭 필요한 것만 남길게요" : "오늘도 잘 부탁드려요");
@@ -2585,7 +2484,6 @@ function Home() {
       )}
 
       <HolidayBrief />
-      <CarWatch />
       <MovePlan />
 
 
@@ -3648,29 +3546,6 @@ function Settings() {
   const [routineCat, setRoutineCat] = useState(null);
   const [pickKey, setPickKey] = useState(null);
   const [newRoutine, setNewRoutine] = useState("");
-  const [carQ, setCarQ] = useState("");
-  const [carBusy, setCarBusy] = useState(false);
-  const autoFillCar = async () => {
-    const q = carQ.trim();
-    if (!q) return say("차종을 적어주세요 (예: 쏘렌토 2022)");
-    setCarBusy(true);
-    let got = null;
-    try {
-      const r = await askClaude(`한국에서 팔리는 차 "${q}"의 대략적인 공인 복합연비(km/L), 연료탱크 용량(L), 권장 엔진오일 교체주기(km)를 알려주세요.
-하이브리드 모델이면 하이브리드 기준으로. 확실치 않으면 그 차급의 일반적인 값으로.
-출력은 JSON만: {"kmPerL":숫자,"tankL":숫자,"oilEvery":숫자}`);
-      if (r && Number(r.kmPerL) > 3 && Number(r.tankL) > 20) got = { kmPerL: Number(r.kmPerL), tankL: Number(r.tankL), oilEvery: Number(r.oilEvery) || 10000 };
-    } catch {}
-    if (!got) {
-      const hit = carLookup(q);
-      if (hit) got = { kmPerL: hit[1], tankL: hit[2], oilEvery: 10000 };
-    }
-    setCarBusy(false);
-    if (!got) return say("이 차는 못 찾았어요. 아래에 직접 넣어주세요");
-    setD((sv) => ({ ...sv, car: { ...(sv.car || {}), kmPerL: got.kmPerL, tankL: got.tankL, oilEvery: got.oilEvery } }));
-    say(`${q} 기준 연비 ${got.kmPerL}km/L · 탱크 ${got.tankL}L로 채웠어요. 다르면 고치세요`);
-  };
-
   const routineGroups = useMemo(() => {
     const g = {};
     eligibleRoutines(st, true).forEach((r) => {
@@ -3838,11 +3713,11 @@ function Settings() {
         </Section>
       )}
 
-      {/* 자동차 숫자 — 주유·엔진오일 시점 계산에 씁니다 */}
+      {/* 자동차 — 종류만 고르면 맞는 항목이 뜹니다 */}
       {d.flags.car && (
-        <Section eyebrow="CAR" title="자동차" right={(d.carType || "ice") === "ev" ? "충전·점검은 정기 일정에서" : "숫자를 넣으면 소진일을 계산해요"}>
+        <Section eyebrow="CAR" title="자동차" right="종류에 맞는 항목만 떠요">
           <Card><div style={{ padding: 15 }}>
-            <div className="flex gap-2" style={{ marginBottom: 14 }}>
+            <div className="flex gap-2">
               {Object.keys(CAR_TYPES).map((k) => {
                 const on = (d.carType || "ice") === k;
                 return (
@@ -3853,54 +3728,11 @@ function Settings() {
                 );
               })}
             </div>
-            {(d.carType || "ice") === "ev" ? (
-              <div style={{ background: C.mossSoft, borderRadius: R.sm, padding: "12px 13px", fontSize: 12.5, color: C.moss, lineHeight: 1.7 }}>
-                전기차는 연비 계산 대신 <b>충전하기(주기 설정 가능)</b>와 <b>배터리·케이블·감속기 점검</b>이
-                정기 일정에 올라와요. 아래 ‘정기 일정 관리 → 교통수단’에서 주기를 맞춰주세요.
-              </div>
-            ) : (<>
-            {[
-              ["kmPerL", "연비 (km/L)", "예: 11.5"],
-              ["tankL", "연료탱크 (L)", "예: 50"],
-              ["dailyKm", "하루 평균 주행 (km)", "예: 30"],
-              ["tripKmPerMonth", "한 달 출장 주행 (km)", "예: 400 — 없으면 0"],
-              ["odo", "지금 계기판 (km)", "예: 48200"],
-              ["oilLastKm", "마지막 엔진오일 교체 (km)", "예: 42000"],
-              ["oilEvery", "엔진오일 교체 주기 (km)", "보통 10000"],
-            ].map(([k, label, ph]) => (
-              <div key={k} style={{ marginBottom: 10 }}>
-                <div style={{ fontSize: 12, color: C.ink2, marginBottom: 5 }}>{label}</div>
-                <input className="hae" inputMode="decimal" value={(d.car || {})[k] == null ? "" : (d.car || {})[k]} placeholder={ph}
-                  onChange={(e) => setD((sv) => ({ ...sv, car: { ...(sv.car || {}), [k]: e.target.value } }))} style={inp} />
-              </div>
-            ))}
-            {(() => {
-              const f = fuelForecast(d.car || {});
-              const o = oilForecast(d.car || {});
-              if (!f && !o) return <div style={{ fontSize: 12, color: C.ink3, lineHeight: 1.65 }}>연비·탱크·하루 주행을 넣으면 “며칠 뒤 주유”가 계산됩니다. 이틀 전에 오늘 화면으로 올려드려요.</div>;
-              return (
-                <div style={{ background: C.mossSoft, borderRadius: R.sm, padding: "12px 13px", fontSize: 12.5, color: C.moss, lineHeight: 1.7 }}>
-                  {f && <>만탱크로 약 {f.full}km · 하루 {f.daily}km → <b>{f.daysLeft}일 뒤 주유</b><br /></>}
-                  {o && <>엔진오일까지 {o.kmLeft > 0 ? `${o.kmLeft.toLocaleString()}km 남음` : "교체 시기가 지났어요"}</>}
-                </div>
-              );
-            })()}
-            <div style={{ fontSize: 12, color: C.ink2, marginTop: 12 }}>지금 계기판 눈금은 어느 정도예요?</div>
-            <div className="flex gap-1.5" style={{ marginTop: 7 }}>
-              {[["가득", 1], ["⅔", 0.66], ["절반", 0.5], ["¼", 0.25], ["바닥", 0.08]].map(([l, v]) => {
-                const on = (d.car || {}).fuelLevel === v && (d.car || {}).fuelAt;
-                return (
-                  <button key={l} className="press" onClick={() => {
-                    setD((sv) => ({ ...sv, car: { ...(sv.car || {}), fuelAt: Date.now(), fuelLevel: v } }));
-                    setSt((sv) => ({ ...sv, car: { ...(sv.car || {}), ...d.car, fuelAt: Date.now(), fuelLevel: v, alertedOn: null } }));
-                    say(v <= 0.25 ? "얼마 안 남았네요. 주유를 오늘 목록에 올릴게요" : "지금 눈금 기준으로 다시 계산했어요");
-                  }} style={{ flex: 1, background: on ? C.mossSoft : C.bg, color: on ? C.moss : C.ink2, border: `1px solid ${on ? C.moss : C.line}`, borderRadius: R.xs, padding: "10px 0", fontSize: 12, fontWeight: 600 }}>{l}</button>
-                );
-              })}
+            <div style={{ fontSize: 12, color: C.ink3, marginTop: 11, lineHeight: 1.65 }}>
+              {(d.carType || "ice") === "ev"
+                ? "충전·배터리·케이블 점검이 정기 일정에 올라와요. 주기는 ‘정기 일정 관리 → 교통수단’에서 바꾸세요."
+                : "주유·엔진오일·세차가 정기 일정에 올라와요. 주기는 ‘정기 일정 관리 → 교통수단’에서 바꾸세요."}
             </div>
-            <button className="press w-full" onClick={() => setD((sv) => ({ ...sv, car: { ...(sv.car || {}), fuelAt: Date.now(), fuelLevel: 1 } }))}
-              style={{ marginTop: 9, background: C.bg, border: `1px solid ${C.line}`, borderRadius: R.sm, padding: "11px 0", fontSize: 12.5, color: C.ink2 }}>방금 가득 주유했어요 (기준일 다시 잡기)</button>
-            </>)}
           </div></Card>
         </Section>
       )}
@@ -4072,7 +3904,7 @@ function Settings() {
       </Section>
 
       <div style={{ marginTop: 20 }}>
-        <Btn onClick={() => { setSt((s) => ({ ...s, members: d.members.filter((m) => m.name.trim()), children: d.children, flags: d.flags, petTypes: d.petTypes, carType: d.carType || "ice", car: d.car, extra: d.extra })); say("추천을 다시 계산했어요"); setTab("home"); }}>저장하고 추천 다시 계산</Btn>
+        <Btn onClick={() => { setSt((s) => ({ ...s, members: d.members.filter((m) => m.name.trim()), children: d.children, flags: d.flags, petTypes: d.petTypes, carType: d.carType || "ice", extra: d.extra })); say("추천을 다시 계산했어요"); setTab("home"); }}>저장하고 추천 다시 계산</Btn>
         <div style={{ height: 8 }} />
         <Btn kind="ghost" onClick={() => setDash(true)}>베타 지표 보기</Btn>
         <Btn kind="quiet" onClick={() => { if (confirm("모든 데이터를 지우고 처음부터 시작할까요?")) { window.storage.delete("meonjeon").catch(() => {}); setSt(DEFAULT_STATE); } }}>데이터 전체 삭제</Btn>
