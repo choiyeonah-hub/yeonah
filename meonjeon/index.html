@@ -4037,6 +4037,18 @@ function Categories() {
 }
 
 
+/* 마트에서 동선이 다릅니다. 먹을 것과 생활용품을 섞어두면
+   한 줄씩 훑으며 왔다 갔다 하게 됩니다. 이름만 보고 갈라둡니다.
+   틀려도 살 것 목록에서 자리만 바뀌는 정도라 위험하지 않습니다. */
+const NONFOOD = [
+  "휴지", "화장지", "물티슈", "세제", "섬유유연제", "표백", "락스", "세정", "샴푸", "린스",
+  "비누", "치약", "칫솔", "면도", "생리대", "기저귀", "물티", "수세미", "행주", "걸레",
+  "봉투", "지퍼백", "랩", "호일", "키친타월", "건전지", "전구", "테이프", "마스크", "면봉",
+  "방향제", "탈취", "살충", "모기", "주걱", "국자", "도마", "냄비", "프라이팬", "그릇",
+  "수건", "옷걸이", "빨래", "청소", "필터", "볼펜", "노트", "충전기", "케이블",
+];
+const isFoodName = (n) => !NONFOOD.some((k) => String(n || "").includes(k));
+
 /* 늘 두고 쓰는 것들. 이게 있어야 "토마토소스 있으니 파스타" 같은 조합이 나옵니다.
    재료는 먹으면 없어지지만 이건 떨어질 때까지 계속 있습니다. */
 const STAPLES = [
@@ -4064,6 +4076,13 @@ function MealScreen() {
   const isOn = (dish) => chosen.indexOf(dish) >= 0;
   const allBuys = st.tasks.filter((t) => t.status === "buy");
   const openBuys = allBuys.filter((t) => !t.done);
+  /* 먹을 것과 생활용품은 마트에서 가는 자리가 다릅니다 */
+  const isFoodTask = (t) => t.category === "food" || (t.category !== "home" && isFoodName(t.title));
+  const buyGroups = (() => {
+    const f = allBuys.filter(isFoodTask), o = allBuys.filter((t) => !isFoodTask(t));
+    if (!f.length || !o.length) return [{ key: "all", label: null, items: allBuys }];
+    return [{ key: "food", label: "🥬 먹을 것", items: f }, { key: "etc", label: "🧻 생활용품", items: o }];
+  })();
   const boughtRows = allBuys.filter((t) => t.done);
   const bought = (meal && meal.bought) || [];
   /* "두부 구매" → "두부". 프롬프트에도 화면에도 재료 이름만 보이는 게 맞습니다 */
@@ -4161,9 +4180,11 @@ ${want.trim() ? "요청: " + want.trim() : ""}
     return { ...sv, pantry: [...add, ...cur] };
   });
 
-  /* 살 것을 체크하면 산 것이니 재고로 넘어갑니다 */
+  /* 살 것을 체크하면 산 것이니 재고로 넘어갑니다.
+     다만 생리대·세제까지 "집에 있는 것"에 넣고 "먹었어요"를 묻는 건
+     말이 안 됩니다. 먹는 것만 넘깁니다. */
   const buyDone = (t) => {
-    if (!t.done) toPantry([t.title]);
+    if (!t.done && isFoodTask(t)) toPantry([t.title]);
     complete(t.id);
   };
   const eat = (x) => setSt((sv) => ({ ...sv,
@@ -4174,7 +4195,7 @@ ${want.trim() ? "요청: " + want.trim() : ""}
   const addBuy = () => {
     const names = txt.split(/[,·]+/).map((x) => x.trim()).filter(Boolean);
     if (!names.length) return;
-    addTasks(names.map((n) => ({ title: n + " 구매", category: "food", status: "buy", note: "" })));
+    addTasks(names.map((n) => ({ title: n + " 구매", category: isFoodName(n) ? "food" : "home", status: "buy", note: "" })));
     setTxt(""); say(`${names.length}개 적어뒀어요`);
   };
 
@@ -4264,16 +4285,26 @@ ${want.trim() ? "요청: " + want.trim() : ""}
               아직 비어 있어요.<br />아래에 적거나, 말하기에서 “휴지 사야 돼”라고 하시면 모입니다.
             </div>
           )}
-          {allBuys.map((t, i) => (
-            <div key={t.id} className="flex items-center gap-3"
-              style={{ padding: "13px 16px", borderBottom: `1px solid ${C.lineSoft}`, opacity: t.done ? 0.45 : 1, transition: "opacity .4s ease" }}>
-              <button className="press" onClick={() => buyDone(t)} aria-label="샀어요"
-                style={{ width: 22, height: 22, borderRadius: 7, flexShrink: 0, border: `1.5px solid ${t.done ? C.moss : C.line}`,
-                         background: t.done ? C.moss : "transparent", color: "#fff", fontSize: 12, lineHeight: "20px" }}>{t.done ? "✓" : ""}</button>
-              <span className="flex-1 min-w-0" style={{ fontSize: 14.5, fontWeight: 500, textDecoration: t.done ? "line-through" : "none", color: t.done ? C.ink3 : C.ink }}>
-                {t.title.replace(/\s*구매$/, "")}
-              </span>
-              {t.note ? <span style={{ fontSize: 11, color: C.ink3, whiteSpace: "nowrap" }}>{t.note}</span> : null}
+          {buyGroups.map((g) => (
+            <div key={g.key}>
+              {g.label ? (
+                <div style={{ padding: "10px 16px 7px", fontSize: 11.5, color: C.ink3, fontWeight: 600,
+                              background: C.bg, borderBottom: `1px solid ${C.lineSoft}` }}>
+                  {g.label} <span style={{ fontWeight: 400 }}>{g.items.filter((t) => !t.done).length}개</span>
+                </div>
+              ) : null}
+              {g.items.map((t) => (
+                <div key={t.id} className="flex items-center gap-3"
+                  style={{ padding: "13px 16px", borderBottom: `1px solid ${C.lineSoft}`, opacity: t.done ? 0.45 : 1, transition: "opacity .4s ease" }}>
+                  <button className="press" onClick={() => buyDone(t)} aria-label="샀어요"
+                    style={{ width: 22, height: 22, borderRadius: 7, flexShrink: 0, border: `1.5px solid ${t.done ? C.moss : C.line}`,
+                             background: t.done ? C.moss : "transparent", color: "#fff", fontSize: 12, lineHeight: "20px" }}>{t.done ? "✓" : ""}</button>
+                  <span className="flex-1 min-w-0" style={{ fontSize: 14.5, fontWeight: 500, textDecoration: t.done ? "line-through" : "none", color: t.done ? C.ink3 : C.ink }}>
+                    {t.title.replace(/\s*구매$/, "")}
+                  </span>
+                  {t.note ? <span style={{ fontSize: 11, color: C.ink3, whiteSpace: "nowrap" }}>{t.note}</span> : null}
+                </div>
+              ))}
             </div>
           ))}
           <div className="flex items-center gap-2" style={{ padding: "11px 12px", background: C.bg }}>
@@ -4300,7 +4331,8 @@ ${want.trim() ? "요청: " + want.trim() : ""}
         <Card>
           {foods.length === 0 ? (
             <div style={{ padding: "22px 16px", textAlign: "center", fontSize: 13, color: C.ink3, lineHeight: 1.75 }}>
-              아직 비어 있어요.<br />위에서 <b style={{ color: C.moss }}>산 것에 체크</b>하거나 영수증을 찍으면 여기로 옵니다.
+아직 비어 있어요.<br />위에서 <b style={{ color: C.moss }}>먹을 것에 체크</b>하거나 영수증을 찍으면 여기로 옵니다.<br />
+              <span style={{ fontSize: 11.5 }}>생리대·세제 같은 건 여기 안 옵니다. 먹는 것만 모여요.</span>
             </div>
           ) : foods.map((x) => (
             <div key={x.id} className="flex items-center gap-3"
