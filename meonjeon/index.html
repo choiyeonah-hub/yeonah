@@ -447,8 +447,8 @@ const SEED = [
   { id: "N012", cat: "appliance", f: null, lead: 0, st: "repeat", t: "소파 밑·가구 밑 청소", tg: "월간", ask: "", cy: "월 1회", g: "가전관리", src: "" },
   { id: "N013", cat: "appliance", f: null, lead: 0, st: "repeat", t: "밥솥·물그릇 세척", tg: "주간", ask: "밥솥 내솥 패킹도 같이 볼까요?", cy: "주 1회", g: "가전관리", src: "" },
   { id: "N014", cat: "laundry", f: null, lead: 7, st: "repeat", t: "제습제 교체", tg: "다 찼을 때", ask: "옷장 제습제가 가득 찼나요?", cy: "2~3개월", g: "옷관리", src: "" },
-  { id: "N015", cat: "laundry", f: null, lead: 14, st: "repeat", t: "계절옷 정리", tg: "환절기", ask: "이번 환절기에 꺼낼 옷과 넣을 옷을 나눌까요?", cy: "연 2회", g: "옷관리", src: "" },
-  { id: "N016", cat: "laundry", f: null, lead: 21, st: "repeat", t: "겨울옷 드라이 맡기기", tg: "보관 전", ask: "세탁소 맡길 옷을 모아둘까요?", cy: "연 1회", g: "옷관리", src: "" },
+  { id: "N015", cat: "laundry", f: null, lead: 14, st: "repeat", t: "계절옷 정리", tg: "환절기", ask: "이번 환절기에 꺼낼 옷과 넣을 옷을 나눌까요?", cy: "연 2회", g: "옷관리", src: "", lk: "계절옷 보관" },
+  { id: "N016", cat: "laundry", f: null, lead: 21, st: "repeat", t: "겨울옷 드라이 맡기기", tg: "보관 전", ask: "세탁소 맡길 옷을 모아둘까요?", cy: "연 1회", g: "옷관리", src: "", lk: "옷 보관" },
   { id: "N017", cat: "laundry", f: null, lead: 14, st: "repeat", t: "겨울옷 보풀 제거", tg: "꺼내 입기 전", ask: "", cy: "연 1회", g: "옷관리", src: "" },
   { id: "N018", cat: "laundry", f: null, lead: 0, st: "repeat", t: "수선할 옷 맡기기", tg: "필요할 때", ask: "수선 맡길 옷이 쌓여 있나요?", cy: "3개월", g: "옷관리", src: "" },
   { id: "N019", cat: "laundry", kid: 1, w: [0, 144], lead: 0, st: "repeat", t: "작아진 옷 정리·기부", tg: "성장 시점", ask: "기부할 것·팔 것·물려줄 것을 나눌까요?", cy: "6개월", g: "옷관리", src: "" },
@@ -737,6 +737,8 @@ const LINKS = [
     kw: ["동물병원", "반려동물 진료", "접종"], g: ["반려정기"] },
   { name: "이사 견적 비교", desc: "여러 업체 방문견적 한 번에", url: "https://apps.apple.com/kr/search?term=이사견적", tag: "추천",
     kw: ["이사", "이삿짐", "포장이사"], g: ["이사"] },
+  { name: "짐 보관 서비스 찾기", desc: "계절옷·이불을 상자째 맡기고 필요할 때 받기", url: "https://apps.apple.com/kr/search?term=짐보관", tag: "추천",
+    kw: ["짐 보관", "옷 보관", "계절옷 보관"], g: [] },
   { name: "스프링클", desc: "돌잔치 장소·돌상·스냅·답례품", url: "https://apps.apple.com/kr/search?term=스프링클 돌잔치", tag: "추천",
     kw: ["돌잔치", "돌상", "돌스냅", "답례품", "백일"], g: ["돌잔치"] },
   { name: "냠냠일기", desc: "먹은 재료·알레르기 반응 기록", url: "https://apps.apple.com/kr/search?term=냠냠일기", tag: "추천",
@@ -1721,6 +1723,7 @@ function RoutineRow({ r, delay = 0, last, compact, manage }) {
           {cfg.anchor && <button className="press" onClick={() => downloadICS(r.seed.t, nextFromAnchor(cfg.anchor, 0), r.seed.tg)}
             style={{ background: "none", border: "none", color: C.moss, fontSize: 11.5, padding: "4px 2px" }}>캘린더에 넣기</button>}
         </div>}
+        {!compact && r.seed.lk && <LinkCards group={null} text={r.seed.lk} compact />}
       </div>
       {overdue && <span style={{ fontSize: 11, color: C.ink3, whiteSpace: "nowrap", marginTop: 3 }}>지난 회차</span>}
       {manage ? (
