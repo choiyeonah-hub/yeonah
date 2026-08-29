@@ -124,7 +124,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0829-ak';
+const GATE_BUILD = '0829-al';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -211,7 +211,11 @@ function askEmail() {
     <div style="margin-top:26px">
       <input id="em" type="email" inputmode="email" autocomplete="email" placeholder="이메일 주소" />
       <button id="go">로그인 링크 받기</button>
-      <p style="font-size:12px;color:#6E8C86">비밀번호는 없어요. 메일로 온 링크를 누르면 바로 시작됩니다.</p>
+      <p style="font-size:12px;color:#6E8C86">비밀번호는 없어요. 메일로 온 <b>숫자</b>를 넣으면 시작됩니다.</p>
+      <p style="font-size:12px;color:#6E8C86;margin-top:10px;line-height:1.7">
+        가족도 <b>각자 본인 이메일</b>로 들어와요. 누가 무엇을 맡았는지 구분해야 하니까요.<br>
+        <b>가족 코드는 로그인이 아니라</b>, 들어온 다음 같은 집으로 합치는 코드입니다.
+      </p>
     </div>`);
   document.getElementById('go').onclick = async () => {
     const email = document.getElementById('em').value.trim();
@@ -1417,7 +1421,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0829-ak";
+const BUILD = "0829-al";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
