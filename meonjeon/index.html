@@ -23,10 +23,11 @@
   #gate button:active{transform:scale(.985)}
   #gate .ghost{background:transparent;color:#93A099;font-weight:400;font-size:13px}
   #gate .msg{margin-top:16px;font-size:13px;line-height:1.7;padding:14px 15px;border-radius:14px;background:#E4F3EC;color:#12775A}
-  #bar{position:fixed;top:0;left:0;right:0;z-index:80;display:none;justify-content:center;gap:8px;
+  /* 버튼이 넷이 되면 좁은 폰에서 밀립니다. 줄바꿈을 허용합니다 */
+  #bar{position:fixed;top:0;left:0;right:0;z-index:80;display:none;justify-content:center;gap:6px;flex-wrap:wrap;
        background:rgba(255,255,255,.86);backdrop-filter:saturate(1.6) blur(14px);-webkit-backdrop-filter:saturate(1.6) blur(14px);
        border-bottom:1px solid #E7ECE9;padding:8px 12px;font-size:11.5px;color:#57675F;align-items:center}
-  #bar button{border:1px solid #E7ECE9;background:#F6F8F7;border-radius:99px;padding:6px 12px;font-size:11.5px;color:#57675F;font-family:inherit;cursor:pointer}
+  #bar button{border:1px solid #E7ECE9;background:#F6F8F7;border-radius:99px;padding:6px 10px;font-size:11px;white-space:nowrap;color:#57675F;font-family:inherit;cursor:pointer}
   #sync{position:fixed;bottom:calc(112px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);z-index:90;display:none;
         background:#0F1A15;color:#fff;border-radius:99px;padding:11px 16px;font-size:12.5px;align-items:center;gap:10px;
         box-shadow:0 2px 4px rgba(15,26,21,.06), 0 22px 48px -22px rgba(15,26,21,.4)}
@@ -196,18 +197,29 @@ async function connectHousehold(user) {
   show('<h1>우리 집을 여는 중…</h1>');
   const joinCode = new URLSearchParams(location.search).get('join');
 
-  let { data: mine } = await SB.from('households').select('*').limit(1);
-  if (joinCode && (!mine || !mine.length)) {
+  /* 초대 링크를 안 열고 그냥 들어오면 자기 빈 집이 먼저 생깁니다.
+     그러면 나중에 초대 링크를 눌러도 이미 집이 있어서 합류가 안 됐습니다.
+     남편이 주소만 받아 먼저 열어보면 영영 못 합치는 구멍이었습니다.
+     → 초대 코드가 있으면 이미 집이 있어도 합류를 시도합니다. */
+  let { data: mine } = await SB.from('households').select('*');
+  mine = mine || [];
+  const remembered = (() => { try { return localStorage.getItem('meonjeon:hh'); } catch { return null; } })();
+
+  if (joinCode) {
     const { data, error } = await SB.rpc('join_household', { p_code: joinCode });
-    if (error) { show('<h1>초대 코드를 못 찾았어요</h1><p>' + error.message + '</p><button onclick="location.href=location.origin">내 집 새로 만들기</button>'); return; }
-    HH = data;
-  } else if (mine && mine.length) {
-    HH = mine[0];
+    if (data) HH = data;
+    else if (mine.length) HH = mine.find(h => h.id === remembered) || mine[0];
+    else { show('<h1>초대 코드를 못 찾았어요</h1><p>' + ((error && error.message) || '') + '</p><button onclick="location.href=location.origin">내 집 새로 만들기</button>'); return; }
+  } else if (mine.length) {
+    /* 여러 집에 속해 있으면 마지막에 쓰던 집을 씁니다. limit(1)은 순서가 없어
+       로그인할 때마다 다른 집이 열릴 수 있었습니다 */
+    HH = mine.find(h => h.id === remembered) || mine[0];
   } else {
     const { data, error } = await SB.rpc('create_household');
     if (error) { show('<h1>집을 만들지 못했어요</h1><p>' + error.message + '</p>'); return; }
     HH = data;
   }
+  try { localStorage.setItem('meonjeon:hh', HH.id); } catch {}
 
   /* 로그인한 사람을 가구 구성원과 연결 */
   const st = HH.state && Object.keys(HH.state).length ? HH.state : null;
@@ -277,7 +289,18 @@ async function connectHousehold(user) {
   bar.style.display = 'flex';
   bar.innerHTML = `<span>초대코드 <b>${HH.code}</b></span>
     <button id="inv">가족 초대 링크 복사</button>
+    <button id="jn">가족 코드로 합류</button>
     <button id="out">로그아웃</button>`;
+  /* 다른 이메일로 들어와 빈 집이 생겼을 때 되돌아갈 길입니다.
+     이게 없으면 설정을 처음부터 다시 해야 합니다 */
+  document.getElementById('jn').onclick = async () => {
+    const code = prompt('합류할 가족의 초대코드를 넣어주세요 (예: 7E2F42)\n\n지금 이 화면의 내용은 그대로 남고, 그 집 화면으로 바뀝니다.');
+    if (!code || !code.trim()) return;
+    const { data, error } = await SB.rpc('join_household', { p_code: code.trim() });
+    if (error || !data) { alert('그 코드를 찾지 못했어요.\n' + ((error && error.message) || '')); return; }
+    try { localStorage.setItem('meonjeon:hh', data.id); } catch {}
+    location.href = location.origin;
+  };
   document.getElementById('inv').onclick = async () => {
     const link = location.origin + '/?join=' + HH.code;
     try { await navigator.clipboard.writeText(link); document.getElementById('inv').textContent = '복사했어요'; }
