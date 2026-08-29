@@ -54,7 +54,7 @@ let BASE = null, BASE_AT = null;
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const J = (x) => JSON.stringify(x === undefined ? null : x);
 /* id로 구분되는 목록들 */
-const ID_LISTS = ['tasks', 'shopping', 'pantry', 'toss', 'customRoutines', 'customCats', 'children', 'members', 'discoverSnoozed'];
+const ID_LISTS = ['tasks', 'shopping', 'pantry', 'toss', 'customRoutines', 'customCats', 'children', 'members', 'cars', 'discoverSnoozed'];
 /* 키마다 따로 판단해야 하는 사전들 */
 const KEY_MAPS = ['routines', 'prefs', 'duty', 'groupsOff', 'flags', 'petTypes', 'dismissedDiscover'];
 
@@ -880,6 +880,18 @@ const FLAGS = {
 const FLAG_GROUPS = ["가족", "살림", "소득"];
 
 /* 차는 기름차냐 전기차냐에 따라 챙길 게 다릅니다 */
+/* 예전에는 차가 한 대뿐이라 st.carType + st.car로 저장했습니다.
+   그때 쓰시던 분의 값을 잃지 않게, 읽을 때 한 대짜리 목록으로 바꿔 드립니다. */
+function carsOf(st) {
+  const list = Array.isArray(st.cars) ? st.cars : [];
+  if (list.length) return list;
+  if (!st.flags || !st.flags.car) return [];
+  const old = st.car || {};
+  return [{ id: "car1", name: "우리 차", type: st.carType || "ice",
+            firstReg: old.firstReg || "", insMonth: old.insMonth || null }];
+}
+const carLabel = (c, i) => (c && c.name) || `${i + 1}번째 차`;
+
 const CAR_TYPES = {
   ice: { emoji: "⛽", label: "휘발유·경유" },
   ev: { emoji: "⚡", label: "전기차" },
@@ -1027,7 +1039,11 @@ const DEFAULT_STATE = {
   children: [],
   flags: { parents: false, car: true, pet: false, plant: false, apart: true, moving: false, worker: true, biz: false },
   petTypes: {},
-  carType: "ice",
+  /* 차는 여러 대일 수 있습니다. 맞벌이면 두 대인 집이 흔하고,
+     검사일도 보험 갱신 달도 차마다 다릅니다.
+     { id, name, type, firstReg, insMonth } */
+  cars: [],
+  carType: "ice",   /* 옛 판에서 넘어온 값. carsOf()가 알아서 옮깁니다 */
   extra: "",
   tasks: [], routines: {}, customRoutines: [], prefs: {}, groupsOff: {}, customCats: [],
   events: [], feedback: [], discoverSnoozed: [], dismissedDiscover: [],
@@ -1131,8 +1147,13 @@ function eligibleRoutines(st, ignoreSeason) {
     if (!ignoreSeason && !inSeason(seed)) return;
     /* 반려동물 종류를 고른 집에는 그 종류에 맞는 것만 */
     if (seed.pt && anyPetType && !seed.pt.split("|").some((t) => petTypes[t])) return;
-    /* 차 종류에 맞는 것만 (주유는 기름차, 충전은 전기차) */
-    if (seed.ct && !seed.ct.split("|").includes(st.carType || "ice")) return;
+    /* 차 종류에 맞는 것만 (주유는 기름차, 충전은 전기차).
+       두 대면 종류가 섞일 수 있어서, 한 대라도 맞으면 올립니다. */
+    if (seed.ct) {
+      const kinds = carsOf(st).map((c) => c.type || "ice");
+      const want = seed.ct.split("|");
+      if (!kinds.some((k) => want.includes(k))) return;
+    }
     if (seed.kid) {
       st.children.forEach((ch) => {
         const m = childMonths(ch);
@@ -1222,7 +1243,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0829-k";
+const BUILD = "0829-l";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -2026,18 +2047,44 @@ function Onboarding() {
             <Eyebrow>어떤 차인가요?</Eyebrow>
             <Card style={{ marginTop: 7 }}>
               <div style={{ padding: 15 }}>
-                <div className="flex gap-2">
-                  {Object.keys(CAR_TYPES).map((k) => {
-                    const on = (d.carType || "ice") === k;
-                    return (
-                      <button key={k} className="press" onClick={() => setD((sv) => ({ ...sv, carType: k }))}
-                        style={{ flex: 1, background: on ? C.mossSoft : C.bg, color: on ? C.moss : C.ink2, border: `1px solid ${on ? C.moss : C.line}`, borderRadius: R.sm, padding: "12px 0", fontSize: 12.5, fontWeight: 600 }}>
-                        {CAR_TYPES[k].emoji} {CAR_TYPES[k].label}
-                      </button>
-                    );
+                {(d.cars && d.cars.length ? d.cars : [{ id: "car1", name: "", type: d.carType || "ice" }]).map((car, ci, arr) => (
+                  <div key={car.id} style={{ marginTop: ci ? 14 : 0, paddingTop: ci ? 14 : 0, borderTop: ci ? `1px solid ${C.lineSoft}` : "none" }}>
+                    {arr.length > 1 && (
+                      <div className="flex items-center gap-2" style={{ marginBottom: 9 }}>
+                        <input className="hae" value={car.name || ""} placeholder={`${ci + 1}번째 차 — 예: 남편 차`}
+                          onChange={(e) => setD((sv) => ({ ...sv, cars: arr.map((x) => x.id === car.id ? { ...x, name: e.target.value } : x) }))}
+                          style={{ ...inp, flex: 1, fontSize: 13.5 }} />
+                        <button onClick={() => setD((sv) => ({ ...sv, cars: arr.filter((x) => x.id !== car.id) }))}
+                          aria-label="이 차 지우기"
+                          style={{ background: "none", border: "none", color: C.ink3, fontSize: 18 }}>×</button>
+                      </div>
+                    )}
+                    <div className="flex gap-2">
+                      {Object.keys(CAR_TYPES).map((k) => {
+                        const on = (car.type || "ice") === k;
+                        return (
+                          <button key={k} className="press" onClick={() => setD((sv) => ({ ...sv, cars: arr.map((x) => x.id === car.id ? { ...x, type: k } : x), carType: ci === 0 ? k : sv.carType }))}
+                            style={{ flex: 1, background: on ? C.mossSoft : C.bg, color: on ? C.moss : C.ink2, border: `1px solid ${on ? C.moss : C.line}`, borderRadius: R.sm, padding: "12px 0", fontSize: 12.5, fontWeight: 600 }}>
+                            {CAR_TYPES[k].emoji} {CAR_TYPES[k].label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+                {(!d.cars || d.cars.length < 4) && (
+                  <button className="press w-full" onClick={() => setD((sv) => {
+                    const cur = sv.cars && sv.cars.length ? sv.cars : [{ id: "car1", name: "", type: sv.carType || "ice", firstReg: "", insMonth: null }];
+                    return { ...sv, cars: [...cur, { id: uid("car"), name: "", type: "ice", firstReg: "", insMonth: null }] };
                   })}
+                    style={{ width: "100%", marginTop: 12, background: "none", border: `1px dashed ${C.line}`, borderRadius: 12, padding: "11px 0", fontSize: 13, color: C.ink2 }}>
+                    차 한 대 더
+                  </button>
+                )}
+                <div style={{ fontSize: 12, color: C.ink3, marginTop: 10, lineHeight: 1.6 }}>
+                  기름차는 주유·엔진오일, 전기차는 충전·배터리 점검이 뜹니다.
+                  검사일과 보험 갱신 달은 나중에 설정에서 넣으셔도 돼요.
                 </div>
-                <div style={{ fontSize: 12, color: C.ink3, marginTop: 10, lineHeight: 1.6 }}>기름차는 주유·엔진오일, 전기차는 충전·배터리 점검이 뜹니다.</div>
               </div>
             </Card>
           </div>
@@ -2172,7 +2219,8 @@ function Onboarding() {
             init[k] = { on: c.on, cycle: c.cycle, dow: c.dow, dows: c.dows, dom: c.dom, doms: c.doms,
               nextAt: patterned ? nextByPattern(c) : Date.now() + Math.floor(Math.random() * spread) * DAY };
           });
-          setSt({ ...d, members: d.members.filter((m) => m.name.trim()), routines: init, onboarded: true });
+          /* 차는 carsOf가 옛 모양도 새 모양도 목록으로 돌려줍니다 */
+          setSt({ ...d, members: d.members.filter((m) => m.name.trim()), cars: carsOf(d), routines: init, onboarded: true });
         }}>{step < 3 ? "다음" : (page < cids.length - 1 ? "다음 영역" : "시작하기")}</Btn>
         {step > 0 && <Btn kind="quiet" onClick={() => { if (step === 3 && page > 0) return setPage(page - 1); setStep(step - 1); }}>이전</Btn>}
         {step === 3 && <p style={{ fontSize: 12, color: C.ink3, textAlign: "center", marginTop: 4, lineHeight: 1.7 }}>지금 다 정하지 않아도 괜찮아요. 나중에 설정에서 바꿀 수 있어요.<br />평소엔 오늘 필요한 것만 보여드립니다.</p>}
@@ -4930,80 +4978,112 @@ function Share() {
 /* 자동차 검사·보험 시점 —
    보험사·검사기관 API는 본인인증 없이는 열리지 않습니다. 그래서 연동 대신
    최초등록 연월과 보험 갱신월만 한 번 받고, 날짜는 법정 주기로 계산합니다. */
-function CarDates() {
+/* 차마다 검사일도 보험 갱신 달도 다릅니다. 한 대씩 따로 받습니다. */
+function CarOne({ car, idx, n }) {
   const { st, setSt, say } = use();
-  const car = st.car || {};
-
   const insp = nextCarInspection(car.firstReg);
   const ins = nextInsuranceMonth(car.insMonth);
   const fmt = (t) => t ? new Date(t).toLocaleDateString("ko-KR", { year: "numeric", month: "long" }) : null;
   const dday = (t) => Math.round((t - todayKey()) / DAY);
 
-  /* 계산한 시점을 정기 일정으로 넣어 알림·담당까지 그대로 씁니다 */
+  /* 계산한 시점을 정기 일정으로 넣어 알림·담당까지 그대로 씁니다.
+     차가 여러 대면 일정도 차마다 따로 생겨야 합니다 — id에 차 번호를 붙입니다. */
   const sync = (next) => setSt((sv) => {
-    const cr = (sv.customRoutines || []).filter((r) => r.id !== "car-insp" && r.id !== "car-ins");
+    const list = carsOf(sv).map((c) => c.id === car.id ? { ...c, ...next } : c);
+    const me = list.find((c) => c.id === car.id) || {};
+    const kInsp = `car-insp:${car.id}`, kIns = `car-ins:${car.id}`;
+    const cr = (sv.customRoutines || []).filter((r) => r.id !== kInsp && r.id !== kIns);
     const ro = { ...sv.routines };
-    delete ro["c:car-insp"]; delete ro["c:car-ins"];
-    const merged = { ...(sv.car || {}), ...next };
-    const i1 = nextCarInspection(merged.firstReg);
+    delete ro[`c:${kInsp}`]; delete ro[`c:${kIns}`];
+    /* 차가 한 대면 이름을 안 붙입니다. "우리 차 정기검사"는 군더더기예요 */
+    const tail = list.length > 1 ? ` (${carLabel(me, idx)})` : "";
+    const i1 = nextCarInspection(me.firstReg);
     if (i1) {
-      cr.push({ id: "car-insp", title: "자동차 정기검사 받기", category: "transport", cycle: 730 });
-      ro["c:car-insp"] = { on: true, cycle: 730, nextAt: i1 - 31 * DAY };
+      cr.push({ id: kInsp, title: "자동차 정기검사 받기" + tail, category: "transport", cycle: 730 });
+      ro[`c:${kInsp}`] = { on: true, cycle: 730, nextAt: i1 - 31 * DAY };
     }
-    const i2 = nextInsuranceMonth(merged.insMonth);
+    const i2 = nextInsuranceMonth(me.insMonth);
     if (i2) {
-      cr.push({ id: "car-ins", title: "자동차 보험 갱신 비교", category: "transport", cycle: 365 });
-      ro["c:car-ins"] = { on: true, cycle: 365, nextAt: i2 - 14 * DAY };
+      cr.push({ id: kIns, title: "자동차 보험 갱신 비교" + tail, category: "transport", cycle: 365 });
+      ro[`c:${kIns}`] = { on: true, cycle: 365, nextAt: i2 - 14 * DAY };
     }
-    return { ...sv, car: merged, customRoutines: cr, routines: ro };
+    return { ...sv, cars: list, customRoutines: cr, routines: ro };
   });
+
+  const drop = () => {
+    if (!confirm(`${carLabel(car, idx)}를 지울까요? 이 차의 검사·보험 일정도 같이 없어집니다.`)) return;
+    setSt((sv) => {
+      const kInsp = `car-insp:${car.id}`, kIns = `car-ins:${car.id}`;
+      const ro = { ...sv.routines };
+      delete ro[`c:${kInsp}`]; delete ro[`c:${kIns}`];
+      return { ...sv, cars: carsOf(sv).filter((c) => c.id !== car.id),
+               customRoutines: (sv.customRoutines || []).filter((r) => r.id !== kInsp && r.id !== kIns),
+               routines: ro };
+    });
+    say("지웠어요");
+  };
 
   const thisYear = new Date().getFullYear();
   const years = []; for (let y = thisYear; y >= thisYear - 24; y--) years.push(y);
-  const [ry, setRy] = useState(() => (car.firstReg || "").split("-")[0] || "");
-  const [rm, setRm] = useState(() => (car.firstReg || "").split("-")[1] || "");
+  const ry = (car.firstReg || "").split("-")[0] || "";
+  const rm = (car.firstReg || "").split("-")[1] || "";
+  const setReg = (y, m) => { if (y && m) sync({ firstReg: `${y}-${m}` }); else sync({ firstReg: "" }); };
 
   return (
-    <>
-      <Card style={{ marginTop: 10 }}>
-        <div style={{ padding: 15 }}>
-          <div style={{ fontSize: 14, fontWeight: 600 }}>검사·보험 시점</div>
-          <div style={{ fontSize: 12, color: C.ink3, marginTop: 6, lineHeight: 1.7 }}>
-            한 번만 넣어두면 다시 안 물어봐요. 법정 주기(신차 4년 → 이후 2년)로 다음 검사 시점을 계산합니다.
-          </div>
-
-          <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 16 }}>최초 등록</div>
-          <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 4 }}>자동차등록증이나 보험 안내문에 적혀 있어요.</div>
-          <div className="flex gap-2" style={{ marginTop: 8 }}>
-            <select className="hae" value={ry} onChange={(e) => { setRy(e.target.value); if (e.target.value && rm) sync({ firstReg: `${e.target.value}-${rm}` }); }}
-              style={{ flex: 1.3, border: `1px solid ${C.line}`, borderRadius: 11, padding: "11px 10px", fontSize: 14, background: C.bg, color: C.ink }}>
-              <option value="">연도</option>
-              {years.map((y) => <option key={y} value={String(y)}>{y}년</option>)}
-            </select>
-            <select className="hae" value={rm} onChange={(e) => { setRm(e.target.value); if (ry && e.target.value) sync({ firstReg: `${ry}-${e.target.value}` }); }}
-              style={{ flex: 1, border: `1px solid ${C.line}`, borderRadius: 11, padding: "11px 10px", fontSize: 14, background: C.bg, color: C.ink }}>
-              <option value="">월</option>
-              {Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0")).map((m) => <option key={m} value={m}>{Number(m)}월</option>)}
-            </select>
-          </div>
-
-          <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 18 }}>보험 갱신하는 달</div>
-          <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 4 }}>날짜까지 몰라도 돼요. 그 달 초에 미리 알려드립니다.</div>
-          <div className="grid grid-cols-6 gap-1.5" style={{ marginTop: 9 }}>
-            {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => {
-              const on = Number(car.insMonth) === m;
-              return (
-                <button key={m} className="press" onClick={() => sync({ insMonth: on ? null : m })}
-                  style={{ background: on ? C.mossSoft : C.bg, color: on ? C.moss : C.ink2, border: `1px solid ${on ? C.moss : C.line}`, borderRadius: 10, padding: "9px 0", fontSize: 12, fontWeight: on ? 600 : 400 }}>{m}월</button>
-              );
-            })}
-          </div>
+    <Card style={{ marginTop: 10 }}>
+      <div style={{ padding: 15 }}>
+        <div className="flex items-center gap-2">
+          <input className="hae" value={car.name || ""} onChange={(e) => sync({ name: e.target.value })}
+            placeholder={n > 1 ? `${idx + 1}번째 차 — 예: 남편 차, 카니발` : "우리 차"}
+            style={{ flex: 1, minWidth: 0, border: `1px solid ${C.line}`, borderRadius: 11, padding: "10px 12px",
+                     fontSize: 14, fontWeight: 600, background: C.bg, color: C.ink }} />
+          {n > 1 && <button className="press" onClick={drop} aria-label="이 차 지우기"
+            style={{ background: "transparent", border: "none", color: C.ink3, fontSize: 13, padding: "4px 6px" }}>✕</button>}
         </div>
-      </Card>
 
-      {(insp || ins) && (
-        <Card style={{ marginTop: 10, borderColor: C.moss }}>
-          <div style={{ padding: "14px 16px" }}>
+        <div className="flex gap-2" style={{ marginTop: 11 }}>
+          {Object.keys(CAR_TYPES).map((k) => {
+            const on = (car.type || "ice") === k;
+            return (
+              <button key={k} className="press" onClick={() => sync({ type: k })}
+                style={{ flex: 1, background: on ? C.mossSoft : C.bg, color: on ? C.moss : C.ink2,
+                         border: `1px solid ${on ? C.moss : C.line}`, borderRadius: R.sm, padding: "10px 0",
+                         fontSize: 12, fontWeight: 600 }}>
+                {CAR_TYPES[k].emoji} {CAR_TYPES[k].label}
+              </button>
+            );
+          })}
+        </div>
+
+        <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 16 }}>최초 등록</div>
+        <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 4 }}>자동차등록증이나 보험 안내문에 적혀 있어요.</div>
+        <div className="flex gap-2" style={{ marginTop: 8 }}>
+          <select className="hae" value={ry} onChange={(e) => setReg(e.target.value, rm)}
+            style={{ flex: 1.3, border: `1px solid ${C.line}`, borderRadius: 11, padding: "11px 10px", fontSize: 14, background: C.bg, color: C.ink }}>
+            <option value="">연도</option>
+            {years.map((y) => <option key={y} value={String(y)}>{y}년</option>)}
+          </select>
+          <select className="hae" value={rm} onChange={(e) => setReg(ry, e.target.value)}
+            style={{ flex: 1, border: `1px solid ${C.line}`, borderRadius: 11, padding: "11px 10px", fontSize: 14, background: C.bg, color: C.ink }}>
+            <option value="">월</option>
+            {Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0")).map((m) => <option key={m} value={m}>{Number(m)}월</option>)}
+          </select>
+        </div>
+
+        <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 18 }}>보험 갱신하는 달</div>
+        <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 4 }}>날짜까지 몰라도 돼요. 그 달 초에 미리 알려드립니다.</div>
+        <div className="grid grid-cols-6 gap-1.5" style={{ marginTop: 9 }}>
+          {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => {
+            const on = Number(car.insMonth) === m;
+            return (
+              <button key={m} className="press" onClick={() => sync({ insMonth: on ? null : m })}
+                style={{ background: on ? C.mossSoft : C.bg, color: on ? C.moss : C.ink2, border: `1px solid ${on ? C.moss : C.line}`, borderRadius: 10, padding: "9px 0", fontSize: 12, fontWeight: on ? 600 : 400 }}>{m}월</button>
+            );
+          })}
+        </div>
+
+        {(insp || ins) && (
+          <div style={{ marginTop: 15, paddingTop: 13, borderTop: `1px solid ${C.lineSoft}` }}>
             <div className="mono" style={{ fontSize: 9.5, color: C.moss }}>이렇게 챙길게요</div>
             {insp && <div style={{ fontSize: 13.5, marginTop: 9, lineHeight: 1.65 }}>
               정기검사 <b>{fmt(insp)}</b>쯤 · <span style={{ color: C.moss }}>D-{dday(insp)}</span>
@@ -5014,7 +5094,46 @@ function CarDates() {
               <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 3 }}>2주 전에 비교해보시라고 올려드려요</div>
             </div>}
           </div>
-        </Card>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+/* 자동차 검사·보험 시점 —
+   보험사·검사기관 API는 본인인증 없이는 열리지 않습니다. 그래서 연동 대신
+   최초등록 연월과 보험 갱신월만 한 번 받고, 날짜는 법정 주기로 계산합니다. */
+function CarDates() {
+  const { st, setSt, say } = use();
+  const cars = carsOf(st);
+
+  const add = () => setSt((sv) => {
+    const list = carsOf(sv);
+    if (list.length >= 4) return sv;
+    return { ...sv, cars: [...list, { id: uid("car"), name: "", type: "ice", firstReg: "", insMonth: null }] };
+  });
+
+  return (
+    <>
+      <div style={{ fontSize: 12.5, color: C.ink3, marginTop: 10, paddingLeft: 2, lineHeight: 1.7 }}>
+        한 번만 넣어두면 다시 안 물어봐요. 법정 주기(신차 4년 → 이후 2년)로 다음 검사 시점을 계산합니다.
+      </div>
+      {cars.length === 0
+        ? <Card style={{ marginTop: 10 }}><div style={{ padding: "22px 16px", fontSize: 13.5, color: C.ink3, textAlign: "center", lineHeight: 1.7 }}>
+            아직 등록한 차가 없어요.<br />아래에서 추가하시면 검사·보험 시점을 챙겨드릴게요.
+          </div></Card>
+        : cars.map((c, i) => <CarOne key={c.id} car={c} idx={i} n={cars.length} />)}
+      {cars.length < 4 && (
+        <button className="press" onClick={add}
+          style={{ width: "100%", marginTop: 10, background: "transparent", border: `1px dashed ${C.line}`,
+                   borderRadius: R.sm, padding: "13px 0", fontSize: 13, color: C.ink2 }}>
+          {cars.length ? "차 한 대 더 추가" : "차 추가"}
+        </button>
+      )}
+      {cars.length > 1 && (
+        <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 9, paddingLeft: 2, lineHeight: 1.7 }}>
+          차마다 검사·보험 일정이 따로 올라옵니다. 이름을 적어두시면 어느 차인지 바로 보여요.
+        </div>
       )}
     </>
   );
@@ -5195,27 +5314,10 @@ function Settings() {
         </Section>
       )}
 
-      {/* 자동차 — 종류만 고르면 맞는 항목이 뜹니다 */}
+      {/* 자동차 — 차마다 종류·검사·보험을 따로 받습니다 */}
       {d.flags.car && (
-        <Section eyebrow="CAR" title="자동차" right="종류에 맞는 항목만 떠요">
-          <Card><div style={{ padding: 15 }}>
-            <div className="flex gap-2">
-              {Object.keys(CAR_TYPES).map((k) => {
-                const on = (d.carType || "ice") === k;
-                return (
-                  <button key={k} className="press" onClick={() => { setD((sv) => ({ ...sv, carType: k })); setSt((sv) => ({ ...sv, carType: k })); }}
-                    style={{ flex: 1, background: on ? C.mossSoft : C.bg, color: on ? C.moss : C.ink2, border: `1px solid ${on ? C.moss : C.line}`, borderRadius: R.sm, padding: "11px 0", fontSize: 12.5, fontWeight: 600 }}>
-                    {CAR_TYPES[k].emoji} {CAR_TYPES[k].label}
-                  </button>
-                );
-              })}
-            </div>
-            <div style={{ fontSize: 12, color: C.ink3, marginTop: 11, lineHeight: 1.65 }}>
-              {(d.carType || "ice") === "ev"
-                ? "충전·배터리·케이블 점검이 정기 일정에 올라와요. 주기는 ‘정기 일정 관리 → 교통수단’에서 바꾸세요."
-                : "주유·엔진오일·세차가 정기 일정에 올라와요. 주기는 ‘정기 일정 관리 → 교통수단’에서 바꾸세요."}
-            </div>
-          </div></Card>
+        <Section eyebrow="CAR" title={carsOf(st).length > 1 ? `자동차 ${carsOf(st).length}대` : "자동차"}
+          right="종류에 맞는 항목만 떠요">
           <CarDates />
         </Section>
       )}
@@ -5456,7 +5558,7 @@ function Settings() {
       </Section>
 
       <div style={{ marginTop: 20 }}>
-        <Btn onClick={() => { setSt((s) => ({ ...s, members: d.members.filter((m) => m.name.trim()), children: d.children, flags: d.flags, petTypes: d.petTypes, carType: d.carType || "ice", extra: d.extra })); say("추천을 다시 계산했어요"); setTab("home"); }}>저장하고 추천 다시 계산</Btn>
+        <Btn onClick={() => { setSt((s) => ({ ...s, members: d.members.filter((m) => m.name.trim()), children: d.children, flags: d.flags, petTypes: d.petTypes, cars: carsOf(d), carType: d.carType || "ice", extra: d.extra })); say("추천을 다시 계산했어요"); setTab("home"); }}>저장하고 추천 다시 계산</Btn>
         <div style={{ height: 8 }} />
         <Btn kind="ghost" onClick={() => setDash(true)}>베타 지표 보기</Btn>
         <Btn kind="quiet" onClick={() => { if (confirm("모든 데이터를 지우고 처음부터 시작할까요?")) { window.storage.delete("meonjeon").catch(() => {}); setSt(DEFAULT_STATE); } }}>데이터 전체 삭제</Btn>
