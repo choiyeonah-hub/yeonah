@@ -83,7 +83,8 @@ export default async function handler(req, res) {
   };
   const base = {
     model: "claude-sonnet-5",
-    max_tokens: useSearch ? 3000 : shots.length ? 2000 : 1400,
+    /* 한글은 토큰을 많이 먹습니다. 식단 7개 정도면 1400에서 잘려요 */
+    max_tokens: useSearch ? 3000 : shots.length ? 2600 : 2400,
     ...(useSearch ? {
       tools: [{
         type: "web_search_20260209",
@@ -139,7 +140,10 @@ export default async function handler(req, res) {
       const n = (data.content || []).filter((b) => b.type === "web_search_tool_result").length;
       console.log("discover with web search, results blocks:", n);
     }
-    return res.status(200).json({ content: data.content });
+    /* 답이 max_tokens에서 잘렸으면 화면이 알아야 합니다.
+       모르면 "Unexpected end of JSON input"만 뜨고 왜인지 알 길이 없습니다 */
+    if (data.stop_reason === "max_tokens") console.warn("truncated at max_tokens");
+    return res.status(200).json({ content: data.content, stop_reason: data.stop_reason });
   } catch (e) {
     console.error("classify failed", e && e.name, e && e.message);
     return res.status(502).json({ error: `AI 서버에 닿지 못했어요 (${(e && e.name) || "네트워크"})` });

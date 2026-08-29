@@ -1200,7 +1200,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0829-d";
+const BUILD = "0829-e";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -1259,11 +1259,45 @@ async function askClaude(prompt, images, search) {
   }
   const data = await res.json();
   const text = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n");
-  const clean = text.replace(/```json/g, "").replace(/```/g, "").trim();
+  return parseLoose(text, data.stop_reason);
+}
+
+/* AI 답에서 자료만 꺼냅니다.
+   답이 길이 제한에 걸려 중간에 끊기는 일이 실제로 생깁니다. 그때 그냥 던지면
+   화면에 "Unexpected end of JSON input"만 뜹니다. 끊긴 답이라도 끝까지 온
+   항목은 살려 쓰고, 정말 못 쓸 때만 무슨 일인지 한국어로 알립니다. */
+function parseLoose(text, stopReason) {
+  const clean = String(text || "").replace(/```json/g, "").replace(/```/g, "").trim();
+  const fail = (msg, code) => { const e = new Error(msg); e.code = code; e.stopReason = stopReason; throw e; };
+  if (!clean) fail("AI가 빈 답을 보냈어요. 다시 한 번 눌러주세요.", "empty");
+
   const a = clean.indexOf("["), o = clean.indexOf("{");
-  const s = o >= 0 && (o < a || a < 0) ? o : a;
-  const e = clean.lastIndexOf(clean[s] === "{" ? "}" : "]");
-  return JSON.parse(s >= 0 ? clean.slice(s, e + 1) : clean);
+  const at = o >= 0 && (o < a || a < 0) ? o : a;
+  if (at < 0) fail("AI 답에서 정리된 내용을 못 찾았어요. 다시 한 번 눌러주세요.", "nojson");
+  const body = clean.slice(at);
+
+  try { return JSON.parse(body); } catch {}
+
+  /* 뒤에 군더더기가 붙은 경우 — 마지막 닫는 괄호까지만 */
+  const close = body.lastIndexOf(body[0] === "{" ? "}" : "]");
+  if (close > 0) { try { return JSON.parse(body.slice(0, close + 1)); } catch {} }
+
+  /* 배열이 중간에 끊긴 경우 — 온전히 닫힌 항목만 골라냅니다 */
+  if (body[0] === "[") {
+    const out = [];
+    let depth = 0, start = -1, inStr = false, esc = false;
+    for (let i = 1; i < body.length; i++) {
+      const ch = body[i];
+      if (inStr) { if (esc) esc = false; else if (ch === "\\") esc = true; else if (ch === '"') inStr = false; continue; }
+      if (ch === '"') { inStr = true; continue; }
+      if (ch === "{") { if (!depth) start = i; depth++; }
+      else if (ch === "}") { depth--; if (!depth && start >= 0) { try { out.push(JSON.parse(body.slice(start, i + 1))); } catch {} start = -1; } }
+    }
+    if (out.length) return out;
+  }
+  fail(stopReason === "max_tokens"
+    ? "AI 답이 너무 길어서 중간에 끊겼어요. 다시 한 번 눌러주세요."
+    : "AI 답을 읽지 못했어요. 다시 한 번 눌러주세요.", "cut");
 }
 const householdLine = (st) =>
   `구성원 ${st.members.map((m) => m.name).join(", ")}${st.children.length ? " / 아이 " + st.children.map((c) => `${c.name}(${childLabel(c)})`).join(", ") : " / 자녀 없음"}${Object.keys(st.flags).filter((k) => st.flags[k]).length ? " / " + Object.keys(st.flags).filter((k) => st.flags[k]).map((k) => FLAGS[k].label).join(", ") : ""}${st.extra ? " / " + st.extra : ""}`;
