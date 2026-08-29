@@ -1790,7 +1790,7 @@ function TaskRow({ t, delay = 0, last }) {
   const kidNames = (t.withKids || []).map((id) => (st.children.find((c) => c.id === id) || {}).name).filter(Boolean);
 
   return (
-    <div className="rise flex items-start gap-3" style={{ padding: "15px 16px", borderBottom: last ? "none" : `1px solid ${C.lineSoft}`, animationDelay: `${delay}ms` }}>
+    <div className="rise flex items-start gap-3" style={{ padding: "15px 16px", borderBottom: last ? "none" : `1px solid ${C.lineSoft}`, animationDelay: `${delay}ms`, opacity: t.done ? 0.45 : 1, transition: "opacity .4s ease" }}>
       <button className="press" onClick={() => complete(t.id)} aria-label={t.done ? "되돌리기" : "완료"}
         style={{ width: 23, height: 23, marginTop: 1, borderRadius: 8, flexShrink: 0, border: `1.5px solid ${t.done ? C.moss : C.line}`, background: t.done ? C.moss : "transparent", color: "#fff", fontSize: 12, lineHeight: "20px" }}>{t.done ? "✓" : ""}</button>
       <div className="flex-1 min-w-0">
@@ -2341,7 +2341,9 @@ function Home() {
     ...(only === "mine" ? [] : recs.filter((r) => r.dateKnown).map((r) => ({ kind: "rec", r }))),
     ...visTasks.filter((t) => t.status === "week").map((t) => ({ kind: "task", t })),
   ].slice(0, limit);
-  const thinkShown = [...think, ...occasional.filter(doneToday).map((r) => ({ kind: "routine", r }))];
+  /* 오늘 끝낸 할 일도 지우지 않고 취소선 상태로 남겨둡니다 (루틴과 같은 규칙) */
+  const doneTasksToday = st.tasks.filter((t) => t.done && (t.doneAt || 0) >= todayKey() && visible(t.owner) && (t.status === "now" || t.status === "week"));
+  const thinkShown = [...think, ...doneTasksToday.map((t) => ({ kind: "task", t })), ...occasional.filter(doneToday).map((r) => ({ kind: "routine", r }))];
   const unowned = openTasks.filter((t) => !t.owner).length + due.filter((r) => !(st.routines[r.key] || {}).owner).length;
   const remain = openTasks.length + due.length + recs.length - think.length - daily.length;
 
