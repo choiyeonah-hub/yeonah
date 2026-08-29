@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<meta name="theme-color" content="#F6F8F7" />
+<meta name="theme-color" content="#FBF7F0" />
 <title>먼저ON — 내가 생각하기 전에 먼저 오는 것</title>
 <link rel="manifest" href="/manifest.json" />
 <script src="https://cdn.tailwindcss.com"></script>
@@ -13,25 +13,25 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.4/babel.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Hahmlet:wght@500;600&family=IBM+Plex+Sans+KR:wght@300;400;500;600&display=swap');
-  html,body{margin:0;background:#F6F8F7;font-family:'IBM Plex Sans KR',-apple-system,BlinkMacSystemFont,sans-serif;color:#0F1A15;-webkit-font-smoothing:antialiased}
+  html,body{margin:0;background:#FBF7F0;font-family:'IBM Plex Sans KR',-apple-system,BlinkMacSystemFont,sans-serif;color:#2A1D12;-webkit-font-smoothing:antialiased}
   #gate{max-width:440px;margin:0 auto;padding:64px 22px calc(40px + env(safe-area-inset-bottom))}
   #gate h1{font-family:'Hahmlet',serif;font-size:28px;font-weight:600;letter-spacing:-.035em;line-height:1.42;margin:0}
   #gate p{font-size:13.5px;color:#57675F;line-height:1.78;margin-top:14px}
-  #gate input{width:100%;border:1px solid #E7ECE9;border-radius:16px;padding:15px 16px;font-size:15px;background:#fff;font-family:inherit;box-sizing:border-box;transition:border-color .15s,box-shadow .15s}
-  #gate input:focus{outline:none;border-color:#12775A;box-shadow:0 0 0 3px #E4F3EC}
-  #gate button{width:100%;border:none;border-radius:16px;padding:16px 0;font-size:15px;font-weight:600;font-family:inherit;background:#0F1A15;color:#fff;margin-top:10px;cursor:pointer;transition:transform .12s ease}
+  #gate input{width:100%;border:1px solid #EDE4D6;border-radius:16px;padding:15px 16px;font-size:15px;background:#fff;font-family:inherit;box-sizing:border-box;transition:border-color .15s,box-shadow .15s}
+  #gate input:focus{outline:none;border-color:#C2521E;box-shadow:0 0 0 3px #FCEDE2}
+  #gate button{width:100%;border:none;border-radius:16px;padding:16px 0;font-size:15px;font-weight:600;font-family:inherit;background:#2A1D12;color:#fff;margin-top:10px;cursor:pointer;transition:transform .12s ease}
   #gate button:active{transform:scale(.985)}
   #gate .ghost{background:transparent;color:#93A099;font-weight:400;font-size:13px}
-  #gate .msg{margin-top:16px;font-size:13px;line-height:1.7;padding:14px 15px;border-radius:14px;background:#E4F3EC;color:#12775A}
+  #gate .msg{margin-top:16px;font-size:13px;line-height:1.7;padding:14px 15px;border-radius:14px;background:#FCEDE2;color:#C2521E}
   /* 버튼이 넷이 되면 좁은 폰에서 밀립니다. 줄바꿈을 허용합니다 */
   #bar{position:fixed;top:0;left:0;right:0;z-index:80;display:none;justify-content:center;gap:6px;flex-wrap:wrap;
        background:rgba(255,255,255,.86);backdrop-filter:saturate(1.6) blur(14px);-webkit-backdrop-filter:saturate(1.6) blur(14px);
-       border-bottom:1px solid #E7ECE9;padding:8px 12px;font-size:11.5px;color:#57675F;align-items:center}
-  #bar button{border:1px solid #E7ECE9;background:#F6F8F7;border-radius:99px;padding:6px 10px;font-size:11px;white-space:nowrap;color:#57675F;font-family:inherit;cursor:pointer}
+       border-bottom:1px solid #EDE4D6;padding:8px 12px;font-size:11.5px;color:#6E5B47;align-items:center}
+  #bar button{border:1px solid #EDE4D6;background:#FBF7F0;border-radius:99px;padding:6px 10px;font-size:11px;white-space:nowrap;color:#6E5B47;font-family:inherit;cursor:pointer}
   #sync{position:fixed;bottom:calc(112px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);z-index:90;display:none;
-        background:#0F1A15;color:#fff;border-radius:99px;padding:11px 16px;font-size:12.5px;align-items:center;gap:10px;
+        background:#2A1D12;color:#fff;border-radius:99px;padding:11px 16px;font-size:12.5px;align-items:center;gap:10px;
         box-shadow:0 2px 4px rgba(15,26,21,.06), 0 22px 48px -22px rgba(15,26,21,.4)}
-  #sync button{background:#12775A;color:#fff;border:none;border-radius:99px;padding:6px 12px;font-size:12px;font-family:inherit;cursor:pointer}
+  #sync button{background:#C2521E;color:#fff;border:none;border-radius:99px;padding:6px 12px;font-size:12px;font-family:inherit;cursor:pointer}
 </style>
 </head>
 <body>
@@ -349,17 +349,19 @@ const { useState, useEffect, useRef, useMemo, createContext, useContext } = Reac
 const BRAND = "먼저ON";
 
 const C = {
-  bg: "#F6F8F7", card: "#FFFFFF", ink: "#0F1A15", ink2: "#57675F", ink3: "#93A099",
-  line: "#E7ECE9", lineSoft: "#F0F4F2",
-  moss: "#12775A", mossSoft: "#E4F3EC", sprout: "#4FBB93",
-  persim: "#CE4A38", persimSoft: "#FCEBE7", sun: "#B37D22", sunSoft: "#FBF2E0",
-  sea: "#33608F", seaSoft: "#EAF0F7",
+  /* 감 — 감빛 주황에 볕 든 미색. 알림이 가장 잘 보이는 조합입니다.
+     이름(moss/persim/sea)은 그대로 둡니다. 값만 바뀌면 화면 전체가 따라옵니다. */
+  bg: "#FBF7F0", card: "#FFFFFF", ink: "#2A1D12", ink2: "#6E5B47", ink3: "#A3927E",
+  line: "#EDE4D6", lineSoft: "#F6F0E6",
+  moss: "#C2521E", mossSoft: "#FCEDE2", sprout: "#E5924F",
+  persim: "#A32235", persimSoft: "#FAE6E9", sun: "#8A6A12", sunSoft: "#F6EFDA",
+  sea: "#2C6480", seaSoft: "#E5EFF4",
 };
 /* 그림자는 두 겹으로: 얇은 윤곽 + 넓고 옅은 확산 (요즘 앱 느낌) */
-const SHADOW = "0 1px 1.5px rgba(15,26,21,.05), 0 12px 32px -18px rgba(15,26,21,.22)";
-const SHADOW_LIFT = "0 2px 4px rgba(15,26,21,.06), 0 22px 48px -22px rgba(15,26,21,.30)";
+const SHADOW = "0 1px 1.5px rgba(42,29,18,.05), 0 12px 32px -18px rgba(42,29,18,.22)";
+const SHADOW_LIFT = "0 2px 4px rgba(42,29,18,.06), 0 22px 48px -22px rgba(42,29,18,.30)";
 const R = { xs: 10, sm: 14, md: 18, lg: 22, xl: 28, pill: 999 };
-const MEMBER_COLORS = ["#2E6B57", "#3D5B7A", "#C08A2E", "#7A4E77"];
+const MEMBER_COLORS = ["#8A4A2A", "#3D6B8F", "#6E7A3A", "#8A4A6E"];
 
 const FONTS = `
 @import url('https://fonts.googleapis.com/css2?family=Hahmlet:wght@500;600;700&family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
@@ -2907,17 +2909,17 @@ function Home() {
   return (
     <>
       <div className="rise" style={{ marginTop: 12, borderRadius: R.xl, overflow: "hidden", position: "relative",
-                                     background: "radial-gradient(120% 100% at 100% 0%, #235644 0%, #16302650 45%, transparent 70%), linear-gradient(165deg, #17332A 0%, #0F1A15 70%)",
+                                     background: "radial-gradient(120% 100% at 100% 0%, #5C3316 0%, #40281250 45%, transparent 70%), linear-gradient(165deg, #402812 0%, #2A1D12 70%)",
                                      boxShadow: SHADOW_LIFT }}>
         <div style={{ position: "absolute", top: -40, right: -30, width: 160, height: 160, borderRadius: 999, background: "rgba(79,187,147,.12)", filter: "blur(6px)" }} />
         <div style={{ padding: "22px 21px 21px", position: "relative" }}>
-          <div className="mono" style={{ fontSize: 9.5, color: "#7FB79E" }}>
+          <div className="mono" style={{ fontSize: 9.5, color: "#E5924F" }}>
             {new Date().getMonth() + 1}월 {new Date().getDate()}일 {WEEKDAY[new Date().getDay()]}요일
           </div>
           <div className="disp" style={{ color: "#fff", fontSize: 23, fontWeight: 600, lineHeight: 1.42, marginTop: 10, letterSpacing: "-.03em" }}>
             {meName} 님, 오늘<br />머리 쓸 일은 {think.length}가지예요.
           </div>
-          <div style={{ color: "#93A69B", fontSize: 13, marginTop: 10, lineHeight: 1.65 }}>
+          <div style={{ color: "#B7A48C", fontSize: 13, marginTop: 10, lineHeight: 1.65 }}>
             {daily.length > 0 ? `루틴 ${daily.length}개는 늘 하던 일이라 세지 않았어요. ` : ""}
             {remain > 0 ? `나머지 ${remain}개는 제가 기억하고 있을게요.` : "지금은 급한 게 없어요."}
           </div>
@@ -3612,7 +3614,7 @@ function Speak() {
       {result.length > 0 && (
         <div style={{ position: "fixed", left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 440,
                       bottom: "calc(60px + env(safe-area-inset-bottom))", zIndex: 40, padding: "16px 20px 12px",
-                      background: "linear-gradient(to top, #F6F8F7 58%, rgba(246,248,247,0))", pointerEvents: "none" }}>
+                      background: "linear-gradient(to top, #FBF7F0 58%, rgba(251,247,240,0))", pointerEvents: "none" }}>
           <button className="press w-full" onClick={commit}
             style={{ pointerEvents: "auto", background: C.ink, color: "#fff", border: "none", borderRadius: R.pill,
                      padding: "15px 0", fontSize: 14.5, fontWeight: 600, boxShadow: SHADOW_LIFT }}>
@@ -4565,10 +4567,10 @@ function Timeline() {
 
   return (
     <>
-      <div className="rise" style={{ marginTop: 12, borderRadius: R.xl, padding: 22, background: "linear-gradient(165deg, #17332A 0%, #0F1A15 70%)", boxShadow: SHADOW_LIFT }}>
-        <div className="mono" style={{ fontSize: 10, color: "#7FB79E" }}>LIFE TIMELINE</div>
+      <div className="rise" style={{ marginTop: 12, borderRadius: R.xl, padding: 22, background: "linear-gradient(165deg, #402812 0%, #2A1D12 70%)", boxShadow: SHADOW_LIFT }}>
+        <div className="mono" style={{ fontSize: 10, color: "#E5924F" }}>LIFE TIMELINE</div>
         <div className="disp" style={{ color: "#fff", fontSize: 21, fontWeight: 600, marginTop: 9, lineHeight: 1.45 }}>지금 시작해야<br />늦지 않는 일</div>
-        <div style={{ color: "#93A69B", fontSize: 13, marginTop: 10, lineHeight: 1.7 }}>
+        <div style={{ color: "#B7A48C", fontSize: 13, marginTop: 10, lineHeight: 1.7 }}>
           필요한 시점이 아니라 <b style={{ color: "#fff" }}>준비를 시작해야 하는 시점</b>으로 계산했어요.
         </div>
       </div>
@@ -4647,12 +4649,12 @@ function Share() {
 
   return (
     <>
-      <div className="rise" style={{ marginTop: 12, borderRadius: R.xl, padding: 22, background: "linear-gradient(165deg, #17332A 0%, #0F1A15 70%)", boxShadow: SHADOW_LIFT }}>
-        <div className="mono" style={{ fontSize: 9.5, color: "#7FB79E" }}>MENTAL LOAD</div>
+      <div className="rise" style={{ marginTop: 12, borderRadius: R.xl, padding: 22, background: "linear-gradient(165deg, #402812 0%, #2A1D12 70%)", boxShadow: SHADOW_LIFT }}>
+        <div className="mono" style={{ fontSize: 9.5, color: "#E5924F" }}>MENTAL LOAD</div>
         <div className="disp" style={{ color: "#fff", fontSize: 20, fontWeight: 600, marginTop: 9, lineHeight: 1.5 }}>
           {s.human + s.ai ? `이 집이 기억하고 있는 일\n모두 ${s.human + s.ai}개예요` : "아직 기록이 없어요"}
         </div>
-        <div style={{ color: "#93A69B", fontSize: 13, marginTop: 10, lineHeight: 1.7 }}>
+        <div style={{ color: "#B7A48C", fontSize: 13, marginTop: 10, lineHeight: 1.7 }}>
           누가 더 했는지 가리려는 화면이 아니에요. 집안일이 실제로 몇 개짜리 일인지 보이게 하려는 것뿐입니다.
         </div>
       </div>
