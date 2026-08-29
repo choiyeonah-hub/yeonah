@@ -1028,7 +1028,7 @@ const PROMPT_VERSION = "v7.0";
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
    상한에 닿아도 직접 적는 길은 항상 열려 있습니다. */
 const AI_LIMITS = {
-  free: { talk: 15, photo: 3, find: 10 },   /* 말하기 정리 / 사진 인식 / 자동 발굴(주 2회) */
+  free: { talk: 15, photo: 6, find: 10 },   /* 말하기 정리 / 사진 인식 / 자동 발굴(주 2회) */
   paid: { talk: Infinity, photo: Infinity, find: Infinity },
 };
 const AI_LABEL = { talk: "AI 정리", photo: "사진 인식", find: "미리 찾아보기" };
@@ -1496,6 +1496,12 @@ function App() {
     });
     return true;
   };
+  /* 실패한 호출은 돌려줍니다. AI가 답을 못 준 것까지 사용자 몫에서 깎으면 안 됩니다 */
+  const refundAI = (kind, n = 1) => setSt((sv) => {
+    const cur = (sv.aiUsage || {}).month === usageMonth() ? sv.aiUsage : null;
+    if (!cur) return sv;
+    return { ...sv, aiUsage: { ...cur, [kind]: Math.max((cur[kind] || 0) - n, 0) } };
+  });
   const cats = useMemo(() => [
     ...st.children.map((ch) => ({ id: `kid:${ch.id}`, emoji: "🧒", label: `${ch.name}(${childLabel(ch)})`, child: ch })),
     ...BASE_CATS.filter((c) => c.need(st.flags, st.children)),
@@ -1562,7 +1568,7 @@ function App() {
   );
 
   return (
-    <Ctx.Provider value={{ st, setSt, me, setMe, cats, addTasks, tossTask, complete, assign, setPref, setRoutine, routineAction, say, log, spendAI, tab, setTab, openCat, setOpenCat }}>
+    <Ctx.Provider value={{ st, setSt, me, setMe, cats, addTasks, tossTask, complete, assign, setPref, setRoutine, routineAction, say, log, spendAI, refundAI, tab, setTab, openCat, setOpenCat }}>
       <div className="hae" style={{ background: C.bg, minHeight: "100vh", color: C.ink, WebkitFontSmoothing: "antialiased" }}>
         <style dangerouslySetInnerHTML={{ __html: FONTS }} />
         <div style={{ maxWidth: 440, margin: "0 auto", paddingBottom: 100, position: "relative" }}>
@@ -2481,7 +2487,7 @@ function DiscoverCard({ item, onAdd, onLater, onNo, delay = 0 }) {
    판단이 필요한 일은 3가지만. 매일 루틴은 체크리스트로 따로.
    컨디션이 안 좋은 날엔 목록을 줄이고 가족에게 넘길 수 있게. */
 function Home() {
-  const { st, setSt, me, cats, setTab, addTasks, complete, say, log, setRoutine, routineAction, spendAI } = use();
+  const { st, setSt, me, cats, setTab, addTasks, complete, say, log, setRoutine, routineAction, spendAI, refundAI } = use();
   const [all, setAll] = useState(false);
   const [only, setOnly] = useState("all");   /* all = 다 같이 보기 / mine = 내 몫만 */
   const [openRoutine, setOpenRoutine] = useState(true);
@@ -2574,7 +2580,7 @@ function Home() {
           setDisc((d) => [...d, ...items].slice(0, 3));
           setSt((sv) => ({ ...sv, discoverCache: { date: todayStr(), items } }));
         }
-      } catch {}
+      } catch { refundAI("find", 1); }
       setLoadingDisc(false);
     })();
   }, [st.onboarded, level]);
@@ -2830,7 +2836,7 @@ function Home() {
 
 /* ── 말하기 ───────────────────────────────────── */
 function Speak() {
-  const { st, setSt, cats, addTasks, me, say, setTab, log, spendAI } = use();
+  const { st, setSt, cats, addTasks, me, say, setTab, log, spendAI, refundAI } = use();
   const [text, setText] = useState("");
   const [capped, setCapped] = useState(null);   /* 상한에 닿았을 때 보여줄 안내 */
   const [phase, setPhase] = useState("input");
@@ -3022,7 +3028,8 @@ function Speak() {
       }
     }
     setAnswer(gotAnswer);
-    if (!items.length && !gotAnswer) { setFailed(lastErr || true); items = normalize([{ title: "두부 소진", category: "food", status: "now", note: "유통기한 임박" }, { title: "휴지 구매", category: "home", status: "buy", note: "떨어지기 전에" }]); }
+    /* 아무것도 못 건졌으면 이번 시도는 없던 일로 하고 횟수를 돌려줍니다 */
+    if (!items.length && !gotAnswer) { refundAI(kind, 1); setFailed(lastErr || true); items = normalize([{ title: "두부 소진", category: "food", status: "now", note: "유통기한 임박" }, { title: "휴지 구매", category: "home", status: "buy", note: "떨어지기 전에" }]); }
     else setFailed(false);
     setShots([]);
     setResult(items); setPhase("result");
