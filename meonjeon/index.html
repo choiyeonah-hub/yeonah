@@ -786,6 +786,32 @@ const CONDITIONS = {
   low: { label: "힘들어요", emoji: "🌧", desc: "오늘은 꼭 필요한 것만 남길게요", show: 1 },
 };
 const todayStr = () => new Date().toISOString().slice(0, 10);
+/* AI가 준 "YYYY-MM-DD"를 그날 0시로 바꿉니다. 이상한 값이면 null */
+function parseWhen(v) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(v || "").trim());
+  if (!m) return null;
+  const y = Number(m[1]), mo = Number(m[2]), da = Number(m[3]);
+  const d = new Date(y, mo - 1, da);
+  /* 13월 40일 같은 값은 Date가 조용히 다른 날로 굴려버립니다. 되돌려 확인합니다 */
+  if (d.getFullYear() !== y || d.getMonth() !== mo - 1 || d.getDate() !== da) return null;
+  const t = d.getTime();
+  if (isNaN(t)) return null;
+  /* 지나간 날짜를 주면 오늘로 당깁니다 */
+  return Math.max(t, todayKey());
+}
+/* 말에 시점이 없을 때, 분류만 보고 대강 언제쯤인지 정합니다 */
+const DUE_BY_STATUS = { now: 0, conditional: 1, check: 2, week: 3, decide: 5, buy: 5, remember: 7, repeat: 7 };
+const defaultDue = (status) => todayKey() + (DUE_BY_STATUS[status] != null ? DUE_BY_STATUS[status] : 3) * DAY;
+/* 남은 날짜 표시 — 오늘/내일/D-3/3일 지남 */
+function dueLabel(t) {
+  if (!t) return null;
+  const d = Math.round((todayKey0(t) - todayKey()) / DAY);
+  if (d < 0) return { text: `${-d}일 지남`, urgent: true };
+  if (d === 0) return { text: "오늘", urgent: true };
+  if (d === 1) return { text: "내일", urgent: false };
+  return { text: `D-${d}`, urgent: false };
+}
+const todayKey0 = (t) => startOfDay(t);
 
 const DEMO_SPEECH =
   "아 맞다. 다음 주 화요일 단수래. 휴지도 사야 되고 애 운동화 작아진 것 같아. 토요일에 시부모님 오실 수도 있고 자동차 엔진오일 언제 갈았는지도 모르겠다. 냉장고 두부도 먹어야 해.";
@@ -1445,6 +1471,7 @@ function App() {
       id: uid("t"), title: it.title, category: it.category, status: it.status || "week", note: it.note || "",
       raisedBy: raisedBy || me, owner: it.owner || (st.duty || {})[it.category] || null,
       done: false, seedId: it.seedId || null, withKids: it.withKids || null,
+      dueAt: it.dueAt || defaultDue(it.status || "week"),
       coverage: it.coverage || "new", createdAt: Date.now(),
     }));
     setSt((s) => ({ ...s, tasks: [...rows, ...s.tasks] }));
@@ -1889,6 +1916,7 @@ function TaskRow({ t, delay = 0, last }) {
   const [toss, setToss] = useState(false);
   const [msg, setMsg] = useState("");
   const cat = cats.find((c) => c.id === t.category) || { emoji: "🗂", label: "기타" };
+  const due = dueLabel(t.dueAt);
   const owner = st.members.find((m) => m.id === t.owner);
   const raiser = t.raisedBy === "ai" ? "ai" : st.members.find((m) => m.id === t.raisedBy);
   const upd = (patch) => setSt((sv) => ({ ...sv, tasks: sv.tasks.map((x) => x.id === t.id ? { ...x, ...patch } : x) }));
@@ -1904,6 +1932,7 @@ function TaskRow({ t, delay = 0, last }) {
           {t.title}
         </button>
         <div className="flex items-center gap-1.5 flex-wrap" style={{ fontSize: 11.5, color: C.ink3, marginTop: 5 }}>
+          {!t.done && due && <span style={{ color: due.urgent ? C.persim : C.moss, fontWeight: 600 }}>{due.text} ·</span>}
           <span>{cat.emoji} {cat.label}</span>
           {kidNames.length ? <span>· 🧒 {kidNames.join(", ")}와 함께</span> : null}
           {t.note && <span>· {t.note}</span>}
@@ -1958,7 +1987,17 @@ function TaskRow({ t, delay = 0, last }) {
           <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 14 }}>메모</div>
           <input className="hae" value={t.note || ""} onChange={(e) => upd({ note: e.target.value })} placeholder="왜 해야 하는지 짧게"
             style={{ width: "100%", marginTop: 8, border: `1px solid ${C.line}`, borderRadius: R.sm, padding: "12px 14px", fontSize: 13.5, background: C.bg, color: C.ink }} />
-          <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 18 }}>언제 할 일인가요?</div>
+          <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 18 }}>며칠에 올려드릴까요?</div>
+          <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 3 }}>이 날이 되면 오늘 화면 맨 위로 올라옵니다.</div>
+          <div className="flex gap-2 items-center" style={{ marginTop: 9 }}>
+            <input type="date" className="hae" value={t.dueAt ? new Date(t.dueAt - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10) : ""}
+              onChange={(e) => upd({ dueAt: parseWhen(e.target.value) || defaultDue(t.status) })}
+              style={{ flex: 1, border: `1px solid ${C.line}`, borderRadius: 12, padding: "11px 13px", fontSize: 14, background: C.bg, color: C.ink, fontFamily: "inherit" }} />
+            <button className="press" onClick={() => upd({ dueAt: todayKey() })}
+              style={{ background: C.bg, border: `1px solid ${C.line}`, borderRadius: R.pill, padding: "10px 14px", fontSize: 12.5, color: C.ink2, flexShrink: 0 }}>오늘</button>
+          </div>
+
+          <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 18 }}>어떤 종류인가요?</div>
           <div className="flex flex-wrap gap-2" style={{ marginTop: 10 }}>
             {STATUS_ORDER.filter((k) => k !== "repeat").map((k) => (
               <button key={k} className="press" onClick={() => upd({ status: k })}
@@ -2439,12 +2478,19 @@ function Home() {
   const doneToday = (r) => { const c = st.routines[r.key] || {}; return !!(c.lastAt && c.lastAt >= todayKey()); };
   const visTasks = openTasks.filter((t) => visible(t.owner));
   /* 오늘 끝낸 루틴은 3개 정원에 넣지 않고, 취소선 상태로 뒤에 남겨둡니다 */
+  /* 날짜가 오늘까지 온 일은 분류와 상관없이 맨 위로 올립니다.
+     말할 때 "다음 주 화요일"이라고 한 게 그날 실제로 떠야 하니까요. */
+  const dueNow = (t) => (t.dueAt || 0) <= todayKey() + DAY;
+  const arrived = visTasks.filter((t) => t.status !== "buy" && dueNow(t))
+    .sort((a, b) => (a.dueAt || 0) - (b.dueAt || 0));
+  const rest = visTasks.filter((t) => !arrived.includes(t));
   const think = [
-    ...visTasks.filter((t) => t.status === "now").map((t) => ({ kind: "task", t })),
+    ...arrived.map((t) => ({ kind: "task", t })),
+    ...rest.filter((t) => t.status === "now").map((t) => ({ kind: "task", t })),
     ...occasional.filter((r) => !doneToday(r)).map((r) => ({ kind: "routine", r })),
     /* 추천 카드는 아직 누구 몫도 아니라서 "내 몫만"에서는 뺍니다 */
     ...(only === "mine" ? [] : recs.filter((r) => r.dateKnown).map((r) => ({ kind: "rec", r }))),
-    ...visTasks.filter((t) => t.status === "week").map((t) => ({ kind: "task", t })),
+    ...rest.filter((t) => t.status === "week").map((t) => ({ kind: "task", t })),
   ].slice(0, limit);
   /* 오늘 끝낸 할 일도 지우지 않고 취소선 상태로 남겨둡니다 (루틴과 같은 규칙) */
   const doneTasksToday = st.tasks.filter((t) => t.done && (t.doneAt || 0) >= todayKey() && visible(t.owner) && (t.status === "now" || t.status === "week"));
@@ -2730,8 +2776,8 @@ function Home() {
             {occasional.length > 0 && <Section eyebrow="ROUTINE" title="이번 주 정기 일정">
               <Card>{occasional.map((r, i, a) => <RoutineRow key={r.key} r={r} delay={i * 35} last={i === a.length - 1} />)}</Card>
             </Section>}
-            {openTasks.length > 0 && <Section eyebrow="TASKS" title="담아둔 일">
-              <Card>{openTasks.map((t, i, a) => <TaskRow key={t.id} t={t} delay={i * 35} last={i === a.length - 1} />)}</Card>
+            {openTasks.length > 0 && <Section eyebrow="TASKS" title="담아둔 일" right="날짜순">
+              <Card>{openTasks.slice().sort((a, b) => (a.dueAt || 0) - (b.dueAt || 0)).map((t, i, a) => <TaskRow key={t.id} t={t} delay={i * 35} last={i === a.length - 1} />)}</Card>
             </Section>}
             {recs.length > 0 && <Section eyebrow="AHEAD" title="미리 살필 일">
               {recs.slice(0, 6).map((r, i) => <RecCard key={r.key} rec={r} delay={i * 50} />)}
@@ -2862,6 +2908,11 @@ function Speak() {
   어디에도 맞지 않으면 etc로 보내고 newCategory에 새 카테고리 이름을 한글 4자 이내로 제안하세요.
 - status는 하나: now / week / conditional / check / buy / decide / remember / repeat
   반복해서 해야 하는 일이면 repeat으로 두고 cycle에 권장 주기를 적으세요.
+- when: 언제 해야 하는 일인지 날짜를 YYYY-MM-DD로 적으세요. 오늘은 ${todayStr()}입니다.
+  "다음 주 화요일", "9월 20일 만기", "이번 주말"처럼 말에 시점이 있으면 그 날짜를 계산해서 넣고,
+  마감이 있으면 마감일이 아니라 **준비를 시작해야 하는 날**을 넣으세요.
+  (예: 9월 20일 보험 만기 → 비교는 미리 해야 하므로 9월 6일)
+  말에 시점이 전혀 없으면 빈 문자열로 두세요. 없는 날짜를 지어내지 마세요.
 - 말을 그대로 옮기지 말고 실행행동으로. 말한 내용은 하나도 빠뜨리지 말 것. 4~8개.
 - 다만 돌잔치·백일·결혼식·이사처럼 전문 앱/업체가 따로 있는 준비는 세부로 쪼개지 마세요.
   "돌잔치 기획하기" 같은 한 줄로만 만들고, 장소·답례품·의상 같은 하위 항목은 만들지 마세요.
@@ -2880,7 +2931,7 @@ function Speak() {
   ⑤ 정말 빠진 게 없으면 answer에 "지금은 빠진 게 없어 보여요"라고 쓰고 items는 비우세요.
 - 그냥 할 일을 쏟아낸 것이면 answer 없이 items만.
 
-출력은 JSON 객체만: {"answer":"질문이 아니면 빈 문자열","items":[{"title":"12자 이내","category":"...","status":"...","note":"20자 이내","newCategory":"","cycle":""}]}`;
+출력은 JSON 객체만: {"answer":"질문이 아니면 빈 문자열","items":[{"title":"12자 이내","category":"...","status":"...","note":"20자 이내","when":"YYYY-MM-DD 또는 빈 문자열","newCategory":"","cycle":""}]}`;
 
     /* 사진이 있으면 무엇을 읽어야 하는지 알려줍니다 */
     const shotPrompt = !shots.length ? "" : scanKind === "fridge"
@@ -2909,8 +2960,10 @@ function Speak() {
       const raw = String(x.category || "");
       const hit = cats.find((c) => c.id === raw) || (raw.startsWith("kid") ? cats.find((c) => c.id.startsWith("kid")) : null)
         || cats.find((c) => c.label.includes(raw)) || cats.find((c) => raw.includes(c.id));
+      const stt = STATUS[x.status] ? x.status : "week";
       return { title: String(x.title).slice(0, 20), category: hit ? hit.id : (raw === "etc" ? "etc" : fb),
-        status: STATUS[x.status] ? x.status : "week", note: x.note || "", newCategory: x.newCategory || "", cycle: x.cycle || "" };
+        status: stt, note: x.note || "", newCategory: x.newCategory || "", cycle: x.cycle || "",
+        dueAt: parseWhen(x.when) || defaultDue(stt) };
     });
     let items = [];
     let gotAnswer = "";
@@ -3035,6 +3088,7 @@ function Speak() {
                 <span className="flex-1 min-w-0">
                   <span style={{ display: "block", fontSize: 15, fontWeight: 500 }}>{t.title}</span>
                   <span style={{ display: "block", fontSize: 12, color: C.ink3, marginTop: 4 }}>
+                    {t.dueAt ? <span style={{ color: dueLabel(t.dueAt).urgent ? C.persim : C.moss, fontWeight: 600 }}>{dueLabel(t.dueAt).text} · </span> : null}
                     {cat.emoji} {cat.label} · {t.note}
                     {t.repeatDays ? <span style={{ color: C.moss }}> · {patternLabel({ cycle: t.repeatDays, dow: t.repeatDow, dom: t.repeatDom })} 반복</span> : null}
                   </span>
@@ -3088,7 +3142,17 @@ function Speak() {
               placeholder="왜 해야 하는지 짧게"
               style={{ width: "100%", marginTop: 8, border: `1px solid ${C.line}`, borderRadius: 12, padding: "11px 13px", fontSize: 13.5, background: C.bg, color: C.ink }} />
 
-            <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 20 }}>언제 할 일인가요?</div>
+            <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 20 }}>며칠에 올려드릴까요?</div>
+            <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 3 }}>이 날이 되면 오늘 화면 맨 위로 올라옵니다.</div>
+            <div className="flex gap-2 items-center" style={{ marginTop: 9 }}>
+              <input type="date" className="hae" value={t.dueAt ? new Date(t.dueAt - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10) : ""}
+                onChange={(e) => upd({ dueAt: parseWhen(e.target.value) || defaultDue(t.status) })}
+                style={{ flex: 1, border: `1px solid ${C.line}`, borderRadius: 12, padding: "11px 13px", fontSize: 14, background: C.bg, color: C.ink, fontFamily: "inherit" }} />
+              <button className="press" onClick={() => upd({ dueAt: todayKey() })}
+                style={{ background: C.bg, border: `1px solid ${C.line}`, borderRadius: R.pill, padding: "10px 14px", fontSize: 12.5, color: C.ink2, flexShrink: 0 }}>오늘</button>
+            </div>
+
+            <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 20 }}>어떤 종류인가요?</div>
             <div className="flex flex-wrap gap-2" style={{ marginTop: 10 }}>
               {STATUS_ORDER.filter((k) => k !== "repeat").map((k) => (
                 <button key={k} className="press" onClick={() => upd({ status: k })}
