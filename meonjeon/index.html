@@ -817,14 +817,18 @@ function parseWhen(v) {
 /* 말에 시점이 없을 때, 분류만 보고 대강 언제쯤인지 정합니다 */
 const DUE_BY_STATUS = { now: 0, conditional: 1, check: 2, week: 3, decide: 5, buy: 5, remember: 7, repeat: 7 };
 const defaultDue = (status) => todayKey() + (DUE_BY_STATUS[status] != null ? DUE_BY_STATUS[status] : 3) * DAY;
-/* 남은 날짜 표시 — 오늘/내일/D-3/3일 지남 */
+/* 남은 날짜 표시 — 오늘/내일/D-3/3일 지남
+   date에는 "9/3(목)"처럼 진짜 날짜를 담습니다.
+   D-5만 보여주면 며칠인지 세어봐야 하고, 고치려 해도 뭘 고치는지 모릅니다 */
 function dueLabel(t) {
   if (!t) return null;
+  const dt = new Date(t);
+  const date = `${dt.getMonth() + 1}/${dt.getDate()}(${WEEKDAY[dt.getDay()]})`;
   const d = Math.round((todayKey0(t) - todayKey()) / DAY);
-  if (d < 0) return { text: `${-d}일 지남`, urgent: true };
-  if (d === 0) return { text: "오늘", urgent: true };
-  if (d === 1) return { text: "내일", urgent: false };
-  return { text: `D-${d}`, urgent: false };
+  if (d < 0) return { text: `${-d}일 지남`, date, urgent: true };
+  if (d === 0) return { text: "오늘", date, urgent: true };
+  if (d === 1) return { text: "내일", date, urgent: false };
+  return { text: `D-${d}`, date, urgent: false };
 }
 const todayKey0 = (t) => startOfDay(t);
 
@@ -1976,7 +1980,14 @@ function TaskRow({ t, delay = 0, last }) {
           {t.title}
         </button>
         <div className="flex items-center gap-1.5 flex-wrap" style={{ fontSize: 11.5, color: C.ink3, marginTop: 5 }}>
-          {!t.done && due && <span style={{ color: due.urgent ? C.persim : C.moss, fontWeight: 600 }}>{due.text} ·</span>}
+          {/* 날짜를 눌러서 바로 고칠 수 있게. "고치기"를 찾아 헤매지 않도록 */}
+          {!t.done && due && (
+            <button className="press" onClick={() => setEdit(true)}
+              style={{ background: due.urgent ? C.persimSoft : C.mossSoft, color: due.urgent ? C.persim : C.moss,
+                       border: "none", borderRadius: 999, padding: "3px 9px", fontSize: 11.5, fontWeight: 600, marginRight: 2 }}>
+              {due.date} · {due.text}
+            </button>
+          )}
           <span>{cat.emoji} {cat.label}</span>
           {kidNames.length ? <span>· 🧒 {kidNames.join(", ")}와 함께</span> : null}
           {t.note && <span>· {t.note}</span>}
@@ -2032,13 +2043,17 @@ function TaskRow({ t, delay = 0, last }) {
           <input className="hae" value={t.note || ""} onChange={(e) => upd({ note: e.target.value })} placeholder="왜 해야 하는지 짧게"
             style={{ width: "100%", marginTop: 8, border: `1px solid ${C.line}`, borderRadius: R.sm, padding: "12px 14px", fontSize: 13.5, background: C.bg, color: C.ink }} />
           <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 18 }}>며칠에 올려드릴까요?</div>
-          <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 3 }}>이 날이 되면 오늘 화면 맨 위로 올라옵니다.</div>
-          <div className="flex gap-2 items-center" style={{ marginTop: 9 }}>
-            <input type="date" className="hae" value={t.dueAt ? new Date(t.dueAt - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10) : ""}
-              onChange={(e) => upd({ dueAt: parseWhen(e.target.value) || defaultDue(t.status) })}
-              style={{ flex: 1, border: `1px solid ${C.line}`, borderRadius: 12, padding: "11px 13px", fontSize: 14, background: C.bg, color: C.ink, fontFamily: "inherit" }} />
-            <button className="press" onClick={() => upd({ dueAt: todayKey() })}
-              style={{ background: C.bg, border: `1px solid ${C.line}`, borderRadius: R.pill, padding: "10px 14px", fontSize: 12.5, color: C.ink2, flexShrink: 0 }}>오늘</button>
+          <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 3 }}>
+            {t.dueAt ? `지금은 ${dueLabel(t.dueAt).date}예요. ` : ""}이 날이 되면 오늘 화면 맨 위로 올라옵니다.
+          </div>
+          <input type="date" className="hae" value={t.dueAt ? new Date(t.dueAt - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10) : ""}
+            onChange={(e) => upd({ dueAt: parseWhen(e.target.value) || defaultDue(t.status) })}
+            style={{ width: "100%", marginTop: 9, border: `1px solid ${C.line}`, borderRadius: 12, padding: "12px 13px", fontSize: 15, background: C.bg, color: C.ink, fontFamily: "inherit" }} />
+          <div className="flex gap-1.5" style={{ marginTop: 8 }}>
+            {[["오늘", 0], ["내일", 1], ["모레", 2], ["일주일 뒤", 7]].map(([lb, n]) => (
+              <button key={lb} className="press" onClick={() => upd({ dueAt: todayKey() + n * DAY })}
+                style={{ flex: 1, background: C.bg, border: `1px solid ${C.line}`, borderRadius: R.pill, padding: "9px 0", fontSize: 12, color: C.ink2 }}>{lb}</button>
+            ))}
           </div>
 
           <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 18 }}>어떤 종류인가요?</div>
@@ -3188,7 +3203,7 @@ function Speak() {
                 <span className="flex-1 min-w-0">
                   <span style={{ display: "block", fontSize: 15, fontWeight: 500 }}>{t.title}</span>
                   <span style={{ display: "block", fontSize: 12, color: C.ink3, marginTop: 4 }}>
-                    {t.dueAt ? <span style={{ color: dueLabel(t.dueAt).urgent ? C.persim : C.moss, fontWeight: 600 }}>{dueLabel(t.dueAt).text} · </span> : null}
+                    {t.dueAt ? <span style={{ color: dueLabel(t.dueAt).urgent ? C.persim : C.moss, fontWeight: 600 }}>{dueLabel(t.dueAt).date} · {dueLabel(t.dueAt).text} · </span> : null}
                     {cat.emoji} {cat.label} · {t.note}
                     {t.repeatDays ? <span style={{ color: C.moss }}> · {patternLabel({ cycle: t.repeatDays, dow: t.repeatDow, dom: t.repeatDom })} 반복</span> : null}
                   </span>
@@ -3243,13 +3258,17 @@ function Speak() {
               style={{ width: "100%", marginTop: 8, border: `1px solid ${C.line}`, borderRadius: 12, padding: "11px 13px", fontSize: 13.5, background: C.bg, color: C.ink }} />
 
             <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 20 }}>며칠에 올려드릴까요?</div>
-            <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 3 }}>이 날이 되면 오늘 화면 맨 위로 올라옵니다.</div>
-            <div className="flex gap-2 items-center" style={{ marginTop: 9 }}>
-              <input type="date" className="hae" value={t.dueAt ? new Date(t.dueAt - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10) : ""}
-                onChange={(e) => upd({ dueAt: parseWhen(e.target.value) || defaultDue(t.status) })}
-                style={{ flex: 1, border: `1px solid ${C.line}`, borderRadius: 12, padding: "11px 13px", fontSize: 14, background: C.bg, color: C.ink, fontFamily: "inherit" }} />
-              <button className="press" onClick={() => upd({ dueAt: todayKey() })}
-                style={{ background: C.bg, border: `1px solid ${C.line}`, borderRadius: R.pill, padding: "10px 14px", fontSize: 12.5, color: C.ink2, flexShrink: 0 }}>오늘</button>
+            <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 3 }}>
+              {t.dueAt ? `지금은 ${dueLabel(t.dueAt).date}예요. ` : ""}이 날이 되면 오늘 화면 맨 위로 올라옵니다.
+            </div>
+            <input type="date" className="hae" value={t.dueAt ? new Date(t.dueAt - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10) : ""}
+              onChange={(e) => upd({ dueAt: parseWhen(e.target.value) || defaultDue(t.status) })}
+              style={{ width: "100%", marginTop: 9, border: `1px solid ${C.line}`, borderRadius: 12, padding: "12px 13px", fontSize: 15, background: C.bg, color: C.ink, fontFamily: "inherit" }} />
+            <div className="flex gap-1.5" style={{ marginTop: 8 }}>
+              {[["오늘", 0], ["내일", 1], ["모레", 2], ["일주일 뒤", 7]].map(([lb, n]) => (
+                <button key={lb} className="press" onClick={() => upd({ dueAt: todayKey() + n * DAY })}
+                  style={{ flex: 1, background: C.bg, border: `1px solid ${C.line}`, borderRadius: R.pill, padding: "9px 0", fontSize: 12, color: C.ink2 }}>{lb}</button>
+              ))}
             </div>
 
             <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 20 }}>어떤 종류인가요?</div>
