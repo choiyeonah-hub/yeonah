@@ -2665,7 +2665,8 @@ function Home() {
   /* 오늘 끝낸 할 일도 지우지 않고 취소선 상태로 남겨둡니다 (루틴과 같은 규칙) */
   const doneTasksToday = st.tasks.filter((t) => t.done && (t.doneAt || 0) >= todayKey() && visible(t.owner) && (t.status === "now" || t.status === "week"));
   const thinkShown = [...think, ...doneTasksToday.map((t) => ({ kind: "task", t })), ...occasional.filter(doneToday).map((r) => ({ kind: "routine", r }))];
-  const unowned = openTasks.filter((t) => !t.owner).length + due.filter((r) => !(st.routines[r.key] || {}).owner).length;
+  /* 살 것은 여기서도 세지 않습니다. 나눌 일이 아니니까요 */
+  const unowned = openTasks.filter((t) => !t.owner && t.status !== "buy").length + due.filter((r) => !(st.routines[r.key] || {}).owner).length;
   const remain = openTasks.length + due.length + recs.length - think.length - daily.length;
 
   /* 방금 담은 일은 날짜가 아직 안 와서 위에 안 뜹니다.
@@ -3986,7 +3987,7 @@ function Timeline() {
 
 /* ── 나눔 (UX-10) ─────────────────────────────── */
 function Share() {
-  const { st, assign, say } = use();
+  const { st, assign, say, setTab } = use();
   const members = st.members;
   const s = useMemo(() => {
     const raised = {}, doneBy = {};
@@ -3999,7 +4000,11 @@ function Share() {
     return { raised, doneBy, ai, human: Object.values(raised).reduce((a, b) => a + b, 0), doneTotal: Object.values(doneBy).reduce((a, b) => a + b, 0) };
   }, [st.tasks, members]);
 
-  const unassigned = st.tasks.filter((t) => !t.done && !t.owner);
+  /* 살 것은 담당자를 나눌 일이 아닙니다.
+     먼저 마트에 가는 사람이 사고, 사면 줄이 그어져 다른 사람이 또 사지 않습니다.
+     "두부 구매를 누가 맡을까요"를 묻는 건 없는 일을 만드는 것입니다 */
+  const unassigned = st.tasks.filter((t) => !t.done && !t.owner && t.status !== "buy");
+  const openBuys = st.tasks.filter((t) => !t.done && t.status === "buy").length;
 
   const Bar = ({ data, total, extra }) => (
     <div className="flex" style={{ height: 9, borderRadius: 99, overflow: "hidden", background: C.line, marginTop: 13 }}>
@@ -4071,6 +4076,15 @@ function Share() {
             </div>
           )) : <div style={{ padding: "24px 18px", fontSize: 13.5, color: C.ink3, textAlign: "center" }}>모든 일에 담당자가 있어요.</div>}
         </Card>
+        {openBuys > 0 && (
+          <button className="press w-full text-left" onClick={() => setTab("home")}
+            style={{ marginTop: 10, background: C.mossSoft, border: "none", borderRadius: R.sm, padding: "13px 15px" }}>
+            <div style={{ fontSize: 12.5, color: C.moss, lineHeight: 1.65 }}>
+              살 것 <b>{openBuys}개</b>는 담당자를 나누지 않아요. 먼저 가는 사람이 사고, 사면 줄이 그어져 또 사지 않습니다.
+            </div>
+            <div style={{ fontSize: 11.5, color: C.moss, marginTop: 5, fontWeight: 600 }}>오늘 화면의 살 것 목록으로 ›</div>
+          </button>
+        )}
       </Section>
     </>
   );
