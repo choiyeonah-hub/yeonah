@@ -1051,14 +1051,32 @@ function nextResetLabel() {
   return `${n.getMonth() + 1}월 1일`;
 }
 
+/* 토큰은 만료되기도 하고 갱신되기도 해서, 부를 때마다 최신을 꺼내옵니다 */
+async function authHeaders() {
+  try {
+    if (typeof SB !== "undefined" && SB && SB.auth) {
+      const { data } = await SB.auth.getSession();
+      if (data && data.session && data.session.access_token) {
+        window.__TOKEN = data.session.access_token;
+      }
+    }
+  } catch {}
+  return window.__TOKEN ? { Authorization: "Bearer " + window.__TOKEN } : {};
+}
+
 async function askClaude(prompt, images) {
   const res = await fetch("/api/classify", {
     method: "POST",
-    headers: window.__TOKEN
-      ? { "Content-Type": "application/json", Authorization: "Bearer " + window.__TOKEN }
-      : { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...(await authHeaders()) },
     body: JSON.stringify({ prompt, images: images || undefined, promptVersion: PROMPT_VERSION }),
   });
+  if (!res.ok) {
+    let why = "";
+    try { why = (await res.json()).error || ""; } catch {}
+    const err = new Error(why || `서버가 ${res.status}로 응답했어요`);
+    err.status = res.status;
+    throw err;
+  }
   const data = await res.json();
   const text = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n");
   const clean = text.replace(/```json/g, "").replace(/```/g, "").trim();
@@ -2985,6 +3003,7 @@ function Speak() {
     });
     let items = [];
     let gotAnswer = "";
+    let lastErr = "";
     for (let i = 0; i < 2 && !items.length && !gotAnswer; i++) {
       try {
         const raw = await askClaude((i === 0 ? prompt : prompt + "\n\n(직전 응답이 비어 있었습니다. 반드시 2개 이상 추출하세요.)") + shotPrompt, shots.length ? shots : null);
@@ -2993,10 +3012,17 @@ function Speak() {
           if (raw.answer) gotAnswer = String(raw.answer).slice(0, 400);
         }
         items = normalize(Array.isArray(raw) ? raw : (raw && (raw.items || raw.tasks)) || []);
-      } catch { items = []; }
+      } catch (e) {
+        items = [];
+        /* 왜 안 됐는지 알려줘야 합니다. "실패했어요"만으로는 손쓸 수가 없어요 */
+        lastErr = e && e.status === 401
+          ? "로그인이 풀렸어요. 새로고침하고 다시 해주세요."
+          : e && e.status === 413 ? "사진이 너무 커요. 화면 캡처는 잘라서 올려주세요."
+          : e && e.message ? e.message : "";
+      }
     }
     setAnswer(gotAnswer);
-    if (!items.length && !gotAnswer) { setFailed(true); items = normalize([{ title: "두부 소진", category: "food", status: "now", note: "유통기한 임박" }, { title: "휴지 구매", category: "home", status: "buy", note: "떨어지기 전에" }]); }
+    if (!items.length && !gotAnswer) { setFailed(lastErr || true); items = normalize([{ title: "두부 소진", category: "food", status: "now", note: "유통기한 임박" }, { title: "휴지 구매", category: "home", status: "buy", note: "떨어지기 전에" }]); }
     else setFailed(false);
     setShots([]);
     setResult(items); setPhase("result");
@@ -3067,7 +3093,9 @@ function Speak() {
         <p style={{ fontSize: 13.5, color: C.ink2, marginTop: 7, lineHeight: 1.65 }}>
           {answer ? "괜찮으면 아래에서 필요한 일만 담으세요." : "담으면 가족 모두에게 보이고, 담당자를 나눌 수 있어요."}
         </p>
-        {failed && <div style={{ marginTop: 12, background: C.sunSoft, color: C.sun, borderRadius: 12, padding: "11px 13px", fontSize: 12.5, lineHeight: 1.6 }}>이번엔 분석이 실패해서 예시를 보여드리고 있어요. 다시 시도해 주세요.</div>}
+        {failed && <div style={{ marginTop: 12, background: C.sunSoft, color: C.sun, borderRadius: 12, padding: "11px 13px", fontSize: 12.5, lineHeight: 1.7 }}>
+          {typeof failed === "string" ? failed : "이번엔 분석이 실패했어요."} 아래는 예시라 담지 마시고, 다시 시도해 주세요.
+        </div>}
         {newCats.length > 0 && <div style={{ marginTop: 12, background: C.mossSoft, color: C.moss, borderRadius: 12, padding: "11px 13px", fontSize: 12.5, lineHeight: 1.6 }}>
           지금 카테고리에 없는 이야기가 있어요. <b>{newCats.join(", ")}</b>은 기타로 담아둘게요. 영역 화면에서 새로 만들 수 있습니다.
         </div>}
