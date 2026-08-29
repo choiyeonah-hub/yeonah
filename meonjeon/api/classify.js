@@ -140,10 +140,21 @@ export default async function handler(req, res) {
       const n = (data.content || []).filter((b) => b.type === "web_search_tool_result").length;
       console.log("discover with web search, results blocks:", n);
     }
-    /* 답이 max_tokens에서 잘렸으면 화면이 알아야 합니다.
-       모르면 "Unexpected end of JSON input"만 뜨고 왜인지 알 길이 없습니다 */
-    if (data.stop_reason === "max_tokens") console.warn("truncated at max_tokens");
-    return res.status(200).json({ content: data.content, stop_reason: data.stop_reason });
+    /* 답에 글이 안 들어 있는 경우가 실제로 생깁니다. 그때 화면에는
+       "AI가 빈 답을 보냈어요"만 뜨고 왜인지 알 길이 없었습니다.
+       무엇이 왔는지(블록 종류·중단 사유·낸 토큰 수)를 함께 내려보냅니다.
+       원문은 안 보냅니다 — 개인정보가 섞일 수 있습니다. */
+    const blocks = Array.isArray(data.content) ? data.content : [];
+    const types = blocks.map((b) => b && b.type);
+    const chars = blocks.filter((b) => b && b.type === "text")
+      .reduce((n, b) => n + String(b.text || "").length, 0);
+    const outTok = (data.usage && data.usage.output_tokens) || 0;
+    if (!chars) console.warn("empty text from model", { types, stop: data.stop_reason, outTok });
+    return res.status(200).json({
+      content: data.content,
+      stop_reason: data.stop_reason,
+      diag: { types, chars, out: outTok },
+    });
   } catch (e) {
     console.error("classify failed", e && e.name, e && e.message);
     return res.status(502).json({ error: `AI 서버에 닿지 못했어요 (${(e && e.name) || "네트워크"})` });
