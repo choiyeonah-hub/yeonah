@@ -1284,7 +1284,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0829-y";
+const BUILD = "0829-z";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -3159,7 +3159,10 @@ function Home() {
   const { st, setSt, me, cats, setTab, addTasks, complete, say, log, setRoutine, routineAction, spendAI, refundAI } = use();
   const [all, setAll] = useState(false);
   const [only, setOnly] = useState("all");   /* all = 다 같이 보기 / mine = 내 몫만 */
-  const [openRoutine, setOpenRoutine] = useState(true);
+  /* 루틴은 접은 채로 시작합니다. 매일 하는 일은 "머리 쓸 일"이 아니라
+     하던 대로 하면 되는 것이고, 그게 열일곱 줄 펼쳐져 있으면
+     정작 봐야 할 세 가지가 묻힙니다. */
+  const [openRoutine, setOpenRoutine] = useState(false);
   const [disc, setDisc] = useState([]);
   const [loadingDisc, setLoadingDisc] = useState(false);
   const asked = useRef(false);
@@ -3540,23 +3543,24 @@ function Home() {
 
       {/* 매일 루틴은 체크리스트로 따로 */}
       {daily.length > 0 && (
-        <Section eyebrow="ROUTINE" title="오늘의 루틴" right="하던 대로면 충분해요">
+        <Section eyebrow="ROUTINE" title="오늘의 루틴" right={openRoutine ? "하던 대로면 충분해요" : null}>
           <Card>
             <button className="press flex items-center justify-between w-full" onClick={() => setOpenRoutine((v) => !v)}
               style={{ background: "transparent", border: "none", padding: "14px 16px", borderBottom: openRoutine ? `1px solid ${C.line}` : "none" }}>
-              <span style={{ fontSize: 14, color: C.ink2 }}>
-                {st.members.length < 2 ? `${daily.length}개 · 매일 하는 일이에요`
-                  : mineRoutines.length ? `${meName} 님 몫 ${mineRoutines.length}개 포함` : "담당자를 나눠보세요"}
+              <span style={{ fontSize: 14, color: C.ink2, textAlign: "left" }}>
+                <b style={{ color: C.ink, fontWeight: 600 }}>{daily.length}개</b>
+                {st.members.length > 1 && mineRoutines.length ? ` · ${meName} 님 몫 ${mineRoutines.length}개` : ""}
+                {!openRoutine && <span style={{ display: "block", fontSize: 11.5, color: C.ink3, marginTop: 3 }}>하던 대로면 충분해요. 눌러서 펼치기</span>}
               </span>
-              <span style={{ fontSize: 12.5, color: C.moss }}>{openRoutine ? "접기" : "펼치기"}</span>
+              <span style={{ fontSize: 12.5, color: C.moss, flexShrink: 0 }}>{openRoutine ? "접기" : "펼치기"}</span>
             </button>
             {openRoutine && daily.map((r, i, a) => <RoutineRow key={r.key} r={r} delay={i * 30} last={i === a.length - 1} />)}
           </Card>
-          <div className="flex gap-2" style={{ marginTop: 8 }}>
+          {openRoutine && <div className="flex gap-2" style={{ marginTop: 8 }}>
             <button className="press" onClick={doneAll} style={{ flex: 1.2, background: C.moss, border: "none", borderRadius: 12, padding: "10px 0", fontSize: 12.5, color: "#fff", fontWeight: 600 }}>✓ 전부 완료</button>
             <button className="press" onClick={pushAll} style={{ flex: 1, background: "transparent", border: `1px solid ${C.line}`, borderRadius: 12, padding: "10px 0", fontSize: 12.5, color: C.ink2 }}>통째로 내일로</button>
             {spouse && <button className="press" onClick={handOver} style={{ flex: 1, background: "transparent", border: `1px solid ${C.line}`, borderRadius: 12, padding: "10px 0", fontSize: 12.5, color: C.ink2 }}>{spouse.name}에게</button>}
-          </div>
+          </div>}
         </Section>
       )}
 
