@@ -67,6 +67,9 @@ async function boot() {
   const { data: { session } } = await SB.auth.getSession();
   if (!session) return askEmail();
   MYUID = session.user.id;
+  /* AI 서버 함수가 로그인 여부를 확인할 수 있게 토큰을 들고 있습니다 */
+  window.__TOKEN = session.access_token;
+  SB.auth.onAuthStateChange((_e, s2) => { window.__TOKEN = s2 ? s2.access_token : null; });
   await connectHousehold(session.user);
 }
 
@@ -1050,7 +1053,10 @@ function nextResetLabel() {
 
 async function askClaude(prompt, images) {
   const res = await fetch("/api/classify", {
-    method: "POST", headers: { "Content-Type": "application/json" },
+    method: "POST",
+    headers: window.__TOKEN
+      ? { "Content-Type": "application/json", Authorization: "Bearer " + window.__TOKEN }
+      : { "Content-Type": "application/json" },
     body: JSON.stringify({ prompt, images: images || undefined, promptVersion: PROMPT_VERSION }),
   });
   const data = await res.json();
