@@ -765,6 +765,12 @@ const SEED = [
   { id: "N054", cat: "event", f: null, lead: 7, st: "repeat", t: "행사 전 장보기", tg: "행사 3~7일 전", ask: "필요한 목록을 장바구니에 미리 담아둘까요?", cy: "3개월", g: "행사정기", src: "" },
   { id: "N055", cat: "event", f: null, lead: 14, st: "repeat", t: "행사 때 입을 옷 준비", tg: "행사 2주 전", ask: "작년 옷이 아직 맞나요? 아이 옷은 특히요", cy: "6개월", g: "행사정기", src: "" },
   { id: "N056", cat: "event", f: null, lead: 10, st: "repeat", t: "선물·답례품 준비", tg: "행사 열흘 전", ask: "예산부터 정할까요?", cy: "3개월", g: "행사정기", src: "" },
+  /* 명절 교통편은 음력에 매여 있어서 해마다 양력 날짜가 달라집니다.
+     lu에 음력 날짜를 적어두면 해마다 저절로 옮겨갑니다.
+     예매일은 매년 따로 공지되고 설·추석이 서로 달라서(설은 한 달쯤 전,
+     추석은 2~3주 전) 날짜를 못 박지 않고 "공지 확인"으로 올립니다. */
+  { id: "N067", cat: "event", f: null, lu: "01-01", lead: 35, st: "repeat", t: "설 기차표·버스표 예매", tg: "예매일 공지 확인", ask: "명절에 기차나 버스로 움직이시나요? 예매일은 해마다 달라서 공지를 봐야 해요", cy: "연 1회", g: "행사정기", src: "", lk: "명절 기차 승차권 예매" },
+  { id: "N068", cat: "event", f: null, lu: "08-15", lead: 30, st: "repeat", t: "추석 기차표·버스표 예매", tg: "예매일 공지 확인", ask: "명절에 기차나 버스로 움직이시나요? 예매일은 해마다 달라서 공지를 봐야 해요", cy: "연 1회", g: "행사정기", src: "", lk: "명절 기차 승차권 예매" },
 
   /* 반려동물 — 종류에 따라 다른 일이 뜹니다 */
   { id: "P001", cat: "pet", f: "pet", pt: "cat", lead: 0, st: "repeat", t: "고양이 모래 전체 갈기", tg: "주기", ask: "", cy: "2주", g: "반려정기", src: "" },
@@ -1267,7 +1273,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0829-p";
+const BUILD = "0829-q";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -1704,6 +1710,25 @@ function nextAnchorAfter(anchor, lead, afterMs) {
 }
 
 /* 주기 고르기 시트 — 주기 + 요일/날짜 패턴까지 한 자리에서 */
+/* 씨앗의 기본 설정. 설·추석처럼 음력에 매인 것(lu)은 음력 정보를 함께 넣습니다.
+   그래야 해마다 양력 날짜가 저절로 옮겨갑니다 — 올해 설이 2월 17일이면
+   내년에는 알아서 다른 날로 갑니다. */
+function seedCfg(seed) {
+  const cycle = cycleToDays(seed.cy);
+  if (!seed || !seed.lu) return { cycle };
+  const lead = seed.lead || 0;
+  const at = nextLunarSolarAfter(seed.lu, todayKey());
+  const d = at != null ? new Date(at) : null;
+  return {
+    cycle: 365, lunar: true, lunarMD: seed.lu, leadDays: lead,
+    lunarLabel: `음력 ${Number(seed.lu.split("-")[0])}월 ${Number(seed.lu.split("-")[1])}일`,
+    ...(d ? {
+      anchor: `${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`,
+      nextAt: Math.max(at - lead * DAY, todayKey()),
+    } : {}),
+  };
+}
+
 function CyclePicker({ current, onPick, onOff, onClose, title, anchor, onAnchor, pattern, onPattern }) {
   const [d, setD] = useState(anchor || "");
   const pat = pattern || {};
@@ -1993,7 +2018,7 @@ function Onboarding() {
       /* 켜진 채로 시작하면 앱을 여는 순간 "당신이 안 하고 있는 일 132개"가 됩니다.
          빡세게 하는 사람에겐 "그거 다 알아", 대충 하는 사람에겐 숙제입니다.
          꺼진 채로 시작하고, 앱이 하나씩 "이건 몰랐죠?" 하며 꺼내는 게 맞습니다. */
-      suggested.forEach((r) => { if (!next[r.key]) next[r.key] = { on: false, cycle: cycleToDays(r.seed.cy) }; });
+      suggested.forEach((r) => { if (!next[r.key]) next[r.key] = { on: false, ...seedCfg(r.seed) }; });
       return next;
     });
   }, [step, suggested]);
@@ -2177,7 +2202,7 @@ function Onboarding() {
               </div>
               <Card>
                 {grp.items.map((r, i, arr) => {
-                  const cfg = routines[r.key] || { on: false, cycle: cycleToDays(r.seed.cy) };
+                  const cfg = routines[r.key] || { on: false, ...seedCfg(r.seed) };
                   return (
                     <div key={r.key} className="flex items-center gap-3" style={{ padding: "13px 15px", borderBottom: i === arr.length - 1 ? "none" : `1px solid ${C.line}`, opacity: cfg.on ? 1 : .4 }}>
                       <span className="flex-1 min-w-0">
@@ -2209,9 +2234,9 @@ function Onboarding() {
                 </div>
               </Card>
               <div className="flex gap-2" style={{ marginTop: 10 }}>
-                <button className="press" onClick={() => setRoutines((pv) => { const n = { ...pv }; grp.items.forEach((r) => { n[r.key] = { ...(n[r.key] || { cycle: cycleToDays(r.seed.cy) }), on: true }; }); return n; })}
+                <button className="press" onClick={() => setRoutines((pv) => { const n = { ...pv }; grp.items.forEach((r) => { n[r.key] = { ...(n[r.key] || seedCfg(r.seed)), on: true }; }); return n; })}
                   style={{ flex: 1, background: "transparent", border: `1px solid ${C.line}`, borderRadius: 12, padding: "10px 0", fontSize: 12.5, color: C.ink2 }}>전부 켜기</button>
-                <button className="press" onClick={() => setRoutines((pv) => { const n = { ...pv }; grp.items.forEach((r) => { n[r.key] = { ...(n[r.key] || { cycle: cycleToDays(r.seed.cy) }), on: false }; }); return n; })}
+                <button className="press" onClick={() => setRoutines((pv) => { const n = { ...pv }; grp.items.forEach((r) => { n[r.key] = { ...(n[r.key] || seedCfg(r.seed)), on: false }; }); return n; })}
                   style={{ flex: 1, background: "transparent", border: `1px solid ${C.line}`, borderRadius: 12, padding: "10px 0", fontSize: 12.5, color: C.ink2 }}>이 영역은 건너뛰기</button>
               </div>
               <div className="flex gap-1.5" style={{ marginTop: 16, justifyContent: "center" }}>
@@ -2284,7 +2309,7 @@ function Header() {
 /* ── 반복 업무 행 ─────────────────────────────── */
 function RoutineRow({ r, delay = 0, last, compact, manage }) {
   const { st, setSt, routineAction, setRoutine, say } = use();
-  const cfg = st.routines[r.key] || { cycle: cycleToDays(r.seed.cy), on: true };
+  const cfg = st.routines[r.key] || { ...seedCfg(r.seed), on: true };
   const owner = st.members.find((m) => m.id === cfg.owner);
   const [pick, setPick] = useState(false);
   const [own, setOwn] = useState(false);
@@ -5522,14 +5547,14 @@ function Settings() {
               <div className="flex items-center gap-2" style={{ marginBottom: 10 }}>
                 <span style={{ fontSize: 22 }}>{g.emoji}</span>
                 <span className="disp" style={{ fontSize: 19, fontWeight: 600, flex: 1 }}>{g.label}</span>
-                <button className="press" onClick={() => setSt((sv) => { const ro = { ...sv.routines }; const allOn = g.items.every((r) => (ro[r.key] || {}).on); g.items.forEach((r) => { ro[r.key] = { ...(ro[r.key] || { cycle: cycleToDays(r.seed.cy) }), on: !allOn, nextAt: (ro[r.key] || {}).nextAt || Date.now() }; }); return { ...sv, routines: ro }; })}
+                <button className="press" onClick={() => setSt((sv) => { const ro = { ...sv.routines }; const allOn = g.items.every((r) => (ro[r.key] || {}).on); g.items.forEach((r) => { const d = ro[r.key] || seedCfg(r.seed); ro[r.key] = { ...d, on: !allOn, nextAt: d.nextAt || Date.now() }; }); return { ...sv, routines: ro }; })}
                   style={{ background: C.bg, border: `1px solid ${C.line}`, borderRadius: 999, padding: "6px 12px", fontSize: 12, color: C.ink2, whiteSpace: "nowrap" }}>
                   {g.items.every((r) => (st.routines[r.key] || {}).on) ? "전부 끄기" : "전부 켜기"}
                 </button>
               </div>
               <Card>
                 {g.items.map((r, i, arr) => {
-                  const cfg = st.routines[r.key] || { on: false, cycle: cycleToDays(r.seed.cy) };
+                  const cfg = st.routines[r.key] || { on: false, ...seedCfg(r.seed) };
                   return (
                     <div key={r.key} className="flex items-center gap-3" style={{ padding: "13px 15px", borderBottom: i === arr.length - 1 ? "none" : `1px solid ${C.line}`, opacity: cfg.on ? 1 : .4 }}>
                       <span className="flex-1 min-w-0" style={{ fontSize: 14, fontWeight: 500 }}>
@@ -5537,7 +5562,7 @@ function Settings() {
                       </span>
                       <button className="press" onClick={() => setPickKey(r.key)}
                         style={{ background: C.bg, border: `1px solid ${C.line}`, borderRadius: 999, padding: "5px 11px", fontSize: 12, color: C.ink2, whiteSpace: "nowrap" }}>{patternLabel(cfg)}</button>
-                      <button className="press" onClick={() => setRoutine(r.key, { on: !cfg.on, cycle: cfg.cycle, nextAt: cfg.nextAt || Date.now() })} aria-label="사용 여부"
+                      <button className="press" onClick={() => setRoutine(r.key, { ...(st.routines[r.key] ? {} : seedCfg(r.seed)), on: !cfg.on, cycle: cfg.cycle, nextAt: cfg.nextAt || Date.now() })} aria-label="사용 여부"
                         style={{ width: 42, height: 25, borderRadius: 99, border: "none", background: cfg.on ? C.moss : C.line, position: "relative", flexShrink: 0 }}>
                         <span style={{ position: "absolute", top: 3, left: cfg.on ? 20 : 3, width: 19, height: 19, borderRadius: 99, background: "#fff", transition: "left .18s" }} />
                       </button>
