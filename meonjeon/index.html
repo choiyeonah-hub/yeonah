@@ -8,9 +8,9 @@
 <link rel="manifest" href="/manifest.json" />
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.4/babel.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Hahmlet:wght@500;600&family=IBM+Plex+Sans+KR:wght@300;400;500;600&display=swap');
   html,body{margin:0;background:#F6F8F7;font-family:'IBM Plex Sans KR',-apple-system,BlinkMacSystemFont,sans-serif;color:#0F1A15;-webkit-font-smoothing:antialiased}
@@ -163,8 +163,19 @@ async function connectHousehold(user) {
   document.getElementById('out').onclick = async () => { await SB.auth.signOut(); location.href = location.origin; };
   document.getElementById('root').style.paddingTop = '34px';
 
-  hideGate();
-  startApp();
+  /* 앱 코드는 Babel이 컴파일한 뒤에야 준비됩니다.
+     준비 전에 부르면 화면이 하얗게 남으므로 기다렸다가 엽니다. */
+  runApp();
+}
+
+function runApp(tries) {
+  tries = tries || 0;
+  if (window.startApp) { hideGate(); window.startApp(); return; }
+  if (tries > 200) {   /* 20초 */
+    show('<h1>앱을 불러오지 못했어요</h1><p>인터넷 연결을 확인하고 새로고침해 주세요. 사내망이나 일부 와이파이에서는 외부 스크립트가 막히기도 합니다.</p><button onclick="location.reload()">새로고침</button>');
+    return;
+  }
+  setTimeout(function () { runApp(tries + 1); }, 100);
 }
 
 boot();
