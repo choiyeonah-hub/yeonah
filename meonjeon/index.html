@@ -1009,6 +1009,25 @@ const Btn = ({ children, onClick, kind = "primary", disabled, style }) => {
   };
   return <button className="press" onClick={disabled ? undefined : onClick} disabled={disabled} style={{ ...base, ...kinds[kind], ...style }}>{children}</button>;
 };
+/* 한 줄로 접혀 있다가 누르면 펼쳐지는 카드 — 홈을 가볍게 유지하는 장치 */
+function Fold({ icon, title, sub, tone, defaultOpen, children }) {
+  const [open, setOpen] = useState(!!defaultOpen);
+  return (
+    <Card style={{ marginTop: 10, borderColor: tone || C.lineSoft }}>
+      <button className="press flex items-center gap-3 w-full text-left" onClick={() => setOpen((v) => !v)}
+        style={{ background: "transparent", border: "none", padding: "13px 15px" }}>
+        <span style={{ fontSize: 17, flexShrink: 0 }}>{icon}</span>
+        <span className="flex-1 min-w-0">
+          <span style={{ display: "block", fontSize: 13.5, fontWeight: 600 }}>{title}</span>
+          {sub ? <span style={{ display: "block", fontSize: 11.5, color: C.ink3, marginTop: 2 }}>{sub}</span> : null}
+        </span>
+        <span style={{ fontSize: 13, color: C.ink3, transform: open ? "rotate(90deg)" : "none", transition: "transform .15s", flexShrink: 0 }}>›</span>
+      </button>
+      {open && <div style={{ borderTop: `1px solid ${C.lineSoft}`, padding: "13px 15px 15px" }}>{children}</div>}
+    </Card>
+  );
+}
+
 function Sheet({ children, onClose }) {
   return ReactDOM.createPortal(
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(20,32,27,.4)", zIndex: 60, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
@@ -2085,8 +2104,8 @@ function HolidayBrief() {
   const startLabel = `${brk.days[0].getMonth() + 1}월 ${brk.days[0].getDate()}일(${WEEKDAY[brk.days[0].getDay()]})`;
 
   return (
-    <Card style={{ marginTop: 12, borderColor: C.sea }}>
-      <div style={{ padding: "16px 17px" }}>
+    <Fold icon="🌤" tone={C.seaSoft} title={`${startLabel}부터 ${brk.days.length}일 쉬어요`}
+      sub={data ? (wet ? "비 오는 날이 있어요 · 눌러서 날씨 보기" : "나들이 날씨예요 · 눌러서 자세히") : "날씨 브리핑 보기"}>
         <div className="flex items-center justify-between">
           <span className="mono" style={{ fontSize: 9.5, color: C.sea }}>HOLIDAY BRIEF</span>
           <select className="hae" value={place.label}
@@ -2095,9 +2114,7 @@ function HolidayBrief() {
             {PLACES.map((p) => <option key={p.label} value={p.label}>{p.label}</option>)}
           </select>
         </div>
-        <div style={{ fontSize: 15.5, fontWeight: 600, marginTop: 9, letterSpacing: "-.015em" }}>
-          {startLabel}부터 {brk.days.length}일 쉬어요
-        </div>
+
         {err && <div style={{ fontSize: 12.5, color: C.ink3, marginTop: 8 }}>{err}</div>}
         {!data && !err && <div className="flex gap-2" style={{ marginTop: 12 }}>{brk.days.map((_, i) => <div key={i} className="skel" style={{ flex: 1, height: 62 }} />)}</div>}
         {data && (
@@ -2123,8 +2140,7 @@ function HolidayBrief() {
           style={{ marginTop: 12, background: C.bg, border: `1px solid ${C.line}`, borderRadius: R.sm, padding: "12px 0", fontSize: 13, color: C.ink2, width: "100%" }}>
           휴일 계획 할 일로 담기
         </button>
-      </div>
-    </Card>
+    </Fold>
   );
 }
 
@@ -2137,28 +2153,23 @@ function CarWatch() {
   const fuel = fuelForecast(car);
   const oil = oilForecast(car);
   if (!fuel && !oil) return (
-    <Card style={{ marginTop: 12 }}>
-      <div style={{ padding: "14px 16px" }} className="flex items-center gap-3">
-        <span style={{ fontSize: 20 }}>⛽</span>
-        <span className="flex-1" style={{ fontSize: 13, color: C.ink2, lineHeight: 1.55 }}>연비·탱크·하루 주행거리를 넣으면 <b style={{ color: C.ink }}>언제 기름이 떨어지는지</b> 계산해서 이틀 전에 올려드려요.</span>
-        <button className="press" onClick={() => setTab("set")} style={{ background: C.bg, border: `1px solid ${C.line}`, borderRadius: R.pill, padding: "7px 12px", fontSize: 12, color: C.ink2, whiteSpace: "nowrap" }}>넣기</button>
-      </div>
-    </Card>
+    <Fold icon="⛽" title="주유 시점 계산 켜기" sub="연비·탱크·하루 주행을 넣으면 이틀 전에 알려드려요">
+      <div style={{ fontSize: 13, color: C.ink2, lineHeight: 1.65 }}>설정에서 숫자 세 개만 넣으면 언제 기름이 떨어질지 계산해드려요.</div>
+      <button className="press w-full" onClick={() => setTab("set")}
+        style={{ marginTop: 10, background: C.bg, border: `1px solid ${C.line}`, borderRadius: R.sm, padding: "11px 0", fontSize: 12.5, color: C.ink2 }}>설정에서 넣기</button>
+    </Fold>
   );
   const soon = fuel && fuel.daysLeft <= 2;
   return (
-    <Card style={{ marginTop: 12, borderColor: soon ? C.persim : C.lineSoft }}>
-      <div style={{ padding: "15px 17px" }}>
-        <div className="flex items-center justify-between">
-          <span className="mono" style={{ fontSize: 9.5, color: soon ? C.persim : C.ink3 }}>CAR</span>
+    <Fold icon="⛽" tone={soon ? C.persim : undefined} defaultOpen={soon}
+      title={fuel ? (fuel.daysLeft <= 0 ? "오늘 주유하셔야 해요" : `기름이 ${fuel.daysLeft}일쯤 남았어요`) : "엔진오일 확인"}
+      sub={oil ? `엔진오일까지 ${oil.kmLeft > 0 ? oil.kmLeft.toLocaleString() + "km" : "지남"}` : null}>
+        <div className="flex items-center justify-end">
           <button className="press" onClick={() => setTab("set")} style={{ background: "none", border: "none", fontSize: 11.5, color: C.ink3 }}>숫자 고치기</button>
         </div>
         {fuel && (
-          <div style={{ marginTop: 8 }}>
-            <div style={{ fontSize: 15.5, fontWeight: 600, letterSpacing: "-.015em" }}>
-              {fuel.daysLeft <= 0 ? "오늘 주유하셔야 해요" : `기름이 ${fuel.daysLeft}일쯤 남았어요`}
-            </div>
-            <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 5, lineHeight: 1.6 }}>
+          <div style={{ marginTop: 2 }}>
+            <div style={{ fontSize: 12.5, color: C.ink2, lineHeight: 1.6 }}>
               하루 {fuel.daily}km 기준 · 남은 주행 약 {fuel.left}km · 만탱크 {fuel.full}km
             </div>
             <div style={{ height: 7, borderRadius: 99, background: C.line, marginTop: 10, overflow: "hidden" }}>
@@ -2192,8 +2203,7 @@ function CarWatch() {
             <div style={{ fontSize: 12, color: C.ink3, marginTop: 4 }}>다음 교체 {oil.nextKm.toLocaleString()}km · 지금 {Number(car.odo).toLocaleString()}km</div>
           </div>
         )}
-      </div>
-    </Card>
+    </Fold>
   );
 }
 
@@ -2225,13 +2235,9 @@ function MovePlan() {
   const rows = ms ? PACK_PLAN.filter((p) => p.d <= (dday == null ? 99 : Math.max(dday, 0)) + 3) : [];
 
   return (
-    <Card style={{ marginTop: 12 }}>
-      <div style={{ padding: "15px 17px" }}>
-        <div className="mono" style={{ fontSize: 9.5, color: C.ink3 }}>MOVING</div>
-        <div style={{ fontSize: 15.5, fontWeight: 600, marginTop: 8, letterSpacing: "-.015em" }}>
-          {dday == null ? "이사 날짜를 넣어주세요" : dday >= 0 ? `이사까지 ${dday}일` : "이사 뒤 정리 중"}
-        </div>
-        <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 5, lineHeight: 1.65 }}>
+    <Fold icon="📦" title={dday == null ? "이사 준비 시작하기" : dday >= 0 ? `이사까지 ${dday}일` : "이사 뒤 정리 중"}
+      sub="날짜를 넣으면 짐싸기를 하루치로 나눠드려요" defaultOpen={dday != null && dday <= 7}>
+        <div style={{ fontSize: 12.5, color: C.ink2, lineHeight: 1.65 }}>
           한 번에 다 싸려면 못 합니다. 날짜를 넣으면 <b style={{ color: C.ink }}>방마다 하루치로 쪼개서</b> 나눠드려요.
         </div>
         <div className="flex gap-2" style={{ marginTop: 11 }}>
@@ -2268,8 +2274,7 @@ function MovePlan() {
           </div>
         )}
         <LinkCards group="이사" text="포장이사 견적" />
-      </div>
-    </Card>
+    </Fold>
   );
 }
 
@@ -2514,37 +2519,30 @@ function Home() {
       <MovePlan />
 
 
-      {/* 오늘 컨디션 */}
-      <Card style={{ marginTop: 12 }}>
-        <div style={{ padding: "14px 16px" }}>
-          <div className="flex items-center justify-between">
-            <span style={{ fontSize: 13.5, fontWeight: 600 }}>오늘 컨디션 어떠세요?</span>
-            {cond && <span style={{ fontSize: 11.5, color: C.ink3 }}>{CONDITIONS[level].desc}</span>}
-          </div>
-          <div className="flex gap-2" style={{ marginTop: 10 }}>
-            {Object.keys(CONDITIONS).map((k) => (
-              <button key={k} className="press" onClick={() => setCondition(k)}
-                style={{ flex: 1, background: level === k && cond ? C.mossSoft : C.bg, color: level === k && cond ? C.moss : C.ink2,
-                         border: `1px solid ${level === k && cond ? C.moss : C.line}`, borderRadius: 12, padding: "10px 0", fontSize: 12.5, fontWeight: 600 }}>
-                {CONDITIONS[k].emoji} {CONDITIONS[k].label}
-              </button>
-            ))}
-          </div>
-          {level === "low" && cond && spouse && (
-            <button className="press w-full" onClick={handOver}
-              style={{ marginTop: 10, background: C.moss, color: "#fff", border: "none", borderRadius: 12, padding: "12px 0", fontSize: 13, fontWeight: 600 }}>
-              오늘 몫을 {spouse.name}에게 넘기기
+      {/* 오늘 컨디션 — 한 줄로 */}
+      <div className="flex items-center gap-2" style={{ marginTop: 12, padding: "0 2px" }}>
+        <span style={{ fontSize: 12.5, color: C.ink2, flexShrink: 0 }}>오늘 컨디션</span>
+        <div className="flex gap-1.5 flex-1">
+          {Object.keys(CONDITIONS).map((k) => (
+            <button key={k} className="press" onClick={() => setCondition(k)}
+              style={{ flex: 1, background: level === k && cond ? C.mossSoft : C.card, color: level === k && cond ? C.moss : C.ink3,
+                       border: `1px solid ${level === k && cond ? C.moss : C.lineSoft}`, borderRadius: R.pill, padding: "8px 0", fontSize: 12, fontWeight: 600 }}>
+              {CONDITIONS[k].emoji} {level === k && cond ? CONDITIONS[k].label : ""}
             </button>
-          )}
-          {level === "low" && cond && (
-            <div style={{ fontSize: 12, color: C.ink3, marginTop: 8, lineHeight: 1.6 }}>
-              {st.conditionShare === false
-                ? "지금은 나만 보기예요. 가족에게는 안 보입니다. (설정에서 바꿀 수 있어요)"
-                : "가족이 앱을 열면 오늘 컨디션이 보여요. 말하지 않아도 알 수 있게요."}
-            </div>
-          )}
+          ))}
         </div>
-      </Card>
+      </div>
+      {level === "low" && cond && (
+        <div style={{ marginTop: 8 }}>
+          {spouse && <button className="press w-full" onClick={handOver}
+            style={{ background: C.moss, color: "#fff", border: "none", borderRadius: 12, padding: "12px 0", fontSize: 13, fontWeight: 600 }}>
+            오늘 몫을 {spouse.name}에게 넘기기
+          </button>}
+          <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 7, paddingLeft: 3, lineHeight: 1.6 }}>
+            {st.conditionShare === false ? "나만 보기예요. 가족에게는 안 보입니다." : "가족이 앱을 열면 보여요. 말하지 않아도 알 수 있게요."}
+          </div>
+        </div>
+      )}
 
       {cond && level !== "low" && st.condition.by !== me && st.conditionShare !== false && (
         <Card style={{ marginTop: 10, borderColor: C.moss }}>
@@ -2587,8 +2585,8 @@ function Home() {
           catch { window.alert("복사가 막혀 있어요. 아래를 길게 눌러 복사하세요:\n\n" + text); }
         };
         return (
-          <Section eyebrow="TO BUY" title="살 것" right={`${buys.length}개 · 사면 체크`}>
-            <Card>
+          <Fold icon="🛒" title={`살 것 ${buys.length}개`} sub={buys.slice(0, 3).map((t) => t.title).join(" · ")}>
+            <div style={{ margin: "0 -15px -15px" }}>
               {buys.map((t, i) => {
                 const cat = cats.find((c) => c.id === t.category) || { emoji: "🗂" };
                 return (
@@ -2606,13 +2604,15 @@ function Home() {
                 <button className="press" onClick={() => { log("partner_click", { name: "쿠팡", g: "buy" }); window.open("https://www.coupang.com/np/search?q=" + encodeURIComponent(buys[0].title), "_blank", "noopener"); }}
                   style={{ flex: 1, background: C.card, color: C.ink2, border: `1px solid ${C.line}`, borderRadius: R.sm, padding: "11px 0", fontSize: 12.5 }}>쿠팡 열기</button>
               </div>
-            </Card>
-          </Section>
+            </div>
+          </Fold>
         );
       })()}
 
       {only !== "mine" && level !== "low" && (disc.length > 0 || loadingDisc) && (
-        <Section eyebrow="AI FOUND" title={`${BRAND}이 찾은 것`} right="DB에 없던 상황">
+        <Fold icon="✦" tone={C.sprout} defaultOpen={false}
+          title={loadingDisc && !disc.length ? `${BRAND}이 찾아보는 중…` : `${BRAND}이 미리 찾은 것 ${disc.length}개`}
+          sub={disc.length ? disc.map((d) => d.title).join(" · ") : "지금 시기에 놓치기 쉬운 일"}>
           {loadingDisc && !disc.length && (
             <Card><div style={{ padding: 18 }}>
               <div className="skel" style={{ height: 13, width: "45%" }} />
@@ -2640,7 +2640,7 @@ function Home() {
               }}
               onNo={() => { setSt((sv) => ({ ...sv, dismissedDiscover: [...sv.dismissedDiscover, item.title] })); setDisc((d) => d.filter((x) => x !== item)); }} />
           ))}
-        </Section>
+        </Fold>
       )}
 
       {/* 매일 루틴은 체크리스트로 따로 */}
