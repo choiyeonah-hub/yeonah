@@ -124,7 +124,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0829-aj';
+const GATE_BUILD = '0829-ak';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -241,22 +241,24 @@ function askEmail() {
    메일에서 링크를 누르면 사파리가 열리고, 사파리에서만 로그인이 됩니다.
    아이폰에서 알림을 받으려면 홈 화면 앱으로 들어와야 하는데,
    그 앱에는 주소창이 없어서 링크를 붙여넣을 수도 없습니다.
-   그래서 링크 말고 숫자 6자리로도 들어올 수 있게 해둡니다. */
+   그래서 링크 말고 메일에 적힌 숫자로도 들어올 수 있게 해둡니다.
+   숫자 길이는 Supabase 설정에 따라 6~10자리로 달라집니다. 고정하지 않습니다. */
 function askCode(email) {
   const home = isStandalone();
   show(`
     <h1>메일함을 확인해 주세요</h1>
     <p><b>${email}</b>로 보냈어요.<br>메일이 안 보이면 스팸함도 봐주세요.</p>
     ${home ? `<div class="msg">지금은 <b>홈 화면 앱</b>이라 메일의 링크를 눌러도 여기로 안 들어옵니다.
-       메일에 적힌 <b>숫자 6자리</b>를 아래에 넣어주세요.</div>` : ''}
+       메일에 적힌 <b>숫자</b>를 아래에 넣어주세요.</div>` : ''}
     <div class="msg" style="background:#FCF4D9;color:#7D6A15">
       메일의 <b>링크는 누르지 마세요.</b> 링크를 한 번 누르면 그 숫자는 못 쓰게 됩니다.
       <b>가장 마지막에 온 메일</b>의 숫자를 쓰세요 — 다시 받을 때마다 앞의 숫자는 지워집니다.
     </div>
     <div style="margin-top:22px">
-      <input id="cd" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6"
-             placeholder="메일에 온 숫자 6자리"
-             style="letter-spacing:.35em;text-align:center;font-size:20px" />
+      <!-- 숫자 길이는 Supabase 설정(6~10자리)에 따라 달라집니다. 고정하지 않습니다 -->
+      <input id="cd" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="10"
+             placeholder="메일에 온 숫자"
+             style="letter-spacing:.22em;text-align:center;font-size:20px" />
       <button id="ok">숫자로 들어가기</button>
       <p id="cderr" style="font-size:12.5px;color:#A84362;min-height:18px"></p>
       <button class="ghost" id="again">숫자 다시 받기</button>
@@ -268,7 +270,7 @@ function askCode(email) {
   inp.focus();
   const go = async () => {
     const token = inp.value.trim();
-    if (token.length < 6) { err.textContent = '숫자 6자리를 다 넣어주세요.'; return; }
+    if (token.length < 6) { err.textContent = '메일에 온 숫자를 끝까지 넣어주세요.'; return; }
     const b = document.getElementById('ok');
     b.textContent = '확인 중…'; b.disabled = true;
     /* Supabase는 보낸 메일 종류에 따라 같은 숫자를 다르게 부릅니다.
@@ -1415,7 +1417,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0829-aj";
+const BUILD = "0829-ak";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
