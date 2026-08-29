@@ -27,8 +27,14 @@ async function isSignedIn(req) {
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
 
-  const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) return res.status(500).json({ error: "ANTHROPIC_API_KEY 환경변수가 설정되지 않았습니다." });
+  const key = (process.env.ANTHROPIC_API_KEY || "").trim();
+  if (!key) return res.status(500).json({ error: "Vercel에 ANTHROPIC_API_KEY가 없어요. 환경변수를 넣고 다시 배포해 주세요." });
+  /* .env.example의 예시 값이 그대로 들어가 있는 경우가 잦아 미리 잡아냅니다 */
+  if (key === "sk-ant-..." || key.length < 40 || !key.startsWith("sk-ant-")) {
+    return res.status(500).json({
+      error: "ANTHROPIC_API_KEY가 예시 값이거나 형식이 달라요. console.anthropic.com에서 만든 sk-ant-api03- 로 시작하는 키로 바꾸고 다시 배포해 주세요.",
+    });
+  }
 
   if (!(await isSignedIn(req))) return res.status(401).json({ error: "로그인이 필요합니다." });
 
