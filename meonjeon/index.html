@@ -2223,7 +2223,7 @@ function TaskRow({ t, delay = 0, last }) {
 }
 
 /* ── 생애주기 추천 카드 ───────────────────────── */
-function RecCard({ rec, delay = 0 }) {
+function RecCard({ rec, delay = 0, flat }) {
   const { st, setPref, setSt, addTasks, say, log, setTab } = use();
   const [mode, setMode] = useState(null);
   const seed = rec.seed;
@@ -2242,7 +2242,7 @@ function RecCard({ rec, delay = 0 }) {
   return (
     <>
       <div className="rise" style={{ marginBottom: 10, animationDelay: `${delay}ms` }}>
-        <Card style={{ borderColor: soon ? C.persim : C.line }}>
+        <Card flat={flat} style={{ borderColor: soon ? C.persim : C.line }}>
           <div style={{ padding: 17 }}>
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -3954,6 +3954,22 @@ function Timeline() {
   const dated = recs.filter((r) => r.dateKnown);
   const undated = recs.filter((r) => !r.dateKnown);
 
+  /* 시점 미정은 "기준 날짜를 몰라서 아직 계산 못 한 일"입니다.
+     정의상 급하지 않은데 한 줄로 죽 쌓이니 중구난방으로 보입니다.
+     화면을 새로 만드는 대신 여기서 영역별로 접어둡니다.
+     급한 것(날짜가 계산된 일)은 그대로 날짜순으로 펼쳐둡니다. */
+  const undatedByCat = useMemo(() => {
+    const g = {};
+    undated.forEach((r) => {
+      const cid = r.child ? `kid:${r.child.id}` : r.seed.cat;
+      const meta = r.child
+        ? { label: `${r.child.name}(${childLabel(r.child)})`, emoji: "🧒" }
+        : (BASE_CATS.find((c) => c.id === r.seed.cat) || { label: "기타", emoji: "🗂" });
+      (g[cid] = g[cid] || { cid, label: meta.label, emoji: meta.emoji, items: [] }).items.push(r);
+    });
+    return Object.values(g).sort((a, b) => b.items.length - a.items.length);
+  }, [undated]);
+
   return (
     <>
       <div className="rise" style={{ marginTop: 12, borderRadius: R.xl, padding: 22, background: "linear-gradient(165deg, #17332A 0%, #0F1A15 70%)", boxShadow: SHADOW_LIFT }}>
@@ -3970,8 +3986,19 @@ function Timeline() {
         </Section>
       )}
       {undated.length > 0 && (
-        <Section eyebrow="UNDATED" title="시점 미정" right="기준 날짜를 등록하면 계산돼요">
-          {undated.map((r, i) => <RecCard key={r.key} rec={r} delay={i * 35} />)}
+        <Section eyebrow="UNDATED" title="시점 미정" right={`${undated.length}건 · 영역별`}>
+          <div style={{ fontSize: 12.5, color: C.ink2, lineHeight: 1.7, marginBottom: 2 }}>
+            기준 날짜를 아직 몰라서 <b style={{ color: C.ink }}>언제 할지 계산하지 못한</b> 일이에요.
+            급한 게 아니니 영역별로 접어뒀습니다. 눌러서 펼쳐보세요.
+          </div>
+          {undatedByCat.map((g) => (
+            <Fold key={g.cid} icon={g.emoji} title={`${g.label} ${g.items.length}건`}
+              sub={g.items.slice(0, 3).map((r) => r.seed.t).join(" · ")}>
+              <div style={{ marginBottom: -10 }}>
+                {g.items.map((r, i) => <RecCard key={r.key} rec={r} delay={i * 30} flat />)}
+              </div>
+            </Fold>
+          ))}
         </Section>
       )}
       {!recs.length && (
