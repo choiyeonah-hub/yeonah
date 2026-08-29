@@ -24,7 +24,7 @@ const OK_TYPES = ["image/jpeg", "image/png", "image/webp"];
 /* 로그인한 사용자인지 확인합니다.
    이 검사가 없으면 누구나 이 주소로 요청을 보내 발주자의 AI 크레딧을 씁니다. */
 async function isSignedIn(req) {
-  const url = process.env.SUPABASE_URL, anon = process.env.SUPABASE_ANON_KEY;
+  const url = String(process.env.SUPABASE_URL || "").trim(), anon = String(process.env.SUPABASE_ANON_KEY || "").trim();
   if (!url || !anon) return false;
   const authz = String(req.headers.authorization || "");
   if (!authz.startsWith("Bearer ")) return false;

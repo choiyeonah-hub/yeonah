@@ -124,7 +124,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0829-af';
+const GATE_BUILD = '0829-ag';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1387,7 +1387,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0829-af";
+const BUILD = "0829-ag";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -2110,6 +2110,58 @@ async function turnOffPush() {
    고를 수 없는 것을 고르는 척하는 화면은 만들지 않습니다 — 안 오면 앱을 지웁니다. */
 const PUSH_HOUR = 8;
 const hourLabel = (h) => (h < 12 ? `오전 ${h}시` : h === 12 ? "낮 12시" : `오후 ${h - 12}시`);
+
+/* 서버 설정 점검.
+   Vercel은 넣은 값을 점(●●●)으로 가려서, 붙여넣을 때 딸려 들어간 공백 한 칸을
+   눈으로 찾을 방법이 없습니다. 값은 절대 안 가져오고 "정상 / 공백 붙음 / 없음"만
+   물어봅니다. 공백 한 칸 때문에 알림이 조용히 안 오는 일을 막는 자리입니다. */
+function EnvCheck() {
+  const [rows, setRows] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const look = async () => {
+    setBusy(true);
+    try {
+      const r = await fetch("/api/config?t=" + Date.now()).then((x) => x.json());
+      setRows(r.env || {});
+    } catch { setRows({}); }
+    setBusy(false);
+  };
+  const bad = rows ? Object.values(rows).filter((v) => v !== "정상").length : 0;
+  return (
+    <div style={{ marginTop: 22 }}>
+      <button className="press" onClick={look} disabled={busy}
+        style={{ width: "100%", background: "transparent", border: `1px solid ${C.line}`, borderRadius: 14, padding: "12px 0", fontSize: 12.5, color: C.ink2 }}>
+        {busy ? "확인 중…" : "서버 설정 점검"}
+      </button>
+      {rows && (
+        <Card style={{ marginTop: 8 }}>
+          <div style={{ padding: "12px 14px" }}>
+            {Object.keys(rows).length === 0 ? (
+              <div style={{ fontSize: 12.5, color: C.ink3 }}>서버가 답을 안 줘요. 배포가 끝났는지 확인해 주세요.</div>
+            ) : (
+              <>
+                {Object.entries(rows).map(([k, v]) => (
+                  <div key={k} className="flex items-center justify-between" style={{ padding: "5px 0" }}>
+                    <span className="mono" style={{ fontSize: 10.5, color: C.ink3 }}>{k}</span>
+                    <span style={{ fontSize: 11.5, fontWeight: v === "정상" ? 400 : 600,
+                                   color: v === "정상" ? C.moss : v === "없음" ? C.ink3 : C.persim }}>{v}</span>
+                  </div>
+                ))}
+                <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 9, lineHeight: 1.7, borderTop: `1px solid ${C.lineSoft}`, paddingTop: 9 }}>
+                  {bad === 0
+                    ? "다 정상이에요."
+                    : <>“공백 붙음”은 Vercel 환경변수 값 앞뒤에 공백이나 줄바꿈이 들어간 것입니다.
+                       그 줄을 <b>Edit → 전부 지우고 다시 붙여넣기</b> 하시면 됩니다.
+                       값은 여기로 안 가져옵니다.</>}
+                </div>
+              </>
+            )}
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+}
 
 function PushBox() {
   const { st, setSt, say } = use();
@@ -6222,6 +6274,8 @@ function Settings() {
         <Btn kind="ghost" onClick={() => setDash(true)}>베타 지표 보기</Btn>
         <Btn kind="quiet" onClick={() => { if (confirm("모든 데이터를 지우고 처음부터 시작할까요?")) { window.storage.delete("meonjeon").catch(() => {}); setSt(DEFAULT_STATE); } }}>데이터 전체 삭제</Btn>
       </div>
+
+      <EnvCheck />
 
       {/* 폰에서 새로고침이 됐는지 확인하는 자리 */}
       <div className="flex items-center justify-between" style={{ marginTop: 26, paddingTop: 16, borderTop: `1px solid ${C.lineSoft}` }}>
