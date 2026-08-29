@@ -124,7 +124,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0829-al';
+const GATE_BUILD = '0829-am';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1421,7 +1421,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0829-al";
+const BUILD = "0829-am";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -2214,6 +2214,14 @@ function PushBox() {
     setSt((sv) => ({ ...sv, notify: { ...(sv.notify || {}), on: true, hour: h } }));
     say(`매일 ${hourLabel(h)}에 알려드릴게요`);
   };
+  const test = async () => {
+    setBusy(true);
+    try {
+      const r = await fetch("/api/push-test", { method: "POST", headers: await authHeaders() }).then((x) => x.json());
+      say(r.ok ? "보냈어요. 잠금화면을 봐주세요" : (r.error || "보내지 못했어요"));
+    } catch { say("서버에 닿지 못했어요"); }
+    setBusy(false);
+  };
   const off = async () => {
     setBusy(true);
     await turnOffPush();
@@ -2244,6 +2252,22 @@ function PushBox() {
             </button>
           )}
         </div>
+
+        {/* "켜졌다"와 "온다"는 다릅니다. 내일 아침까지 기다렸다가 안 오면 하루를 버립니다 */}
+        {nt.on && (
+          <>
+            <button className="press" disabled={busy} onClick={test}
+              style={{ width: "100%", marginTop: 9, background: "transparent", border: `1px solid ${C.line}`,
+                       borderRadius: R.pill, padding: "10px 0", fontSize: 12.5, color: C.ink2 }}>
+              지금 테스트 알림 받아보기
+            </button>
+            <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 7, lineHeight: 1.7 }}>
+              눌러도 아무것도 안 오면 아직 안 된 겁니다. <b>이 화면을 벗어나</b>
+              (홈 버튼을 누르거나 다른 앱으로 가서) 잠금화면을 봐주세요 —
+              앱을 보고 있으면 알림이 안 뜨는 폰이 있습니다.
+            </div>
+          </>
+        )}
 
         {howto && (
           <div style={{ marginTop: 13, background: C.sunSoft, border: `1px solid ${C.line}`, borderRadius: 14, padding: "12px 13px", fontSize: 12, color: C.ink2, lineHeight: 1.85 }}>
