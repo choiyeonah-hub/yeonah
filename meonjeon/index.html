@@ -163,13 +163,23 @@ function askEmail() {
     const email = document.getElementById('em').value.trim();
     if (!email) return;
     document.getElementById('go').textContent = '보내는 중…';
-    const { error } = await SB.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + location.search } });
+    const opts = { emailRedirectTo: location.origin + location.search };
+    let { error } = await SB.auth.signInWithOtp({ email, options: opts });
+    /* 가입을 막아둔 폐쇄 베타에서는, 이미 초대된 사람에게도 이 호출이
+       "새 가입"으로 보여 거절당합니다. 그때는 "기존 사용자에게만 보내기"로
+       한 번 더 시도합니다. 가입을 다시 열면 첫 시도에서 그냥 통과합니다. */
+    if (error && /signup|sign-up|not allowed/i.test(String(error.message || ''))) {
+      const retry = await SB.auth.signInWithOtp({ email, options: { ...opts, shouldCreateUser: false } });
+      error = retry.error;
+    }
     if (error) {
       /* 베타 동안에는 초대받은 분만 들어옵니다. 영문 에러를 그대로 보여주면
          "내가 뭘 잘못했나" 하고 헤매게 됩니다 */
       const m = String(error.message || '');
       const why = /signup|sign-up|not allowed|disabled/i.test(m)
         ? '지금은 <b>초대받은 이메일만</b> 들어올 수 있어요.<br>초대받으신 주소가 맞는지 확인해 주세요. 오타가 있으면 로그인이 안 됩니다.'
+        : /not found|no user|user not/i.test(m)
+        ? '이 주소로는 아직 초대가 안 됐어요.<br>초대받으신 주소가 맞는지 확인해 주세요.'
         : /rate|limit|too many/i.test(m)
         ? '메일을 너무 자주 보냈어요. <b>몇 분 뒤에</b> 다시 해주세요.'
         : /invalid|valid email/i.test(m)
