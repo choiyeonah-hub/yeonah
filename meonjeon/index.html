@@ -899,8 +899,13 @@ function dueRoutines(st) {
   const endOfToday = todayKey() + DAY;
   return eligibleRoutines(st)
     .map((r) => ({ ...r, cfg: st.routines[r.key] }))
-    .filter((r) => r.cfg && r.cfg.on !== false && (r.cfg.nextAt || 0) < endOfToday)
-    .sort((a, b) => (a.cfg.nextAt || 0) - (b.cfg.nextAt || 0));
+    /* 오늘 이미 완료한 것도 목록에 남겨둡니다 (지우지 않고 흐리게 표시하기 위해) */
+    .filter((r) => r.cfg && r.cfg.on !== false && ((r.cfg.nextAt || 0) < endOfToday || (r.cfg.lastAt && r.cfg.lastAt >= todayKey())))
+    /* 완료한 항목은 다음 회차가 미래로 밀리므로, 정렬에서는 오늘 자리를 지킵니다 */
+    .sort((a, b) => {
+      const at = (r) => (r.cfg.lastAt && r.cfg.lastAt >= todayKey() ? todayKey() : (r.cfg.nextAt || 0));
+      return at(a) - at(b);
+    });
 }
 
 /* ── ② 생애주기 업무 ─────────────────────────── */
@@ -1377,6 +1382,8 @@ function App() {
     if (action === "done") { setRoutine(key, { ...(lunarPatch || {}), nextAt: next, lastAt: Date.now(), doneBy: me, streak: (cfg.streak || 0) + 1 }); say(cfg.lunar ? "해두셨네요. 내년 양력 날짜로 다시 잡아뒀어요" : "해두셨네요"); }
     if (action === "later") { setRoutine(key, { nextAt: Date.now() + DAY }); say("내일 다시 올려드릴게요"); }
     if (action === "skip") { setRoutine(key, { ...(lunarPatch || {}), nextAt: next }); say("이번 회차는 건너뛸게요"); }
+    /* 오늘 완료 취소 — 다시 오늘 할 일로 되돌립니다 */
+    if (action === "undo") { setRoutine(key, { nextAt: todayKey(), lastAt: null, doneBy: null, streak: Math.max((cfg.streak || 1) - 1, 0) }); say("되돌렸어요"); }
     log("routine_" + action, { key });
   };
 
@@ -1700,20 +1707,21 @@ function RoutineRow({ r, delay = 0, last, compact, manage }) {
   const [own, setOwn] = useState(false);
   const [rename, setRename] = useState(null);
   const overdue = (cfg.nextAt || 0) < todayKey();
+  const doneToday = !!(cfg.lastAt && cfg.lastAt >= todayKey());
   const catId = r.child ? `kid:${r.child.id}` : r.seed.cat;
 
   return (
-    <div className="rise flex items-start gap-3" style={{ padding: "15px 16px", borderBottom: last ? "none" : `1px solid ${C.lineSoft}`, animationDelay: `${delay}ms` }}>
-      <button className="press" onClick={() => routineAction(r.key, cfg, "done")} aria-label="했어요"
-        style={{ width: 23, height: 23, marginTop: 1, borderRadius: 8, flexShrink: 0, border: `1.5px solid ${C.line}`, background: "transparent" }} />
+    <div className="rise flex items-start gap-3" style={{ padding: "15px 16px", borderBottom: last ? "none" : `1px solid ${C.lineSoft}`, animationDelay: `${delay}ms`, opacity: doneToday ? 0.45 : 1, transition: "opacity .4s ease" }}>
+      <button className="press" onClick={() => routineAction(r.key, cfg, doneToday ? "undo" : "done")} aria-label={doneToday ? "되돌리기" : "했어요"}
+        style={{ width: 23, height: 23, marginTop: 1, borderRadius: 8, flexShrink: 0, border: `1.5px solid ${doneToday ? C.moss : C.line}`, background: doneToday ? C.moss : "transparent", color: "#fff", fontSize: 12, lineHeight: "20px" }}>{doneToday ? "✓" : ""}</button>
       <div className="flex-1 min-w-0">
-        <div style={{ fontSize: 15, fontWeight: 500, lineHeight: 1.45 }}>
+        <div style={{ fontSize: 15, fontWeight: 500, lineHeight: 1.45, textDecoration: doneToday ? "line-through" : "none" }}>
           {r.seed.t}
           {r.child ? <span style={{ color: C.ink3, fontWeight: 400 }}> · {r.child.name}</span> : null}
           {r.seed.season ? <span style={{ color: C.sun, fontWeight: 400, fontSize: 12 }}> · {r.seed.season === "summer" ? "여름" : "겨울"}</span> : null}
-          {r.custom ? <button onClick={() => setRename(r.seed.t)} style={{ marginLeft: 6, background: "none", border: "none", color: C.ink3, fontSize: 11.5, padding: 0 }}>이름 고치기</button> : null}
+          {r.custom && !doneToday ? <button onClick={() => setRename(r.seed.t)} style={{ marginLeft: 6, background: "none", border: "none", color: C.ink3, fontSize: 11.5, padding: 0 }}>이름 고치기</button> : null}
         </div>
-        {!compact && <div className="flex items-center gap-2 flex-wrap" style={{ marginTop: 8 }}>
+        {!compact && !doneToday && <div className="flex items-center gap-2 flex-wrap" style={{ marginTop: 8 }}>
           <button className="press" onClick={() => setPick(true)}
             style={{ background: C.bg, border: `1px solid ${C.line}`, borderRadius: R.pill, padding: "5px 11px", fontSize: 11.5, color: C.ink2 }}>{patternLabel(cfg)}</button>
           <button className="press" onClick={() => routineAction(r.key, cfg, "later")}
@@ -1723,9 +1731,9 @@ function RoutineRow({ r, delay = 0, last, compact, manage }) {
           {cfg.anchor && <button className="press" onClick={() => downloadICS(r.seed.t, nextFromAnchor(cfg.anchor, 0), r.seed.tg)}
             style={{ background: "none", border: "none", color: C.moss, fontSize: 11.5, padding: "4px 2px" }}>캘린더에 넣기</button>}
         </div>}
-        {!compact && r.seed.lk && <LinkCards group={null} text={r.seed.lk} compact />}
+        {!compact && !doneToday && r.seed.lk && <LinkCards group={null} text={r.seed.lk} compact />}
       </div>
-      {overdue && <span style={{ fontSize: 11, color: C.ink3, whiteSpace: "nowrap", marginTop: 3 }}>지난 회차</span>}
+      {overdue && !doneToday && <span style={{ fontSize: 11, color: C.ink3, whiteSpace: "nowrap", marginTop: 3 }}>지난 회차</span>}
       {manage ? (
         <button className="press" onClick={() => setRoutine(r.key, { on: !(cfg.on !== false) })} aria-label="사용 여부"
           style={{ width: 42, height: 25, borderRadius: 99, border: "none", background: cfg.on !== false ? C.moss : C.line, position: "relative", flexShrink: 0, marginTop: 1 }}>
@@ -2323,14 +2331,17 @@ function Home() {
   const mineRoutines = due.filter((r) => (st.routines[r.key] || {}).owner === me);
 
   /* 생각·판단이 필요한 일 (여기만 3개 원칙) */
+  const doneToday = (r) => { const c = st.routines[r.key] || {}; return !!(c.lastAt && c.lastAt >= todayKey()); };
   const visTasks = openTasks.filter((t) => visible(t.owner));
+  /* 오늘 끝낸 루틴은 3개 정원에 넣지 않고, 취소선 상태로 뒤에 남겨둡니다 */
   const think = [
     ...visTasks.filter((t) => t.status === "now").map((t) => ({ kind: "task", t })),
-    ...occasional.map((r) => ({ kind: "routine", r })),
+    ...occasional.filter((r) => !doneToday(r)).map((r) => ({ kind: "routine", r })),
     /* 추천 카드는 아직 누구 몫도 아니라서 "내 몫만"에서는 뺍니다 */
     ...(only === "mine" ? [] : recs.filter((r) => r.dateKnown).map((r) => ({ kind: "rec", r }))),
     ...visTasks.filter((t) => t.status === "week").map((t) => ({ kind: "task", t })),
   ].slice(0, limit);
+  const thinkShown = [...think, ...occasional.filter(doneToday).map((r) => ({ kind: "routine", r }))];
   const unowned = openTasks.filter((t) => !t.owner).length + due.filter((r) => !(st.routines[r.key] || {}).owner).length;
   const remain = openTasks.length + due.length + recs.length - think.length - daily.length;
 
@@ -2515,16 +2526,16 @@ function Home() {
       )}
 
       <Section eyebrow="TODAY" title={level === "low" ? "이것만 하셔도 돼요" : "정하고 넘어갈 일"} right={think.length ? "나머지는 접어뒀어요" : null}>
-        {think.length ? (
+        {thinkShown.length ? (
           <>
-            {think.filter((x) => x.kind !== "rec").length > 0 && (
+            {thinkShown.filter((x) => x.kind !== "rec").length > 0 && (
               <Card>
-                {think.filter((x) => x.kind !== "rec").map((x, i, a) => x.kind === "task"
+                {thinkShown.filter((x) => x.kind !== "rec").map((x, i, a) => x.kind === "task"
                   ? <TaskRow key={x.t.id} t={x.t} delay={i * 55} last={i === a.length - 1} />
                   : <RoutineRow key={x.r.key} r={x.r} delay={i * 55} last={i === a.length - 1} />)}
               </Card>
             )}
-            {think.filter((x) => x.kind === "rec").map((x, i) => <div key={x.r.key} style={{ marginTop: 10 }}><RecCard rec={x.r} delay={120 + i * 60} /></div>)}
+            {thinkShown.filter((x) => x.kind === "rec").map((x, i) => <div key={x.r.key} style={{ marginTop: 10 }}><RecCard rec={x.r} delay={120 + i * 60} /></div>)}
           </>
         ) : (
           <Card flat style={{ background: "transparent", borderStyle: "dashed", boxShadow: "none" }}>
