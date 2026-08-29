@@ -356,6 +356,9 @@ const C = {
   moss: "#C2521E", mossSoft: "#FCEDE2", sprout: "#E5924F",
   persim: "#A32235", persimSoft: "#FAE6E9", sun: "#8A6A12", sunSoft: "#F6EFDA",
   sea: "#2C6480", seaSoft: "#E5EFF4",
+  /* 식단 화면 전용. 다른 화면은 "잊지 마세요"인데 여기는 "고르세요"입니다.
+     같은 감빛을 쓰면 장보기까지 재촉으로 읽혀서, 이 한 화면만 초록으로 둡니다. */
+  leaf: "#4E6B34", leafMid: "#7E9A5C", leafSoft: "#EDF2E2", bgMeal: "#F7F6EC",
 };
 /* 그림자는 두 겹으로: 얇은 윤곽 + 넓고 옅은 확산 (요즘 앱 느낌) */
 const SHADOW = "0 1px 1.5px rgba(42,29,18,.05), 0 12px 32px -18px rgba(42,29,18,.22)";
@@ -1005,6 +1008,8 @@ const DEFAULT_STATE = {
   tasks: [], routines: {}, customRoutines: [], prefs: {}, groupsOff: {}, customCats: [],
   events: [], feedback: [], discoverSnoozed: [], dismissedDiscover: [],
   discoverCache: null, pantry: [],
+  /* 주간 카드를 본 주 (일요일 날짜) */
+  weekCard: {},
   /* 기본 분담: 카테고리 → 담당자. 여기 있는 건 매번 정하지 않아도 됩니다 */
   duty: {}, dutyAsk: true,
   /* 휴일 날씨 브리핑 */
@@ -1798,7 +1803,8 @@ function App() {
 
   return (
     <Ctx.Provider value={{ st, setSt, me, setMe, cats, addTasks, complete, assign, setPref, setRoutine, routineAction, say, log, logTitles, spendAI, refundAI, tab, setTab, openCat, setOpenCat }}>
-      <div className="hae" style={{ background: C.bg, minHeight: "100vh", color: C.ink, WebkitFontSmoothing: "antialiased" }}>
+      <div className="hae" style={{ background: tab === "meal" ? C.bgMeal : C.bg, minHeight: "100vh", color: C.ink,
+                                     transition: "background .35s ease", WebkitFontSmoothing: "antialiased" }}>
         <style dangerouslySetInnerHTML={{ __html: FONTS }} />
         <div style={{ maxWidth: 440, margin: "0 auto", paddingBottom: 100, position: "relative" }}>
           {!st.onboarded ? <Onboarding /> : (
@@ -2910,6 +2916,15 @@ function Home() {
     say("오늘 루틴은 내일로 미뤘어요");
   };
 
+  /* 주간 카드 — 일요일 저녁에만 한 번. 매일 뜨면 성적표가 됩니다.
+     닫으면 그 주는 다시 안 뜨고, 월요일까지는 남겨둡니다(일요일 밤에 폰을 안 볼 수도 있으니). */
+  const wkNow = (() => {
+    const d = new Date(), day = d.getDay();
+    if (!((day === 0 && d.getHours() >= 17) || day === 1)) return null;
+    const key = weekKey();
+    return (st.weekCard || {}).seen === key ? null : key;
+  })();
+
   return (
     <>
       <div className="rise" style={{ marginTop: 12, borderRadius: R.xl, overflow: "hidden", position: "relative",
@@ -2949,6 +2964,8 @@ function Home() {
           )}
         </>
       )}
+
+      {wkNow && <WeekCard onClose={() => setSt((sv) => ({ ...sv, weekCard: { seen: wkNow } }))} />}
 
       <HolidayBrief />
       <MovePlan />
@@ -4297,8 +4314,8 @@ ${want.trim() ? "요청: " + want.trim() : ""}
                 <div key={t.id} className="flex items-center gap-3"
                   style={{ padding: "13px 16px", borderBottom: `1px solid ${C.lineSoft}`, opacity: t.done ? 0.45 : 1, transition: "opacity .4s ease" }}>
                   <button className="press" onClick={() => buyDone(t)} aria-label="샀어요"
-                    style={{ width: 22, height: 22, borderRadius: 7, flexShrink: 0, border: `1.5px solid ${t.done ? C.moss : C.line}`,
-                             background: t.done ? C.moss : "transparent", color: "#fff", fontSize: 12, lineHeight: "20px" }}>{t.done ? "✓" : ""}</button>
+                    style={{ width: 22, height: 22, borderRadius: 7, flexShrink: 0, border: `1.5px solid ${t.done ? C.leaf : C.line}`,
+                             background: t.done ? C.leaf : "transparent", color: "#fff", fontSize: 12, lineHeight: "20px" }}>{t.done ? "✓" : ""}</button>
                   <span className="flex-1 min-w-0" style={{ fontSize: 14.5, fontWeight: 500, textDecoration: t.done ? "line-through" : "none", color: t.done ? C.ink3 : C.ink }}>
                     {t.title.replace(/\s*구매$/, "")}
                   </span>
@@ -4312,7 +4329,7 @@ ${want.trim() ? "요청: " + want.trim() : ""}
               onKeyDown={(e) => { if (e.key === "Enter") addBuy(); }} placeholder="휴지, 두부 — 쉼표로 여러 개"
               style={{ flex: 1, border: `1px solid ${C.line}`, borderRadius: R.sm, padding: "10px 12px", fontSize: 13.5, background: C.card, color: C.ink }} />
             <button className="press" onClick={addBuy}
-              style={{ background: C.moss, color: "#fff", border: "none", borderRadius: R.sm, padding: "10px 14px", fontSize: 12.5, fontWeight: 600 }}>적기</button>
+              style={{ background: C.leaf, color: "#fff", border: "none", borderRadius: R.sm, padding: "10px 14px", fontSize: 12.5, fontWeight: 600 }}>적기</button>
           </div>
         </Card>
         {openBuys.length > 0 && (
@@ -4331,15 +4348,15 @@ ${want.trim() ? "요청: " + want.trim() : ""}
         <Card>
           {foods.length === 0 ? (
             <div style={{ padding: "22px 16px", textAlign: "center", fontSize: 13, color: C.ink3, lineHeight: 1.75 }}>
-아직 비어 있어요.<br />위에서 <b style={{ color: C.moss }}>먹을 것에 체크</b>하거나 영수증을 찍으면 여기로 옵니다.<br />
+아직 비어 있어요.<br />위에서 <b style={{ color: C.leaf }}>먹을 것에 체크</b>하거나 영수증을 찍으면 여기로 옵니다.<br />
               <span style={{ fontSize: 11.5 }}>생리대·세제 같은 건 여기 안 옵니다. 먹는 것만 모여요.</span>
             </div>
           ) : foods.map((x) => (
             <div key={x.id} className="flex items-center gap-3"
               style={{ padding: "13px 16px", borderBottom: `1px solid ${C.lineSoft}`, opacity: x.usedAt ? 0.45 : 1, transition: "opacity .4s ease" }}>
               <button className="press" onClick={() => eat(x)} aria-label={x.usedAt ? "안 먹었어요" : "먹었어요"}
-                style={{ width: 22, height: 22, borderRadius: 7, flexShrink: 0, border: `1.5px solid ${x.usedAt ? C.moss : C.line}`,
-                         background: x.usedAt ? C.moss : "transparent", color: "#fff", fontSize: 12, lineHeight: "20px" }}>{x.usedAt ? "✓" : ""}</button>
+                style={{ width: 22, height: 22, borderRadius: 7, flexShrink: 0, border: `1.5px solid ${x.usedAt ? C.leaf : C.line}`,
+                         background: x.usedAt ? C.leaf : "transparent", color: "#fff", fontSize: 12, lineHeight: "20px" }}>{x.usedAt ? "✓" : ""}</button>
               <span className="flex-1 min-w-0" style={{ fontSize: 14.5, fontWeight: 500, textDecoration: x.usedAt ? "line-through" : "none", color: x.usedAt ? C.ink3 : C.ink }}>
                 {x.name}
               </span>
@@ -4372,8 +4389,8 @@ ${want.trim() ? "요청: " + want.trim() : ""}
                 const on = hasStaple(n);
                 return (
                   <button key={n} className="press" onClick={() => toggleStaple(n)}
-                    style={{ background: on ? C.moss : C.bg, color: on ? "#fff" : C.ink2,
-                             border: `1px solid ${on ? C.moss : C.line}`, borderRadius: R.pill,
+                    style={{ background: on ? C.leaf : C.bg, color: on ? "#fff" : C.ink2,
+                             border: `1px solid ${on ? C.leaf : C.line}`, borderRadius: R.pill,
                              padding: "7px 12px", fontSize: 12.5, fontWeight: on ? 600 : 400 }}>{n}</button>
                 );
               })}
@@ -4403,9 +4420,9 @@ ${want.trim() ? "요청: " + want.trim() : ""}
 
       {/* ③ 영수증 — 산 것을 읽어 손질할 일과 식단을 함께 */}
       <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={onReceipt} style={{ display: "none" }} />
-      <Card style={{ marginTop: 16, borderColor: C.sprout }}>
+      <Card style={{ marginTop: 16, borderColor: C.leafMid }}>
         <div style={{ padding: 16 }}>
-          <div className="mono" style={{ fontSize: 9.5, color: C.moss }}>RECEIPT</div>
+          <div className="mono" style={{ fontSize: 9.5, color: C.leaf }}>RECEIPT</div>
           <div style={{ fontSize: 15, fontWeight: 600, marginTop: 7 }}>장 보고 오셨으면 영수증을 찍어주세요</div>
           <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 6, lineHeight: 1.7 }}>
             산 재료를 읽어서 <b style={{ color: C.ink }}>오늘 해둘 손질</b>과 <b style={{ color: C.ink }}>그 재료로 만들 식단</b>을 함께 냅니다.
@@ -4416,7 +4433,7 @@ ${want.trim() ? "요청: " + want.trim() : ""}
             {busy ? "읽는 중…" : "영수증 찍기"}
           </Btn>
           {bought.length > 0 && (
-            <div style={{ fontSize: 11.5, color: C.moss, marginTop: 10, lineHeight: 1.7 }}>
+            <div style={{ fontSize: 11.5, color: C.leaf, marginTop: 10, lineHeight: 1.7 }}>
               지난번에 읽은 재료 · {bought.slice(0, 8).join(", ")}{bought.length > 8 ? ` 외 ${bought.length - 8}개` : ""}
             </div>
           )}
@@ -4435,8 +4452,8 @@ ${want.trim() ? "요청: " + want.trim() : ""}
           {(haveNow.length > 0 || buys.length > 0) && (
             <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 9, lineHeight: 1.6 }}>
               {haveNow.length > 0
-                ? <>집에 있는 <b style={{ color: C.moss }}>{haveNow.slice(0, 4).map((x) => x.name).join(", ")}</b>{haveNow.length > 4 ? ` 외 ${haveNow.length - 4}개` : ""}부터 쓰는 메뉴를 골라드려요.{staples.length ? ` 양념 ${staples.length}가지도 함께 봅니다.` : ""}</>
-                : <>살 것에 있는 <b style={{ color: C.moss }}>{buys.slice(0, 4).join(", ")}</b>{buys.length > 4 ? ` 외 ${buys.length - 4}개` : ""}를 쓰는 메뉴를 먼저 골라드려요.</>}
+                ? <>집에 있는 <b style={{ color: C.leaf }}>{haveNow.slice(0, 4).map((x) => x.name).join(", ")}</b>{haveNow.length > 4 ? ` 외 ${haveNow.length - 4}개` : ""}부터 쓰는 메뉴를 골라드려요.{staples.length ? ` 양념 ${staples.length}가지도 함께 봅니다.` : ""}</>
+                : <>살 것에 있는 <b style={{ color: C.leaf }}>{buys.slice(0, 4).join(", ")}</b>{buys.length > 4 ? ` 외 ${buys.length - 4}개` : ""}를 쓰는 메뉴를 먼저 골라드려요.</>}
             </div>
           )}
         </div>
@@ -4453,14 +4470,14 @@ ${want.trim() ? "요청: " + want.trim() : ""}
               const on = isOn(m.dish);
               return (
                 <button key={i} className="press rise flex items-start gap-3 w-full text-left" onClick={() => toggle(m.dish)}
-                  style={{ background: on ? C.mossSoft : "transparent", border: "none",
+                  style={{ background: on ? C.leafSoft : "transparent", border: "none",
                            borderBottom: i === items.length - 1 ? "none" : `1px solid ${C.line}`,
                            padding: "14px 16px", animationDelay: `${i * 45}ms` }}>
                   <span style={{ width: 22, height: 22, marginTop: 1, borderRadius: 7, flexShrink: 0,
-                                 border: `1.5px solid ${on ? C.moss : C.line}`, background: on ? C.moss : "transparent",
+                                 border: `1.5px solid ${on ? C.leaf : C.line}`, background: on ? C.leaf : "transparent",
                                  color: "#fff", fontSize: 12, lineHeight: "20px", textAlign: "center" }}>{on ? "✓" : ""}</span>
                   <span className="flex-1 min-w-0">
-                    <span style={{ display: "block", fontSize: 15, fontWeight: 600, color: on ? C.moss : C.ink }}>{m.dish}</span>
+                    <span style={{ display: "block", fontSize: 15, fontWeight: 600, color: on ? C.leaf : C.ink }}>{m.dish}</span>
                     {m.why && <span style={{ display: "block", fontSize: 12, color: C.ink3, marginTop: 3 }}>{m.why}</span>}
                     {(m.need || []).length > 0 && (
                       <span style={{ display: "block", fontSize: 11.5, color: C.ink3, marginTop: 5 }}>
@@ -4490,7 +4507,7 @@ ${want.trim() ? "요청: " + want.trim() : ""}
         <Card style={{ marginTop: 14 }}>
           <div style={{ padding: "26px 20px", textAlign: "center", fontSize: 13, color: C.ink3, lineHeight: 1.8 }}>
             아직 짠 식단이 없어요.<br />
-            영수증을 찍거나 위에서 <b style={{ color: C.moss }}>식단 짜줘</b>를 눌러보세요.
+            영수증을 찍거나 위에서 <b style={{ color: C.leaf }}>식단 짜줘</b>를 눌러보세요.
           </div>
         </Card>
       )}
@@ -4643,80 +4660,115 @@ function Timeline() {
   );
 }
 
+
+/* ── 이번 주 우리 집 ───────────────────────────────
+   집안일은 성공하면 투명해집니다. 화장실 휴지가 채워져 있는 걸
+   아무도 눈치채지 못하고, 없을 때만 압니다. 그래서 아무리 잘해도
+   칭찬이 안 옵니다 — 인색해서가 아니라 안 보이기 때문입니다.
+
+   그래서 앱이 할 일은 "칭찬하세요"라고 시키는 게 아니라
+   투명한 것을 잠깐 보이게 만드는 것입니다. 시켜서 하는 칭찬은
+   "내가 시켜야 하는구나"가 되어 오히려 상처가 됩니다.
+
+   지키는 선: 숫자는 나열하되 막대·퍼센트·순위·연속기록은 쓰지 않습니다.
+   "연아 12 · 남편 3"은 사실이고, 막대그래프로 그리면 판정이 됩니다. */
+const weekKey = (t) => {
+  const d = new Date(t || Date.now());
+  const sun = startOfDay(d.getTime() - d.getDay() * DAY);
+  const x = new Date(sun);
+  return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`;
+};
+
+function weekStats(st) {
+  const from = startOfDay(Date.now() - 6 * DAY);
+  const done = st.tasks.filter((t) => t.done && (t.doneAt || 0) >= from);
+  /* 아무도 안 적었는데 앱이 먼저 꺼낸 일 — 이 앱의 값어치가 여기 있습니다 */
+  const saved = done.filter((t) => t.raisedBy === "ai" || t.coverage === "system");
+  const dated = done.filter((t) => t.eventAt || (t.status !== "buy" && t.dueAt));
+  const by = {};
+  done.forEach((t) => { if (t.doneBy) by[t.doneBy] = (by[t.doneBy] || 0) + 1; });
+  return { done, saved, dated, by, n: done.length };
+}
+
+function WeekCard({ onClose }) {
+  const { st, setTab } = use();
+  const w = useMemo(() => weekStats(st), [st.tasks]);
+  const names = st.members.filter((m) => w.by[m.id]);
+  if (!w.n) return null;
+  return (
+    <Card style={{ marginTop: 12, borderColor: C.sprout }}>
+      <div style={{ padding: 18 }}>
+        <div className="flex items-start justify-between gap-3">
+          <div className="mono" style={{ fontSize: 9.5, color: C.moss }}>이번 주 우리 집</div>
+          {onClose ? <button className="press" onClick={onClose} aria-label="닫기"
+            style={{ background: "transparent", border: "none", padding: 0, fontSize: 12, color: C.ink3, lineHeight: 1 }}>✕</button> : null}
+        </div>
+
+        <div className="disp" style={{ fontSize: 19, fontWeight: 600, marginTop: 10, lineHeight: 1.45 }}>
+          {w.saved.length
+            ? <>잊을 뻔한 일 {w.saved.length}개를<br />먼저 챙기셨어요</>
+            : <>이번 주에 {w.n}개를<br />끝내셨어요</>}
+        </div>
+
+        {w.dated.length > 0 && (
+          <div style={{ marginTop: 13 }}>
+            <div style={{ fontSize: 12.5, color: C.ink2 }}>그중 {w.dated.length}개는 날짜가 있었습니다</div>
+            <div style={{ marginTop: 7 }}>
+              {w.dated.slice(0, 3).map((t) => (
+                <div key={t.id} className="flex items-baseline gap-2" style={{ fontSize: 12.5, color: C.ink2, lineHeight: 1.9 }}>
+                  <span style={{ color: C.ink3 }}>·</span>
+                  <span style={{ flex: 1, minWidth: 0 }}>{t.title}</span>
+                  <span className="mono" style={{ fontSize: 10.5, color: C.moss, whiteSpace: "nowrap" }}>
+                    {dueLabel(t.eventAt || t.dueAt).date}
+                  </span>
+                </div>
+              ))}
+              {w.dated.length > 3 && <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 4 }}>외 {w.dated.length - 3}개</div>}
+            </div>
+          </div>
+        )}
+
+        {/* 사실만 나열합니다. 막대로 그리는 순간 판정이 됩니다 */}
+        {names.length > 0 && (
+          <div style={{ marginTop: 15, paddingTop: 14, borderTop: `1px solid ${C.lineSoft}` }}>
+            <div className="flex flex-wrap gap-x-4 gap-y-2">
+              {names.map((m) => (
+                <span key={m.id} className="flex items-center gap-2" style={{ fontSize: 13, color: C.ink }}>
+                  <span style={{ width: 8, height: 8, borderRadius: 99, background: m.color, display: "inline-block" }} />
+                  {m.name} <b style={{ fontWeight: 600 }}>{w.by[m.id]}개</b>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div style={{ marginTop: 14, fontSize: 11.5, color: C.ink3, lineHeight: 1.75 }}>
+          집안일은 잘 해내면 아무 일도 일어나지 않습니다. 그래서 일주일에 한 번만, 있었던 일을 적어둡니다.
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 /* ── 나눔 (UX-10) ─────────────────────────────── */
 function Share() {
   const { st, assign, say, setTab } = use();
   const members = st.members;
-  const s = useMemo(() => {
-    const raised = {}, doneBy = {};
-    members.forEach((m) => { raised[m.id] = 0; doneBy[m.id] = 0; });
-    let ai = 0;
-    st.tasks.forEach((t) => {
-      if (t.raisedBy === "ai") ai++; else if (raised[t.raisedBy] !== undefined) raised[t.raisedBy]++;
-      if (t.done && doneBy[t.doneBy] !== undefined) doneBy[t.doneBy]++;
-    });
-    return { raised, doneBy, ai, human: Object.values(raised).reduce((a, b) => a + b, 0), doneTotal: Object.values(doneBy).reduce((a, b) => a + b, 0) };
-  }, [st.tasks, members]);
 
-  /* 살 것은 담당자를 나눌 일이 아닙니다.
-     먼저 마트에 가는 사람이 사고, 사면 줄이 그어져 다른 사람이 또 사지 않습니다.
-     "두부 구매를 누가 맡을까요"를 묻는 건 없는 일을 만드는 것입니다 */
   const unassigned = st.tasks.filter((t) => !t.done && !t.owner && t.status !== "buy");
   const openBuys = st.tasks.filter((t) => !t.done && t.status === "buy").length;
 
-  const Bar = ({ data, total, extra }) => (
-    <div className="flex" style={{ height: 9, borderRadius: 99, overflow: "hidden", background: C.line, marginTop: 13 }}>
-      {members.map((m) => (data[m.id] ? <div key={m.id} className="grow" style={{ width: `${(data[m.id] / (total || 1)) * 100}%`, background: m.color }} /> : null))}
-      {extra ? <div className="grow" style={{ width: `${(extra / (total || 1)) * 100}%`, background: C.sprout }} /> : null}
-    </div>
-  );
-  const Legend = ({ data, extraLabel, extra }) => (
-    <div className="flex flex-wrap gap-3" style={{ marginTop: 12 }}>
-      {members.map((m) => (
-        <span key={m.id} className="flex items-center gap-2" style={{ fontSize: 12, color: C.ink2 }}>
-          <span style={{ width: 8, height: 8, borderRadius: 99, background: m.color, display: "inline-block" }} />{m.name} {data[m.id] || 0}
-        </span>
-      ))}
-      {extraLabel && <span className="flex items-center gap-2" style={{ fontSize: 12, color: C.ink2 }}>
-        <span style={{ width: 8, height: 8, borderRadius: 99, background: C.sprout, display: "inline-block" }} />{extraLabel} {extra}
-      </span>}
-    </div>
-  );
-
   return (
     <>
-      <div className="rise" style={{ marginTop: 12, borderRadius: R.xl, padding: 22, background: "linear-gradient(165deg, #402812 0%, #2A1D12 70%)", boxShadow: SHADOW_LIFT }}>
-        <div className="mono" style={{ fontSize: 9.5, color: "#E5924F" }}>MENTAL LOAD</div>
-        <div className="disp" style={{ color: "#fff", fontSize: 20, fontWeight: 600, marginTop: 9, lineHeight: 1.5 }}>
-          {s.human + s.ai ? `이 집이 기억하고 있는 일\n모두 ${s.human + s.ai}개예요` : "아직 기록이 없어요"}
-        </div>
-        <div style={{ color: "#B7A48C", fontSize: 13, marginTop: 10, lineHeight: 1.7 }}>
-          누가 더 했는지 가리려는 화면이 아니에요. 집안일이 실제로 몇 개짜리 일인지 보이게 하려는 것뿐입니다.
-        </div>
+      <div style={{ marginTop: 18, paddingLeft: 2 }}>
+        <div className="disp" style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-.03em" }}>이번 주 우리 집</div>
+        <p style={{ fontSize: 13.5, color: C.ink2, marginTop: 9, lineHeight: 1.7 }}>
+          누가 더 했는지 가리는 화면이 아니에요. 집안일은 잘 해내면 아무 일도 일어나지 않아서,
+          <b style={{ color: C.ink }}> 있었다는 것만 적어둡니다.</b>
+        </p>
       </div>
 
-      <Section eyebrow="INVISIBLE" title="누가 떠올렸나" right="눈에 안 보이는 일">
-        <Card><div style={{ padding: 17 }}>
-          <div style={{ fontSize: 13.5, color: C.ink2 }}>“이거 해야 하는데”를 처음 꺼낸 사람이에요.</div>
-          <Bar data={s.raised} total={s.human + s.ai} extra={s.ai} />
-          <Legend data={s.raised} extraLabel="AI가 대신" extra={s.ai} />
-          {s.human > 0 && <div style={{ marginTop: 15, fontSize: 13, color: C.ink2, lineHeight: 1.65 }}>
-            이 {s.human}개는 하기 전에 <b>먼저 기억해야</b> 했던 일이에요. 목록에 적히기 전까지는 아무 데도 없었습니다.
-          </div>}
-          {s.ai > 0 && <div style={{ marginTop: 12, background: C.mossSoft, color: C.moss, borderRadius: 12, padding: "12px 13px", fontSize: 12.5, lineHeight: 1.65 }}>
-            그중 {s.ai}개는 아무도 기억하지 않았는데 AI가 먼저 꺼냈어요. 그만큼 머릿속이 덜 찼다는 뜻이에요.
-          </div>}
-        </div></Card>
-      </Section>
-
-      <Section eyebrow="VISIBLE" title="누가 끝냈나" right="눈에 보이는 일">
-        <Card><div style={{ padding: 17 }}>
-          <div style={{ fontSize: 13.5, color: C.ink2 }}>완료 표시를 누른 사람이에요.</div>
-          <Bar data={s.doneBy} total={s.doneTotal} />
-          <Legend data={s.doneBy} />
-          {!s.doneTotal && <div style={{ fontSize: 12.5, color: C.ink3, marginTop: 12 }}>끝낸 일이 아직 없어요.</div>}
-        </div></Card>
-      </Section>
+      <WeekCard />
 
       <Section eyebrow="OPEN" title="아직 주인이 없는 일" right={`${unassigned.length}건`}>
         <Card>
@@ -5307,17 +5359,19 @@ function TabBar() {
                   paddingBottom: "calc(7px + env(safe-area-inset-bottom))" }}>
       {items.map((it) => {
         const on = tab === it.id;
+        /* 식단 탭만 초록. 어느 방에 와 있는지 아래에서도 보이게 */
+        const ac = it.id === "meal" ? C.leaf : C.moss;
         if (it.primary) return (
           <button key={it.id} className="press flex-1 flex flex-col items-center justify-center" onClick={() => setTab(it.id)}
-            style={{ background: "transparent", border: "none", padding: "2px 0", color: on ? C.moss : C.ink3 }}>
-            <span style={{ width: 40, height: 40, borderRadius: 999, background: on ? C.moss : C.ink, color: "#fff", fontSize: 16,
+            style={{ background: "transparent", border: "none", padding: "2px 0", color: on ? ac : C.ink3 }}>
+            <span style={{ width: 40, height: 40, borderRadius: 999, background: on ? ac : C.ink, color: "#fff", fontSize: 16,
                            display: "inline-flex", alignItems: "center", justifyContent: "center", boxShadow: SHADOW }}>{it.icon}</span>
             <span style={{ fontSize: 10.5, marginTop: 3, fontWeight: on ? 600 : 400 }}>{it.label}</span>
           </button>
         );
         return (
           <button key={it.id} className="press flex-1 flex flex-col items-center" onClick={() => setTab(it.id)}
-            style={{ background: "transparent", border: "none", borderRadius: R.sm, padding: "7px 0", color: on ? C.moss : C.ink3 }}>
+            style={{ background: "transparent", border: "none", borderRadius: R.sm, padding: "7px 0", color: on ? ac : C.ink3 }}>
             <span style={{ position: "relative", fontSize: 15, lineHeight: "20px" }}>
               {it.icon}
               {it.badge ? <span className="mono" style={{ position: "absolute", top: -3, right: -12, minWidth: 15, height: 15, borderRadius: 99, background: C.persim, color: "#fff", fontSize: 9, lineHeight: "15px", padding: "0 4px" }}>{it.badge}</span> : null}
