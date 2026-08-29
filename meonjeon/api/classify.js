@@ -38,6 +38,8 @@ export default async function handler(req, res) {
 
   if (!(await isSignedIn(req))) return res.status(401).json({ error: "로그인이 필요합니다." });
 
+  const workspace = (process.env.ANTHROPIC_WORKSPACE_ID || "").trim();
+
   const { prompt, images } = req.body || {};
   if (!prompt || typeof prompt !== "string") return res.status(400).json({ error: "prompt 없음" });
   if (prompt.length > 8000) return res.status(400).json({ error: "prompt too long" });
@@ -64,6 +66,9 @@ export default async function handler(req, res) {
         "x-api-key": key,
         "anthropic-version": "2023-06-01",
         "content-type": "application/json",
+        /* 계정에 연결된(identity-linked) 키는 어느 워크스페이스에서 쓰는지도 알려줘야 합니다.
+           워크스페이스에 묶인 키를 쓰면 이 값은 없어도 됩니다. */
+        ...(workspace ? { "anthropic-workspace-id": workspace } : {}),
       },
       body: JSON.stringify({
         model: "claude-sonnet-5",
@@ -85,6 +90,8 @@ export default async function handler(req, res) {
           ? "AI 모델을 찾을 수 없어요. 모델 이름을 확인해 주세요."
         : r.status === 429 || type === "rate_limit_error"
           ? "AI 요청이 잠시 몰렸어요. 1분 뒤에 다시 해주세요."
+        : /anthropic-workspace-id/i.test(msg)
+          ? "이 AI 키는 워크스페이스를 함께 알려줘야 해요. Vercel에 ANTHROPIC_WORKSPACE_ID를 추가하거나, 워크스페이스에 묶인 키를 새로 만들어 주세요."
         : /credit balance/i.test(msg)
           ? "AI 크레딧이 부족해요. console.anthropic.com에서 충전해 주세요."
         : /spend limit|usage limit/i.test(msg)
