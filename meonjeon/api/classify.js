@@ -14,7 +14,9 @@ const SEARCH_DOMAINS = [
   "gov.kr", "korea.kr", "kdca.go.kr", "childcare.go.kr", "schoolinfo.go.kr",
   "seoul.go.kr", "nhis.or.kr", "familynet.or.kr",
 ];
-const MAX_SEARCHES = 3;      /* 한 번의 발굴에서 검색 3회까지 */
+const MAX_SEARCHES = 2;      /* 한 번의 발굴에서 검색 2회까지.
+                                검색은 한 번마다 따로 과금됩니다. 3회에서 2회로 줄였습니다 —
+                                한 번 더 뒤진다고 더 좋은 걸 찾아오지는 않았습니다. */
 const MAX_ROUNDS = 3;        /* pause_turn으로 끊기면 이어받는 횟수 */
 const MAX_IMAGE_BYTES = 1_500_000;          // base64 기준 약 1.5MB
 const OK_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -89,7 +91,14 @@ export default async function handler(req, res) {
        여기서 하는 일은 정해진 모양의 JSON을 뽑는 것이라 깊은 추론이 필요 없습니다.
        끄면 답이 바로 나오고, 값도 싸고, 빨라집니다.
        발굴(웹 검색)만은 판단이 필요해서 켜둡니다. */
-    ...(useSearch ? {} : { thinking: { type: "disabled" } }),
+    ...(useSearch ? {
+      /* 발굴은 무엇을 찾을지 판단이 필요해서 생각을 켜둡니다.
+         다만 깊이는 낮춥니다. 이 자리는 "이 시기에 이런 게 있다"를 찾아
+         광고 글을 골라내는 일이지, 깊은 추론이 필요한 자리가 아닙니다.
+         생각 토큰이 출력 요금으로 계산되기 때문에 여기가 제일 비쌌습니다.
+         결과가 그대로면 "low"까지 더 내려도 됩니다. */
+      output_config: { effort: "medium" },
+    } : { thinking: { type: "disabled" } }),
     /* 상한일 뿐이라 올려도 값이 더 들지 않습니다. 쓴 만큼만 냅니다.
        한글은 토큰을 많이 먹어서 넉넉히 둡니다. */
     max_tokens: useSearch ? 8000 : shots.length ? 4000 : 4000,
