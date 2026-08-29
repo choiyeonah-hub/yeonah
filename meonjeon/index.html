@@ -164,7 +164,20 @@ function askEmail() {
     if (!email) return;
     document.getElementById('go').textContent = '보내는 중…';
     const { error } = await SB.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + location.search } });
-    if (error) { show('<h1>메일을 못 보냈어요</h1><p>' + error.message + '</p><button onclick="location.reload()">다시 시도</button>'); return; }
+    if (error) {
+      /* 베타 동안에는 초대받은 분만 들어옵니다. 영문 에러를 그대로 보여주면
+         "내가 뭘 잘못했나" 하고 헤매게 됩니다 */
+      const m = String(error.message || '');
+      const why = /signup|sign-up|not allowed|disabled/i.test(m)
+        ? '지금은 <b>초대받은 이메일만</b> 들어올 수 있어요.<br>초대받으신 주소가 맞는지 확인해 주세요. 오타가 있으면 로그인이 안 됩니다.'
+        : /rate|limit|too many/i.test(m)
+        ? '메일을 너무 자주 보냈어요. <b>몇 분 뒤에</b> 다시 해주세요.'
+        : /invalid|valid email/i.test(m)
+        ? '이메일 주소 형식을 다시 확인해 주세요.'
+        : m;
+      show('<h1>메일을 못 보냈어요</h1><p>' + why + '</p><button onclick="location.reload()">다시 시도</button>');
+      return;
+    }
     show('<h1>메일함을 확인해 주세요</h1><p><b>' + email + '</b>로 로그인 링크를 보냈어요.<br>링크를 누르면 바로 시작됩니다. 메일이 안 보이면 스팸함도 확인해 주세요.</p><button class="ghost" onclick="location.reload()">다른 주소로 다시 받기</button>');
   };
 }
