@@ -789,6 +789,9 @@ const DEFAULT_STATE = {
   /* 서로 넘긴 일 */
   toss: [],
   notify: { on: false, hour: 8 },
+  /* AI 사용량 — 달이 바뀌면 month가 갱신되며 0부터 다시 셉니다 */
+  aiUsage: { month: "", talk: 0, photo: 0, find: 0 },
+  plan: "free",
   draft: "",
   onboarded: false,
 };
@@ -962,6 +965,34 @@ function buildRecommendations(st) {
 
 /* ── AI 호출 ──────────────────────────────────── */
 const PROMPT_VERSION = "v7.0";
+/* ── AI 사용량 상한 ──────────────────────────────
+   무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
+   막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
+   상한에 닿아도 직접 적는 길은 항상 열려 있습니다. */
+const AI_LIMITS = {
+  free: { talk: 15, photo: 3, find: 31 },   /* 말하기 정리 / 사진 인식 / 자동 발굴 */
+  paid: { talk: Infinity, photo: Infinity, find: Infinity },
+};
+const AI_LABEL = { talk: "AI 정리", photo: "사진 인식", find: "미리 찾아보기" };
+const usageMonth = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; };
+/* 이번 달 쓴 횟수. 달이 바뀌면 저절로 0부터 다시 셉니다 */
+function usedThis(st, kind) {
+  const u = st.aiUsage || {};
+  return u.month === usageMonth() ? (u[kind] || 0) : 0;
+}
+function limitOf(st, kind) {
+  return (st.plan === "paid" ? AI_LIMITS.paid : AI_LIMITS.free)[kind];
+}
+function leftOf(st, kind) {
+  const lim = limitOf(st, kind);
+  return lim === Infinity ? Infinity : Math.max(lim - usedThis(st, kind), 0);
+}
+/* 다음 달 1일 */
+function nextResetLabel() {
+  const d = new Date(); const n = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+  return `${n.getMonth() + 1}월 1일`;
+}
+
 async function askClaude(prompt, images) {
   const res = await fetch("/api/classify", {
     method: "POST", headers: { "Content-Type": "application/json" },
@@ -1360,6 +1391,15 @@ function App() {
 
   const log = (name, props) => setSt((s) => ({ ...s, events: [...s.events.slice(-400), { name, props, ts: Date.now() }] }));
   const say = (m) => { setToast(m); setTimeout(() => setToast(null), 2300); };
+  /* AI를 한 번 씁니다. 상한에 닿으면 세지 않고 false를 돌려줘요 */
+  const spendAI = (kind, n = 1) => {
+    if (leftOf(st, kind) < n) return false;
+    setSt((sv) => {
+      const cur = (sv.aiUsage || {}).month === usageMonth() ? sv.aiUsage : { month: usageMonth(), talk: 0, photo: 0, find: 0 };
+      return { ...sv, aiUsage: { ...cur, month: usageMonth(), [kind]: (cur[kind] || 0) + n } };
+    });
+    return true;
+  };
   const cats = useMemo(() => [
     ...st.children.map((ch) => ({ id: `kid:${ch.id}`, emoji: "🧒", label: `${ch.name}(${childLabel(ch)})`, child: ch })),
     ...BASE_CATS.filter((c) => c.need(st.flags, st.children)),
@@ -1425,7 +1465,7 @@ function App() {
   );
 
   return (
-    <Ctx.Provider value={{ st, setSt, me, setMe, cats, addTasks, tossTask, complete, assign, setPref, setRoutine, routineAction, say, log, tab, setTab, openCat, setOpenCat }}>
+    <Ctx.Provider value={{ st, setSt, me, setMe, cats, addTasks, tossTask, complete, assign, setPref, setRoutine, routineAction, say, log, spendAI, tab, setTab, openCat, setOpenCat }}>
       <div className="hae" style={{ background: C.bg, minHeight: "100vh", color: C.ink, WebkitFontSmoothing: "antialiased" }}>
         <style dangerouslySetInnerHTML={{ __html: FONTS }} />
         <div style={{ maxWidth: 440, margin: "0 auto", paddingBottom: 100, position: "relative" }}>
@@ -2332,7 +2372,7 @@ function DiscoverCard({ item, onAdd, onLater, onNo, delay = 0 }) {
    판단이 필요한 일은 3가지만. 매일 루틴은 체크리스트로 따로.
    컨디션이 안 좋은 날엔 목록을 줄이고 가족에게 넘길 수 있게. */
 function Home() {
-  const { st, setSt, me, cats, setTab, addTasks, complete, say, log, setRoutine, routineAction } = use();
+  const { st, setSt, me, cats, setTab, addTasks, complete, say, log, setRoutine, routineAction, spendAI } = use();
   const [all, setAll] = useState(false);
   const [only, setOnly] = useState("all");   /* all = 다 같이 보기 / mine = 내 몫만 */
   const [openRoutine, setOpenRoutine] = useState(true);
@@ -2395,6 +2435,7 @@ function Home() {
     (async () => {
       setLoadingDisc(true);
       try {
+        if (!spendAI("find", 1)) { setLoadingDisc(false); return; }
         const r = await askClaude(`당신은 한국 가정의 살림을 대신 기억해주는 AI 비서 '${BRAND}'입니다.
 아래 가구가 지금 시기에 미리 해두면 좋은데, 보통은 아무도 떠올리지 않는 일을 2개만 제안하세요.
 
@@ -2665,8 +2706,9 @@ function Home() {
 
 /* ── 말하기 ───────────────────────────────────── */
 function Speak() {
-  const { st, setSt, cats, addTasks, me, say, setTab, log } = use();
+  const { st, setSt, cats, addTasks, me, say, setTab, log, spendAI } = use();
   const [text, setText] = useState("");
+  const [capped, setCapped] = useState(null);   /* 상한에 닿았을 때 보여줄 안내 */
   const [phase, setPhase] = useState("input");
   const [result, setResult] = useState([]);
   const [listening, setListening] = useState(false);
@@ -2751,6 +2793,9 @@ function Speak() {
     /* onClick에 직접 물리면 이벤트 객체가 들어옵니다. 문자열일 때만 씁니다 */
     const seed = typeof override === "string" ? override : text;
     const speech = seed.trim() || (shots.length ? "" : DEMO_SPEECH);
+    /* 이번 달 몫을 다 쓰셨으면 AI를 부르지 않고 직접 적는 길로 안내합니다 */
+    const kind = shots.length ? "photo" : "talk";
+    if (!spendAI(kind, 1)) { setCapped(kind); return; }
     if (speech) setText(speech);
     stopMic(); setPhase("thinking"); setMenu(null);
     log("dump_submit", { len: speech.length, shots: shots.length });
@@ -2855,6 +2900,36 @@ function Speak() {
         items: result.filter((r) => r.status === k) }))
   ).filter((g) => g.items.length);
   const newCats = [...new Set(result.filter((r) => r.category === "etc" && r.newCategory).map((r) => r.newCategory))];
+
+  if (capped) {
+    const left = leftOf(st, capped), lim = limitOf(st, capped);
+    return (
+      <>
+        <div style={{ marginTop: 20, paddingLeft: 2 }}>
+          <div className="disp" style={{ fontSize: 22, fontWeight: 600 }}>이번 달 {AI_LABEL[capped]}를 다 쓰셨어요</div>
+          <p style={{ fontSize: 13.5, color: C.ink2, marginTop: 9, lineHeight: 1.75 }}>
+            무료로 쓰시는 동안 한 달에 {lim}번까지 도와드리고 있어요. {nextResetLabel()}에 다시 채워집니다.
+          </p>
+        </div>
+        <Card style={{ marginTop: 16, borderColor: C.moss }}>
+          <div style={{ padding: 17 }}>
+            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>그동안에도 그대로 챙겨드려요</div>
+            <div style={{ fontSize: 13, color: C.ink2, lineHeight: 1.8 }}>
+              직접 적으신 일은 <b>횟수와 상관없이</b> 담기고, 정기 일정과 미리 알려드리는 것도 계속 돌아갑니다.
+              AI가 대신 정리해주는 것만 잠깐 쉬는 거예요.
+            </div>
+          </div>
+        </Card>
+        <div style={{ marginTop: 18 }}>
+          <Btn kind="accent" onClick={() => { setCapped(null); setResult([{ title: text.trim().slice(0, 20) || "", category: (cats[0] || {}).id, status: "week", note: "" }]); setPhase("result"); setEdit(0); }}>
+            직접 적어서 담기
+          </Btn>
+          <div style={{ height: 8 }} />
+          <Btn kind="ghost" onClick={() => { setCapped(null); setTab("home"); }}>오늘 화면으로</Btn>
+        </div>
+      </>
+    );
+  }
 
   if (phase === "thinking") return (
     <Card style={{ marginTop: 14 }}>
@@ -3112,6 +3187,13 @@ function Speak() {
               style={{ background: C.bg, border: `1px solid ${C.line}`, borderRadius: R.pill, padding: "9px 14px", fontSize: 12, color: C.ink2 }}>시연용 예시</button>
           </div>
           <input ref={fileRef} type="file" accept="image/*" multiple style={{ display: "none" }} onChange={onFiles} />
+          {st.plan !== "paid" && leftOf(st, "talk") <= 5 && (
+            <div style={{ fontSize: 11.5, color: leftOf(st, "talk") ? C.ink3 : C.persim, marginTop: 10, lineHeight: 1.65 }}>
+              {leftOf(st, "talk")
+                ? `이번 달 AI 정리 ${leftOf(st, "talk")}번 남았어요 · ${nextResetLabel()}에 다시 채워집니다`
+                : `이번 달 AI 정리를 다 쓰셨어요. 직접 적으시면 그대로 챙겨드려요 · ${nextResetLabel()}에 다시 채워집니다`}
+            </div>
+          )}
           {scanKind && <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 9, lineHeight: 1.6 }}>
             사진은 크기를 줄여 AI에 보내고 <b style={{ color: C.ink2 }}>앱에는 저장하지 않습니다</b>. 뽑아낸 할 일만 남아요.
           </div>}
@@ -4010,6 +4092,35 @@ function Settings() {
           </Card>
         </Section>
       )}
+
+      {/* 이번 달 AI 사용량 — 얼마나 썼는지 스스로 보이게 */}
+      <Section eyebrow="AI" title="이번 달 AI 사용량" right={st.plan === "paid" ? "무제한" : "무료"}>
+        <Card>
+          <div style={{ padding: "13px 15px", fontSize: 12.5, color: C.ink2, lineHeight: 1.7, borderBottom: `1px solid ${C.lineSoft}` }}>
+            무료로 쓰시는 동안은 한 달에 정해진 횟수만큼 AI가 도와드려요. {nextResetLabel()}에 다시 채워집니다.
+            직접 적으시는 건 횟수와 상관없이 언제든 됩니다.
+          </div>
+          {["talk", "photo", "find"].map((k, i, a) => {
+            const used = usedThis(st, k), lim = limitOf(st, k);
+            const pct = lim === Infinity ? 0 : Math.min(used / lim, 1);
+            return (
+              <div key={k} style={{ padding: "13px 15px", borderBottom: i === a.length - 1 ? "none" : `1px solid ${C.lineSoft}` }}>
+                <div className="flex items-center justify-between" style={{ marginBottom: 8 }}>
+                  <span style={{ fontSize: 13.5 }}>{AI_LABEL[k]}</span>
+                  <span style={{ fontSize: 12.5, color: pct >= 1 ? C.persim : C.ink3 }}>
+                    {lim === Infinity ? "무제한" : `${used} / ${lim}`}
+                  </span>
+                </div>
+                {lim !== Infinity && (
+                  <div style={{ height: 6, borderRadius: 99, background: C.lineSoft, overflow: "hidden" }}>
+                    <div style={{ width: `${pct * 100}%`, height: "100%", background: pct >= 1 ? C.persim : C.moss, transition: "width .4s ease" }} />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </Card>
+      </Section>
 
       {/* 컨디션·알림 — 민감한 정보라 켜고 끄는 걸 분명히 */}
       <Section eyebrow="PRIVACY" title="컨디션과 알림">
