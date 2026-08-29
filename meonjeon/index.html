@@ -260,15 +260,17 @@ button:focus-visible { outline: 2px solid ${C.moss}; outline-offset: 2px; }
 `;
 
 /* ── 상태/시점 ────────────────────────────────── */
+/* 이름만 보고 뜻이 통해야 합니다. "조건부"가 무슨 뜻인지 물어보게 되면 진 겁니다.
+   hint는 설명이 아니라 "고르면 앱이 무엇을 해주는지"를 씁니다 */
 const STATUS = {
-  now: { label: "지금", fg: C.persim, bg: C.persimSoft, hint: "오늘 안 하면 문제가 생겨요" },
-  week: { label: "이번 주", fg: C.sea, bg: C.seaSoft, hint: "이번 주 안에 처리" },
-  conditional: { label: "조건부", fg: C.sun, bg: C.sunSoft, hint: "일이 확정되면 실행" },
-  check: { label: "확인 필요", fg: C.sun, bg: C.sunSoft, hint: "정보부터 알아야 해요" },
-  buy: { label: "구매", fg: C.sea, bg: C.seaSoft, hint: "사야 하는 것" },
-  decide: { label: "결정 필요", fg: C.moss, bg: C.mossSoft, hint: "비교하고 골라야 해요" },
-  remember: { label: "기억해둘 것", fg: C.moss, bg: C.mossSoft, hint: "때가 되면 다시 꺼내줄게요" },
-  repeat: { label: "반복", fg: C.moss, bg: C.mossSoft, hint: "주기마다 다시 알림" },
+  now: { label: "지금", fg: C.persim, bg: C.persimSoft, hint: "오늘 안 하면 문제가 생겨요", ex: "어린이집 결석 연락" },
+  week: { label: "이번 주", fg: C.sea, bg: C.seaSoft, hint: "이번 주 안에 하면 돼요", ex: "체육복 세탁" },
+  conditional: { label: "정해지면", fg: C.sun, bg: C.sunSoft, hint: "다른 일이 정해져야 시작할 수 있어요", ex: "이사 날짜 나오면 전학 신청" },
+  check: { label: "알아보기", fg: C.sun, bg: C.sunSoft, hint: "아직 몰라서, 물어보거나 찾아봐야 해요", ex: "학원 셔틀 시간 문의" },
+  buy: { label: "구매", fg: C.sea, bg: C.seaSoft, hint: "살 것 목록으로 함께 들어갑니다", ex: "발레슈즈 사기" },
+  decide: { label: "고르기", fg: C.moss, bg: C.mossSoft, hint: "알아본 다음, 둘 중 하나를 골라야 해요", ex: "미술학원 A와 B 중 결정" },
+  remember: { label: "나중에", fg: C.moss, bg: C.mossSoft, hint: "지금 할 건 없어요. 그날이 되면 올려드릴게요", ex: "12월 조사과제 준비" },
+  repeat: { label: "반복", fg: C.moss, bg: C.mossSoft, hint: "정한 주기마다 다시 올라와요", ex: "정수기 필터 갈기" },
 };
 const STATUS_ORDER = ["now", "week", "conditional", "check", "buy", "decide", "remember", "repeat"];
 
@@ -3260,6 +3262,13 @@ function Speak() {
                 </button>
               ))}
             </div>
+            {/* 고른 것이 무슨 뜻인지 여기서 바로 읽히게. 누르면서 배우게 됩니다 */}
+            {STATUS[t.status] && (
+              <div style={{ marginTop: 9, background: STATUS[t.status].bg, borderRadius: 12, padding: "10px 13px" }}>
+                <div style={{ fontSize: 12.5, color: STATUS[t.status].fg, fontWeight: 600, lineHeight: 1.55 }}>{STATUS[t.status].hint}</div>
+                {STATUS[t.status].ex && <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 4 }}>예: {STATUS[t.status].ex}</div>}
+              </div>
+            )}
 
             <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 20 }}>어느 영역에 넣을까요?</div>
             <div className="flex flex-wrap gap-2" style={{ marginTop: 10 }}>
