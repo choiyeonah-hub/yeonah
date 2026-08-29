@@ -912,12 +912,6 @@ const linkUrl = (l, text) => l.url.replace("{q}", encodeURIComponent(String(text
 const PARTNERS = {};
 LINKS.forEach((l) => (l.g || []).forEach((g) => { if (!PARTNERS[g]) PARTNERS[g] = l; }));
 
-/* 오늘 컨디션 — 힘든 날엔 목록을 줄이고 가족에게 알립니다 */
-const CONDITIONS = {
-  good: { label: "좋아요", emoji: "🌤", desc: "평소대로 보여드릴게요", show: 3 },
-  ok: { label: "보통이에요", emoji: "☁️", desc: "평소대로 보여드릴게요", show: 3 },
-  low: { label: "힘들어요", emoji: "🌧", desc: "오늘은 꼭 필요한 것만 남길게요", show: 1 },
-};
 const todayStr = () => new Date().toISOString().slice(0, 10);
 /* AI가 준 "YYYY-MM-DD"를 그날 0시로 바꿉니다. 이상한 값이면 null */
 function parseWhen(v) {
@@ -962,7 +956,7 @@ const DEFAULT_STATE = {
   extra: "",
   tasks: [], routines: {}, customRoutines: [], prefs: {}, groupsOff: {}, customCats: [],
   events: [], feedback: [], discoverSnoozed: [], dismissedDiscover: [],
-  condition: null, conditionShare: true, discoverCache: null,
+  discoverCache: null,
   /* 기본 분담: 카테고리 → 담당자. 여기 있는 건 매번 정하지 않아도 됩니다 */
   duty: {}, dutyAsk: true,
   /* 휴일 날씨 브리핑 */
@@ -1659,15 +1653,6 @@ function App() {
     return rows.length;
   };
 
-  /* 일 넘기기 — 받는 사람 화면에 "확인해주세요"로 뜹니다 */
-  const tossTask = (taskId, to, msg) => {
-    setSt((s) => ({
-      ...s,
-      tasks: s.tasks.map((t) => (t.id === taskId ? { ...t, owner: to, tossedBy: me, tossedAt: Date.now() } : t)),
-      toss: [...(s.toss || []), { id: uid("tz"), taskId, from: me, to, msg: msg || "", at: Date.now(), seen: false }],
-    }));
-    log("task_toss", {});
-  };
   const complete = (id) => setSt((s) => ({ ...s, tasks: s.tasks.map((t) => t.id === id ? { ...t, done: !t.done, doneBy: !t.done ? me : undefined, doneAt: !t.done ? Date.now() : undefined } : t) }));
   const assign = (id, owner) => setSt((s) => ({ ...s, tasks: s.tasks.map((t) => t.id === id ? { ...t, owner } : t) }));
   const setPref = (key, val) => setSt((s) => ({ ...s, prefs: { ...s.prefs, [key]: { ...(s.prefs[key] || {}), ...val } } }));
@@ -1706,7 +1691,7 @@ function App() {
   );
 
   return (
-    <Ctx.Provider value={{ st, setSt, me, setMe, cats, addTasks, tossTask, complete, assign, setPref, setRoutine, routineAction, say, log, spendAI, refundAI, tab, setTab, openCat, setOpenCat }}>
+    <Ctx.Provider value={{ st, setSt, me, setMe, cats, addTasks, complete, assign, setPref, setRoutine, routineAction, say, log, spendAI, refundAI, tab, setTab, openCat, setOpenCat }}>
       <div className="hae" style={{ background: C.bg, minHeight: "100vh", color: C.ink, WebkitFontSmoothing: "antialiased" }}>
         <style dangerouslySetInnerHTML={{ __html: FONTS }} />
         <div style={{ maxWidth: 440, margin: "0 auto", paddingBottom: 100, position: "relative" }}>
@@ -2090,12 +2075,10 @@ function RoutineRow({ r, delay = 0, last, compact, manage }) {
 
 /* ── Task 행 ──────────────────────────────────── */
 function TaskRow({ t, delay = 0, last }) {
-  const { st, cats, complete, assign, tossTask, setSt, say } = use();
+  const { st, cats, complete, assign, setSt, say } = use();
   const [rep2, setRep2] = useState(false);
   const [own, setOwn] = useState(false);
   const [edit, setEdit] = useState(false);
-  const [toss, setToss] = useState(false);
-  const [msg, setMsg] = useState("");
   const cat = cats.find((c) => c.id === t.category) || { emoji: "🗂", label: "기타" };
   const due = dueLabel(t.dueAt);
   const owner = st.members.find((m) => m.id === t.owner);
@@ -2125,7 +2108,6 @@ function TaskRow({ t, delay = 0, last }) {
           {kidNames.length ? <span>· 🧒 {kidNames.join(", ")}와 함께</span> : null}
           {t.note && <span>· {t.note}</span>}
           {!t.done && raiser && <span>· {raiser === "ai" ? `${BRAND}이 챙김` : `${raiser.name}이 떠올림`}</span>}
-          {!t.done && t.tossedBy && <span style={{ color: C.sun }}>· {(st.members.find((m) => m.id === t.tossedBy) || {}).name}이 넘김</span>}
           {t.done && t.doneBy && <span>· {(st.members.find((m) => m.id === t.doneBy) || {}).name} 완료</span>}
         </div>
         {!t.done && (
@@ -2134,8 +2116,6 @@ function TaskRow({ t, delay = 0, last }) {
               style={{ background: C.bg, border: `1px solid ${C.line}`, borderRadius: R.pill, padding: "5px 11px", fontSize: 11.5, color: C.ink2 }}>고치기</button>
             {!t.seedId && <button className="press" onClick={() => setRep2(true)}
               style={{ background: C.bg, border: `1px solid ${C.line}`, borderRadius: R.pill, padding: "5px 11px", fontSize: 11.5, color: C.ink2 }}>반복으로</button>}
-            {st.members.length > 1 && <button className="press" onClick={() => setToss(true)}
-              style={{ background: C.bg, border: `1px solid ${C.line}`, borderRadius: R.pill, padding: "5px 11px", fontSize: 11.5, color: C.ink2 }}>넘기기</button>}
           </div>
         )}
         {!t.done && <LinkCards group={null} text={`${t.title} ${t.note || ""}`} compact />}
@@ -2148,23 +2128,6 @@ function TaskRow({ t, delay = 0, last }) {
 
       {own && <OwnerPicker title={t.title} current={t.owner} categoryId={t.category} withKids={t.withKids || []} onWithKids
         onPick={(id, kids) => upd({ owner: id, withKids: kids })} onClose={() => setOwn(false)} />}
-
-      {toss && (
-        <Sheet onClose={() => setToss(false)}>
-          <div className="disp" style={{ fontSize: 20, fontWeight: 600 }}>누구에게 넘길까요?</div>
-          <p style={{ fontSize: 13, color: C.ink2, marginTop: 8, lineHeight: 1.65 }}>“{t.title}” · 받는 사람 화면 맨 위에 뜹니다.</p>
-          <input className="hae" value={msg} onChange={(e) => setMsg(e.target.value)} placeholder="한마디 (선택) — 예: 오늘 야근이라 못 해"
-            style={{ width: "100%", marginTop: 14, border: `1px solid ${C.line}`, borderRadius: R.sm, padding: "12px 13px", fontSize: 13.5, background: C.bg, color: C.ink }} />
-          <div className="flex flex-col gap-2" style={{ marginTop: 14 }}>
-            {st.members.filter((m) => m.id !== t.owner).map((m) => (
-              <button key={m.id} className="press flex items-center gap-3" onClick={() => { tossTask(t.id, m.id, msg); setToss(false); setMsg(""); say(`${m.name}에게 넘겼어요`); }}
-                style={{ background: C.bg, border: `1px solid ${C.line}`, borderRadius: R.md, padding: "14px 16px", fontSize: 15, textAlign: "left" }}>
-                <Avatar member={m} size={30} /> {m.name}에게
-              </button>
-            ))}
-          </div>
-        </Sheet>
-      )}
 
       {edit && (
         <Sheet onClose={() => setEdit(false)}>
@@ -2531,75 +2494,6 @@ function MovePlan() {
   );
 }
 
-/* ── 살 것 목록 ────────────────────────────────────
-   "사야 해"라고 말한 것 + 직접 적은 것.
-   체크하면 취소선이 그어지고 잠시 뒤 스르륵 사라집니다. */
-function BuyList() {
-  const { st, setSt, cats, complete, addTasks, say, log } = use();
-  const [txt, setTxt] = useState("");
-  const buys = st.tasks.filter((t) => t.status === "buy");
-  const open = buys.filter((t) => !t.done).length;
-  const bought = buys.length - open;
-
-  /* 체크 = 취소선. 목록에 그대로 남고, 다시 누르면 되돌아옵니다 */
-  const buy = (t) => complete(t.id);
-  const add = () => {
-    const names = txt.split(/[,·]+/).map((x) => x.trim()).filter(Boolean);
-    if (!names.length) return;
-    addTasks(names.map((n) => ({ title: n, category: "etc", status: "buy", note: "" })));
-    setTxt(""); say(`${names.length}개 적어뒀어요`);
-  };
-  const copyList = async () => {
-    const text = buys.filter((t) => !t.done).map((t) => "· " + t.title).join("\n");
-    try { await navigator.clipboard.writeText(text); say("복사했어요. 쿠팡·메모 어디든 붙여넣으세요"); }
-    catch { window.alert("복사가 막혀 있어요. 아래를 길게 눌러 복사하세요:\n\n" + text); }
-  };
-
-  return (
-    <Fold icon="🛒" title={open ? `살 것 ${open}개` : "살 것 적어두기"}
-      sub={open ? buys.filter((t) => !t.done).slice(0, 3).map((t) => t.title).join(" · ") : "말로 해도, 여기 적어도 모입니다"}>
-      <div style={{ margin: "0 -15px -15px" }}>
-        {buys.map((t, i) => {
-          const cat = cats.find((c) => c.id === t.category) || { emoji: "🗂" };
-          const gone = t.done;
-          return (
-            <div key={t.id} className="flex items-center gap-3"
-              style={{ padding: "12px 16px", borderBottom: `1px solid ${C.lineSoft}`,
-                       opacity: gone ? 0.45 : 1, transition: "opacity .4s ease" }}>
-              <button className="press" onClick={() => buy(t)} aria-label="샀어요"
-                style={{ width: 22, height: 22, borderRadius: 7, flexShrink: 0, border: `1.5px solid ${gone ? C.moss : C.line}`, background: gone ? C.moss : "transparent", color: "#fff", fontSize: 12, lineHeight: "20px" }}>{gone ? "✓" : ""}</button>
-              <span className="flex-1 min-w-0" style={{ fontSize: 14.5, fontWeight: 500, textDecoration: gone ? "line-through" : "none", color: gone ? C.ink3 : C.ink, transition: "color .4s" }}>{t.title}</span>
-              <span style={{ fontSize: 13 }}>{cat.emoji}</span>
-            </div>
-          );
-        })}
-        <div className="flex items-center gap-2" style={{ padding: "11px 12px", background: C.bg }}>
-          <input className="hae" value={txt} onChange={(e) => setTxt(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") add(); }} placeholder="휴지, 두부 — 쉼표로 여러 개"
-            style={{ flex: 1, border: `1px solid ${C.line}`, borderRadius: R.sm, padding: "10px 12px", fontSize: 13.5, background: C.card, color: C.ink }} />
-          <button className="press" onClick={add}
-            style={{ background: C.moss, color: "#fff", border: "none", borderRadius: R.sm, padding: "10px 14px", fontSize: 12.5, fontWeight: 600 }}>적기</button>
-        </div>
-        {open > 0 && (
-          <div className="flex gap-2" style={{ padding: "0 12px 12px", background: C.bg }}>
-            <button className="press" onClick={copyList}
-              style={{ flex: 1.3, background: C.ink, color: "#fff", border: "none", borderRadius: R.sm, padding: "11px 0", fontSize: 12.5, fontWeight: 600 }}>📋 목록 한꺼번에 복사</button>
-            <button className="press" onClick={() => { log("partner_click", { name: "쿠팡", g: "buy", from: "살 것 목록" }); window.open("https://www.coupang.com/np/search?q=" + encodeURIComponent(buys.filter((t) => !t.done)[0].title), "_blank", "noopener"); }}
-              style={{ flex: 1, background: C.card, color: C.ink2, border: `1px solid ${C.line}`, borderRadius: R.sm, padding: "11px 0", fontSize: 12.5 }}>쿠팡 열기</button>
-          </div>
-        )}
-        {bought > 0 && (
-          <button className="press w-full" onClick={() => { setSt((sv) => ({ ...sv, tasks: sv.tasks.filter((t) => !(t.status === "buy" && t.done)) })); say("산 것을 정리했어요"); }}
-            style={{ background: C.bg, border: "none", borderTop: `1px solid ${C.lineSoft}`, padding: "11px 0", fontSize: 12, color: C.ink3, width: "100%" }}>
-            줄 그어진 {bought}개 지우기
-          </button>
-        )}
-      </div>
-    </Fold>
-  );
-}
-
-/* ── ③ AI 발견 카드 ──────────────────────────── */
 function DiscoverCard({ item, onAdd, onLater, onNo, delay = 0 }) {
   const { cats } = use();
   const cat = cats.find((c) => c.id === item.category) || { emoji: "🗂", label: "기타" };
@@ -2653,11 +2547,9 @@ function Home() {
 
   /* 이미 분담이 끝난 일은 각자 화면에서만 — "내 몫만 보기" */
   const isMine = (owner) => owner === me;
-  const inbox = (st.toss || []).filter((z) => z.to === me && !z.seen);
 
-  const cond = st.condition && st.condition.date === todayStr() ? st.condition : null;
-  const level = cond ? cond.level : "ok";
-  const limit = CONDITIONS[level].show;
+  /* 오늘 머리 쓸 일은 3가지까지만. 그 이상은 목록이 아니라 벽이 됩니다 */
+  const limit = 3;
 
   /* 매일 하는 것과 가끔 하는 것을 나눕니다 */
   const visible = (ownerId) => only === "all" || isMine(ownerId);
@@ -2711,7 +2603,7 @@ function Home() {
      매일 새 제안을 들이밀면 억지스러워지고 사용자도 피로해집니다.
      그 사이에는 마지막에 찾은 것을 그대로 보여줍니다. */
   useEffect(() => {
-    if (asked.current || !st.onboarded || level === "low") return;
+    if (asked.current || !st.onboarded) return;
     asked.current = true;
     const cache = st.discoverCache;
     const dow = new Date().getDay();                 /* 0=일 … 1=월, 4=목 */
@@ -2742,12 +2634,8 @@ function Home() {
       } catch { refundAI("find", 1); }
       setLoadingDisc(false);
     })();
-  }, [st.onboarded, level]);
+  }, [st.onboarded]);
 
-  const setCondition = (lv) => {
-    setSt((sv) => ({ ...sv, condition: { date: todayStr(), level: lv, by: me } }));
-    say(lv === "low" ? "오늘은 꼭 필요한 것만 남길게요" : "오늘도 잘 부탁드려요");
-  };
   const handOver = () => {
     if (!spouse) return say("설정에서 가족을 먼저 추가해 주세요");
     let n = 0;
@@ -2795,44 +2683,17 @@ function Home() {
             {new Date().getMonth() + 1}월 {new Date().getDate()}일 {WEEKDAY[new Date().getDay()]}요일
           </div>
           <div className="disp" style={{ color: "#fff", fontSize: 23, fontWeight: 600, lineHeight: 1.42, marginTop: 10, letterSpacing: "-.03em" }}>
-            {level === "low" ? <>오늘은 {meName} 님,<br />이것만 하셔도 돼요.</> : <>{meName} 님, 오늘<br />머리 쓸 일은 {think.length}가지예요.</>}
+            {meName} 님, 오늘<br />머리 쓸 일은 {think.length}가지예요.
           </div>
           <div style={{ color: "#93A69B", fontSize: 13, marginTop: 10, lineHeight: 1.65 }}>
-            {level === "low"
-              ? (remain > 0 ? `나머지 ${remain}개는 제가 기억하고 있을게요.` : "지금은 급한 게 없어요.")
-              : <>
-                  {daily.length > 0 ? `루틴 ${daily.length}개는 늘 하던 일이라 세지 않았어요. ` : ""}
-                  {remain > 0 ? `나머지 ${remain}개는 제가 기억하고 있을게요.` : "지금은 급한 게 없어요."}
-                </>}
+            {daily.length > 0 ? `루틴 ${daily.length}개는 늘 하던 일이라 세지 않았어요. ` : ""}
+            {remain > 0 ? `나머지 ${remain}개는 제가 기억하고 있을게요.` : "지금은 급한 게 없어요."}
           </div>
           <button className="press" onClick={() => setTab("speak")}
             style={{ width: "100%", marginTop: 17, background: "#fff", color: C.ink, border: "none", borderRadius: R.md, padding: "15px 0", fontSize: 14.5, fontWeight: 600 }}>생각나는 거 말하기</button>
         </div>
       </div>
 
-      {/* 넘겨받은 일 — 받는 사람 화면 맨 위 */}
-      {inbox.length > 0 && (
-        <Card style={{ marginTop: 12, borderColor: C.sun }}>
-          <div style={{ padding: "15px 17px" }}>
-            <div className="mono" style={{ fontSize: 9.5, color: C.sun }}>넘어온 일</div>
-            {inbox.map((z) => {
-              const task = st.tasks.find((t) => t.id === z.taskId);
-              const from = st.members.find((m) => m.id === z.from);
-              if (!task) return null;
-              return (
-                <div key={z.id} style={{ marginTop: 9 }}>
-                  <div style={{ fontSize: 14.5, fontWeight: 600 }}>{task.title}</div>
-                  <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 4, lineHeight: 1.6 }}>
-                    {from ? from.name : "가족"}이 넘겼어요{z.msg ? ` · “${z.msg}”` : ""}
-                  </div>
-                </div>
-              );
-            })}
-            <button className="press w-full" onClick={() => setSt((sv) => ({ ...sv, toss: (sv.toss || []).map((z) => z.to === me ? { ...z, seen: true } : z) }))}
-              style={{ marginTop: 12, background: C.sunSoft, color: C.sun, border: "none", borderRadius: R.sm, padding: "11px 0", fontSize: 13, fontWeight: 600 }}>확인했어요</button>
-          </div>
-        </Card>
-      )}
 
       {/* 보기 전환: 다 같이 / 내 몫만 */}
       {st.members.length > 1 && (
@@ -2855,40 +2716,8 @@ function Home() {
       <MovePlan />
 
 
-      {/* 오늘 컨디션 — 한 줄로 */}
-      <div className="flex items-center gap-2" style={{ marginTop: 12, padding: "0 2px" }}>
-        <span style={{ fontSize: 12.5, color: C.ink2, flexShrink: 0 }}>오늘 컨디션</span>
-        <div className="flex gap-1.5 flex-1">
-          {Object.keys(CONDITIONS).map((k) => (
-            <button key={k} className="press" onClick={() => setCondition(k)}
-              style={{ flex: 1, background: level === k && cond ? C.mossSoft : C.card, color: level === k && cond ? C.moss : C.ink3,
-                       border: `1px solid ${level === k && cond ? C.moss : C.lineSoft}`, borderRadius: R.pill, padding: "8px 0", fontSize: 12, fontWeight: 600 }}>
-              {CONDITIONS[k].emoji} {level === k && cond ? CONDITIONS[k].label : ""}
-            </button>
-          ))}
-        </div>
-      </div>
-      {level === "low" && cond && (
-        <div style={{ marginTop: 8 }}>
-          {spouse && <button className="press w-full" onClick={handOver}
-            style={{ background: C.moss, color: "#fff", border: "none", borderRadius: 12, padding: "12px 0", fontSize: 13, fontWeight: 600 }}>
-            오늘 몫을 {spouse.name}에게 넘기기
-          </button>}
-          <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 7, paddingLeft: 3, lineHeight: 1.6 }}>
-            {st.conditionShare === false ? "나만 보기예요. 가족에게는 안 보입니다." : "가족이 앱을 열면 보여요. 말하지 않아도 알 수 있게요."}
-          </div>
-        </div>
-      )}
 
-      {cond && level !== "low" && st.condition.by !== me && st.conditionShare !== false && (
-        <Card style={{ marginTop: 10, borderColor: C.moss }}>
-          <div style={{ padding: "13px 15px", fontSize: 13, color: C.moss }}>
-            오늘 {(st.members.find((m) => m.id === st.condition.by) || {}).name} 님 컨디션은 {CONDITIONS[level].label}
-          </div>
-        </Card>
-      )}
-
-      <Section eyebrow="TODAY" title={level === "low" ? "이것만 하셔도 돼요" : "정하고 넘어갈 일"} right={think.length ? "나머지는 접어뒀어요" : null}>
+      <Section eyebrow="TODAY" title="오늘 머리 쓸 일" right={think.length ? "나머지는 접어뒀어요" : null}>
         {thinkShown.length ? (
           <>
             {thinkShown.filter((x) => x.kind !== "rec").length > 0 && (
@@ -2911,9 +2740,26 @@ function Home() {
         )}
       </Section>
 
-      <BuyList />
+      {/* 살 것은 식단과 한 화면에 있어야 합니다. 여기서는 몇 개인지만 알려주고 넘깁니다 */}
+      {st.tasks.some((t) => t.status === "buy" && !t.done) && (
+        <button className="press w-full text-left" onClick={() => setTab("meal")}
+          style={{ marginTop: 12, background: C.card, border: `1px solid ${C.lineSoft}`, borderRadius: R.lg, padding: "14px 16px", boxShadow: SHADOW }}>
+          <span className="flex items-center gap-3">
+            <span style={{ fontSize: 19 }}>🛒</span>
+            <span className="flex-1 min-w-0">
+              <span style={{ display: "block", fontSize: 14, fontWeight: 600 }}>
+                살 것 {st.tasks.filter((t) => t.status === "buy" && !t.done).length}개
+              </span>
+              <span style={{ display: "block", fontSize: 12, color: C.ink3, marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {st.tasks.filter((t) => t.status === "buy" && !t.done).slice(0, 3).map((t) => t.title.replace(/\s*구매$/, "")).join(" · ")}
+              </span>
+            </span>
+            <span style={{ fontSize: 14, color: C.moss }}>›</span>
+          </span>
+        </button>
+      )}
 
-      {only !== "mine" && level !== "low" && (disc.length > 0 || loadingDisc) && (
+      {only !== "mine" && (disc.length > 0 || loadingDisc) && (
         <Fold icon="✦" tone={C.sprout} defaultOpen={false}
           title={loadingDisc && !disc.length ? `${BRAND}이 찾아보는 중…` : `${BRAND}이 미리 찾은 것 ${disc.length}개`}
           sub={disc.length ? disc.map((d) => d.title).join(" · ") : "지금 시기에 놓치기 쉬운 일"}>
@@ -2958,7 +2804,7 @@ function Home() {
               </span>
               <span style={{ fontSize: 12.5, color: C.moss }}>{openRoutine ? "접기" : "펼치기"}</span>
             </button>
-            {openRoutine && daily.map((r, i, a) => <RoutineRow key={r.key} r={r} delay={i * 30} last={i === a.length - 1} compact={level === "low"} />)}
+            {openRoutine && daily.map((r, i, a) => <RoutineRow key={r.key} r={r} delay={i * 30} last={i === a.length - 1} />)}
           </Card>
           <div className="flex gap-2" style={{ marginTop: 8 }}>
             <button className="press" onClick={doneAll} style={{ flex: 1.2, background: C.moss, border: "none", borderRadius: 12, padding: "10px 0", fontSize: 12.5, color: "#fff", fontWeight: 600 }}>✓ 전부 완료</button>
@@ -3784,43 +3630,7 @@ function AnnScreen() {
 /* ── 영역(카테고리) ───────────────────────────── */
 function Categories() {
   const { st, setSt, cats, openCat, setOpenCat, addTasks, say, log, setTab } = use();
-  const [tripDate, setTripDate] = useState("");
-  const [tripBusy, setTripBusy] = useState(false);
 
-  /* 여행 준비 분해 — AI가 만들고, 실패하면 기본 목록 */
-  const genTrip = async () => {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(tripDate)) return say("출발 날짜를 골라주세요");
-    const evtMs = new Date(tripDate + "T00:00:00").getTime();
-    if (evtMs < todayKey()) return say("지난 날짜예요");
-    setTripBusy(true);
-    const FALLBACK = [
-      { title: "숙소·교통 예약 확인", category: "travel", daysBefore: 14, note: "취소 기한도 같이" },
-      { title: "여권·신분증 확인", category: "travel", daysBefore: 14, note: "해외면 유효기간 6개월" },
-      { title: "짐 목록 만들기", category: "travel", daysBefore: 5, note: "아이 짐은 따로" },
-      { title: "상비약·멀미약 챙기기", category: "health", daysBefore: 3, note: "" },
-      { title: "환전·여행자보험", category: "finance", daysBefore: 3, note: "해외면" },
-      { title: "화분·반려동물 맡기기", category: "home", daysBefore: 2, note: "부탁할 곳 미리 연락" },
-      { title: "냉장고 정리", category: "food", daysBefore: 1, note: "상할 것 먼저 먹기" },
-      { title: "짐 싸기", category: "travel", daysBefore: 1, note: "충전기·유모차 확인" },
-    ];
-    let items = FALLBACK;
-    try {
-      const r = await askClaude(`한국 가정의 살림을 돕는 AI '${BRAND}'입니다. ${tripDate} 출발 가족 여행을 준비합니다.
-가구: ${householdLine(st)}
-출발 전에 해야 할 준비를 6~9개로 나누세요. 예약확인·서류·짐·집 비우기 준비(화분·반려동물·냉장고)를 포함하고, 이 가구에 해당 없는 건 빼세요.
-출력은 JSON 배열만: [{"title":"12자 이내","category":"travel|home|food|health|finance","daysBefore":숫자,"note":"15자 이내"}]`);
-      if (Array.isArray(r) && r.length) items = r.filter((x) => x && x.title).slice(0, 9);
-    } catch {}
-    const rows = items.map((it) => {
-      const due = new Date(evtMs - (Number(it.daysBefore) || 1) * DAY);
-      return { title: String(it.title).slice(0, 20),
-        category: ["travel", "home", "food", "health", "finance"].includes(it.category) ? it.category : "travel",
-        status: "remember", note: `${due.getMonth() + 1}/${due.getDate()}까지${it.note ? " · " + it.note : ""}` };
-    });
-    addTasks(rows, "ai");
-    setTripBusy(false); setTripDate("");
-    say(`여행 준비 ${rows.length}개를 영역별로 담았어요`);
-  };
   const [picked, setPicked] = useState({});
   const [aiItems, setAiItems] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -3866,25 +3676,6 @@ function Categories() {
           </div>
         </div>
 
-        {openCat.id === "travel" && (
-          <Card style={{ marginTop: 14, borderColor: C.sea }}>
-            <div style={{ padding: "15px 16px" }}>
-              <div className="mono" style={{ fontSize: 9.5, color: C.sea }}>TRIP PREP</div>
-              <div style={{ fontSize: 15, fontWeight: 600, marginTop: 7 }}>출발 날짜를 넣으면 준비를 나눠드려요</div>
-              <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 5, lineHeight: 1.6 }}>
-                예약 확인·서류·짐 싸기에 화분·반려동물 맡기기, 냉장고 정리 같은 <b style={{ color: C.ink }}>집 비우기 준비</b>까지 날짜별로 담습니다.
-              </div>
-              <div className="flex gap-2" style={{ marginTop: 11 }}>
-                <input className="hae" type="date" value={tripDate} onChange={(e) => setTripDate(e.target.value)}
-                  style={{ flex: 1, border: `1px solid ${C.line}`, borderRadius: R.sm, padding: "11px 12px", fontSize: 14, background: C.bg, color: C.ink }} />
-                <button className="press" disabled={tripBusy} onClick={genTrip}
-                  style={{ background: tripBusy ? C.line : C.moss, color: tripBusy ? C.ink3 : "#fff", border: "none", borderRadius: R.sm, padding: "0 16px", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
-                  {tripBusy ? "나누는 중…" : "준비 담기"}
-                </button>
-              </div>
-            </div>
-          </Card>
-        )}
 
         {/* 예시 질문 — 고정입니다. 누르면 말하기 화면 입력칸에 그대로 들어가요 */}
         <div style={{ marginTop: 16 }}>
@@ -3971,21 +3762,32 @@ function Categories() {
 }
 
 
-/* ── 식단 ─────────────────────────────────────────
-   "이번 주 뭐 먹지"는 매일 돌아오는데 매번 처음부터 생각합니다.
-   AI가 한 주치를 쭉 늘어놓고, 마음에 드는 것만 고르면
-   재료가 살 것 목록으로 넘어갑니다. */
+/* ── 장보기와 식단 ────────────────────────────────
+   "뭐 먹지"와 "뭐 사야 하지"는 사실 같은 고민입니다. 한 화면에 둡니다.
+   영수증을 찍으면 산 재료를 읽어 손질할 일과 식단 후보를 함께 냅니다.
+   고른 것만 남기고 나머지는 지웁니다. */
 function MealScreen() {
-  const { st, setSt, addTasks, say, log, spendAI, refundAI, setTab } = use();
+  const { st, setSt, addTasks, say, log, spendAI, refundAI, setTab, complete } = use();
   const [busy, setBusy] = useState(false);
   const [want, setWant] = useState("");
   const [err, setErr] = useState("");
+  const [txt, setTxt] = useState("");
+  const fileRef = useRef(null);
   const meal = st.meal || null;
   const items = (meal && meal.items) || [];
   const chosen = (meal && meal.chosen) || [];
   const isOn = (dish) => chosen.indexOf(dish) >= 0;
+  const allBuys = st.tasks.filter((t) => t.status === "buy");
+  const openBuys = allBuys.filter((t) => !t.done);
+  const boughtRows = allBuys.filter((t) => t.done);
+  const bought = (meal && meal.bought) || [];
   /* "두부 구매" → "두부". 프롬프트에도 화면에도 재료 이름만 보이는 게 맞습니다 */
-  const buys = st.tasks.filter((t) => t.status === "buy" && !t.done).map((t) => t.title.replace(/\s*구매$/, ""));
+  const buys = openBuys.map((t) => t.title.replace(/\s*구매$/, ""));
+  const copyList = async () => {
+    const text = openBuys.map((t) => "· " + t.title.replace(/\s*구매$/, "")).join("\n");
+    try { await navigator.clipboard.writeText(text); say("복사했어요. 쿠팡·메모 어디든 붙여넣으세요"); }
+    catch { window.alert("복사가 막혀 있어요. 아래를 길게 눌러 복사하세요:\n\n" + text); }
+  };
 
   const toggle = (dish) => setSt((sv) => {
     const cur = (sv.meal && sv.meal.chosen) || [];
@@ -4029,6 +3831,62 @@ ${want.trim() ? "요청: " + want.trim() : ""}
     setBusy(false); setWant("");
   };
 
+  /* 살 것에 직접 적기 */
+  const addBuy = () => {
+    const names = txt.split(/[,·]+/).map((x) => x.trim()).filter(Boolean);
+    if (!names.length) return;
+    addTasks(names.map((n) => ({ title: n + " 구매", category: "food", status: "buy", note: "" })));
+    setTxt(""); say(`${names.length}개 적어뒀어요`);
+  };
+
+  /* 영수증 찍기 — 산 재료를 읽어 손질할 일과 식단 후보를 함께 냅니다.
+     영수증은 "무엇을 샀는지"가 이미 적혀 있는 유일한 종이입니다. */
+  const onReceipt = async (e) => {
+    const f = (e.target.files || [])[0];
+    if (!f) return;
+    if (!spendAI("photo", 1)) return say("이번 달 사진 인식을 다 쓰셨어요");
+    setBusy(true); setErr("");
+    log("receipt_scan", {});
+    try {
+      const shot = await shrinkImage(f);
+      const r = await askClaude(`한국 가정의 살림을 돕는 AI '${BRAND}'입니다. 장보기 영수증 사진입니다.
+가구: ${householdLine(st)}
+
+[사진] 영수증에서 **식재료만** 읽으세요.
+- 상호·카드번호·금액·전화번호·주소는 절대 옮기지 마세요. 품목 이름만 봅니다.
+- 생필품(휴지·세제 등)은 빼고 먹는 것만 고르세요.
+- prep에는 오늘·내일 안에 해두면 편한 손질을 3~5개 넣으세요.
+  (예: 고기 밑간하기, 채소 손질하기, 소분해서 얼리기)
+- meals에는 이 재료로 만들 수 있는 저녁 메뉴를 5~7개 제안하세요.
+  need에는 이 영수증에 없어서 더 사야 할 재료만 넣고, 없으면 빈 배열로 두세요.
+
+출력은 JSON 객체만: {"bought":["재료","재료"],"prep":[{"title":"12자 이내","note":"15자 이내","days":0}],"meals":[{"dish":"14자 이내","why":"20자 이내","need":[],"min":30}]}`, [shot]);
+      const bought = Array.isArray(r && r.bought) ? r.bought.filter(Boolean).slice(0, 30) : [];
+      const prep = Array.isArray(r && r.prep) ? r.prep.filter((x) => x && x.title).slice(0, 5) : [];
+      const meals = Array.isArray(r && r.meals) ? r.meals.filter((x) => x && x.dish).slice(0, 8) : [];
+      if (!bought.length && !meals.length) throw new Error("영수증에서 재료를 못 읽었어요");
+      if (prep.length) {
+        addTasks(prep.map((x) => ({ title: String(x.title).slice(0, 20), category: "food", status: "now",
+          note: x.note || "산 김에", dueAt: todayKey() + (Number(x.days) || 0) * DAY })), "ai");
+      }
+      setSt((sv) => ({ ...sv, meal: { at: Date.now(), items: meals, chosen: [], bought } }));
+      say(`재료 ${bought.length}개를 읽고 ${prep.length ? `손질할 일 ${prep.length}개와 ` : ""}식단 ${meals.length}개를 냈어요`);
+    } catch (er) {
+      refundAI("photo", 1);
+      setErr(er && er.message ? er.message : "영수증을 못 읽었어요");
+    }
+    setBusy(false);
+    if (fileRef.current) fileRef.current.value = "";
+  };
+
+  /* 고른 것만 남기고 나머지는 지웁니다 */
+  const keepChosen = () => {
+    if (!chosen.length) return say("남길 메뉴를 골라주세요");
+    setSt((sv) => ({ ...sv, meal: { ...(sv.meal || {}), items: (sv.meal.items || []).filter((m) => chosen.indexOf(m.dish) >= 0) } }));
+    log("meal_keep", { n: chosen.length });
+    say(`${chosen.length}개만 남겼어요`);
+  };
+
   /* 고른 메뉴의 재료를 살 것으로 — 이미 목록에 있는 건 다시 담지 않습니다 */
   const toBuy = () => {
     const need = [];
@@ -4052,20 +3910,81 @@ ${want.trim() ? "요청: " + want.trim() : ""}
   return (
     <>
       <div style={{ marginTop: 18, paddingLeft: 2 }}>
-        <div className="disp" style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-.03em" }}>이번 주 뭐 먹지</div>
+        <div className="disp" style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-.03em" }}>장보기와 식단</div>
         <p style={{ fontSize: 13.5, color: C.ink2, marginTop: 9, lineHeight: 1.7 }}>
-          쭉 늘어놓아 드릴게요. 마음에 드는 것만 고르면 <b style={{ color: C.ink }}>재료가 살 것으로</b> 넘어갑니다.
+          뭘 사야 하는지와 뭘 먹을지는 <b style={{ color: C.ink }}>같은 고민</b>이라 한 화면에 뒀어요.
         </p>
       </div>
 
-      <Card style={{ marginTop: 16 }}>
+      {/* ① 살 것 — 사면 줄이 그어집니다 */}
+      <Section eyebrow="CART" title={openBuys.length ? `살 것 ${openBuys.length}개` : "살 것"} right={boughtRows.length ? `산 것 ${boughtRows.length}개` : null}>
+        <Card>
+          {allBuys.length === 0 && (
+            <div style={{ padding: "22px 16px", textAlign: "center", fontSize: 13, color: C.ink3, lineHeight: 1.75 }}>
+              아직 비어 있어요.<br />아래에 적거나, 말하기에서 “휴지 사야 돼”라고 하시면 모입니다.
+            </div>
+          )}
+          {allBuys.map((t, i) => (
+            <div key={t.id} className="flex items-center gap-3"
+              style={{ padding: "13px 16px", borderBottom: `1px solid ${C.lineSoft}`, opacity: t.done ? 0.45 : 1, transition: "opacity .4s ease" }}>
+              <button className="press" onClick={() => complete(t.id)} aria-label="샀어요"
+                style={{ width: 22, height: 22, borderRadius: 7, flexShrink: 0, border: `1.5px solid ${t.done ? C.moss : C.line}`,
+                         background: t.done ? C.moss : "transparent", color: "#fff", fontSize: 12, lineHeight: "20px" }}>{t.done ? "✓" : ""}</button>
+              <span className="flex-1 min-w-0" style={{ fontSize: 14.5, fontWeight: 500, textDecoration: t.done ? "line-through" : "none", color: t.done ? C.ink3 : C.ink }}>
+                {t.title.replace(/\s*구매$/, "")}
+              </span>
+              {t.note ? <span style={{ fontSize: 11, color: C.ink3, whiteSpace: "nowrap" }}>{t.note}</span> : null}
+            </div>
+          ))}
+          <div className="flex items-center gap-2" style={{ padding: "11px 12px", background: C.bg }}>
+            <input className="hae" value={txt} onChange={(e) => setTxt(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") addBuy(); }} placeholder="휴지, 두부 — 쉼표로 여러 개"
+              style={{ flex: 1, border: `1px solid ${C.line}`, borderRadius: R.sm, padding: "10px 12px", fontSize: 13.5, background: C.card, color: C.ink }} />
+            <button className="press" onClick={addBuy}
+              style={{ background: C.moss, color: "#fff", border: "none", borderRadius: R.sm, padding: "10px 14px", fontSize: 12.5, fontWeight: 600 }}>적기</button>
+          </div>
+        </Card>
+        {openBuys.length > 0 && (
+          <div className="flex gap-2" style={{ marginTop: 8 }}>
+            <button className="press" onClick={copyList}
+              style={{ flex: 1.3, background: C.ink, color: "#fff", border: "none", borderRadius: R.sm, padding: "11px 0", fontSize: 12.5, fontWeight: 600 }}>📋 목록 한꺼번에 복사</button>
+            <button className="press" onClick={() => { log("partner_click", { name: "쿠팡", g: "buy", from: "살 것 목록" }); window.open("https://www.coupang.com/np/search?q=" + encodeURIComponent(openBuys[0].title.replace(/\s*구매$/, "")), "_blank", "noopener"); }}
+              style={{ flex: 1, background: C.card, color: C.ink2, border: `1px solid ${C.line}`, borderRadius: R.sm, padding: "11px 0", fontSize: 12.5 }}>쿠팡 열기</button>
+          </div>
+        )}
+      </Section>
+
+      {/* ② 영수증 — 산 것을 읽어 손질할 일과 식단을 함께 */}
+      <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={onReceipt} style={{ display: "none" }} />
+      <Card style={{ marginTop: 16, borderColor: C.sprout }}>
         <div style={{ padding: 16 }}>
+          <div className="mono" style={{ fontSize: 9.5, color: C.moss }}>RECEIPT</div>
+          <div style={{ fontSize: 15, fontWeight: 600, marginTop: 7 }}>장 보고 오셨으면 영수증을 찍어주세요</div>
+          <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 6, lineHeight: 1.7 }}>
+            산 재료를 읽어서 <b style={{ color: C.ink }}>오늘 해둘 손질</b>과 <b style={{ color: C.ink }}>그 재료로 만들 식단</b>을 함께 냅니다.
+            상호·카드번호·금액은 읽지 않습니다.
+          </div>
+          <div style={{ height: 11 }} />
+          <Btn kind="accent" disabled={busy} onClick={() => fileRef.current && fileRef.current.click()}>
+            {busy ? "읽는 중…" : "영수증 찍기"}
+          </Btn>
+          {bought.length > 0 && (
+            <div style={{ fontSize: 11.5, color: C.moss, marginTop: 10, lineHeight: 1.7 }}>
+              지난번에 읽은 재료 · {bought.slice(0, 8).join(", ")}{bought.length > 8 ? ` 외 ${bought.length - 8}개` : ""}
+            </div>
+          )}
+        </div>
+      </Card>
+
+      <Card style={{ marginTop: 12 }}>
+        <div style={{ padding: 16 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 9 }}>영수증 없이 식단만 받고 싶으면</div>
           <input className="hae" value={want} onChange={(e) => setWant(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" && !busy) gen(); }}
             placeholder="원하는 게 있으면 적어주세요 — 예: 매운 것 빼고, 아이 반찬 위주"
             style={{ width: "100%", border: `1px solid ${C.line}`, borderRadius: R.sm, padding: "12px 13px", fontSize: 13.5, background: C.bg, color: C.ink }} />
           <div style={{ height: 10 }} />
-          <Btn kind="accent" disabled={busy} onClick={gen}>{busy ? "짜는 중…" : items.length ? "다시 짜기" : "이번 주 식단 짜줘"}</Btn>
+          <Btn disabled={busy} onClick={gen}>{busy ? "짜는 중…" : items.length ? "다시 짜기" : "이번 주 식단 짜줘"}</Btn>
           {buys.length > 0 && (
             <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 9, lineHeight: 1.6 }}>
               살 것에 있는 <b style={{ color: C.moss }}>{buys.slice(0, 4).join(", ")}</b>{buys.length > 4 ? ` 외 ${buys.length - 4}개` : ""}를 쓰는 메뉴를 먼저 골라드려요.
@@ -4112,6 +4031,8 @@ ${want.trim() ? "요청: " + want.trim() : ""}
       {chosen.length > 0 && (
         <div style={{ marginTop: 18 }}>
           <Btn kind="accent" onClick={toBuy}>고른 {chosen.length}개 · 재료를 살 것에 담기</Btn>
+          <div style={{ height: 8 }} />
+          <Btn kind="ghost" onClick={keepChosen}>고른 것만 남기고 나머지 지우기</Btn>
           <div style={{ textAlign: "center", fontSize: 11.5, color: C.ink3, marginTop: 8 }}>이미 목록에 있는 재료는 빼고 담습니다</div>
         </div>
       )}
@@ -4120,7 +4041,7 @@ ${want.trim() ? "요청: " + want.trim() : ""}
         <Card style={{ marginTop: 14 }}>
           <div style={{ padding: "26px 20px", textAlign: "center", fontSize: 13, color: C.ink3, lineHeight: 1.8 }}>
             아직 짠 식단이 없어요.<br />
-            냉장고를 찍어서 짜고 싶으면 <b style={{ color: C.moss }}>말하기 → 사진</b>으로 올려주세요.
+            영수증을 찍거나 위에서 <b style={{ color: C.moss }}>식단 짜줘</b>를 눌러보세요.
           </div>
         </Card>
       )}
@@ -4688,25 +4609,11 @@ function Settings() {
         </Card>
       </Section>
 
-      {/* 컨디션·알림 — 민감한 정보라 켜고 끄는 걸 분명히 */}
-      <Section eyebrow="PRIVACY" title="컨디션과 알림">
+      <Section eyebrow="NOTIFY" title="알림">
         <Card>
-          <button className="press flex items-center gap-3 w-full text-left" onClick={() => setSt((sv) => ({ ...sv, conditionShare: sv.conditionShare === false }))}
-            style={{ background: "transparent", border: "none", borderBottom: `1px solid ${C.lineSoft}`, padding: "14px 15px" }}>
-            <span className="flex-1 min-w-0">
-              <span style={{ display: "block", fontSize: 14, fontWeight: 600 }}>오늘 컨디션을 가족에게 보이기</span>
-              <span style={{ display: "block", fontSize: 12, color: C.ink3, marginTop: 3, lineHeight: 1.6 }}>
-                끄면 나만 봅니다. 몸 상태는 민감한 정보라 기본값을 직접 고르시게 했어요.
-              </span>
-            </span>
-            <span style={{ width: 42, height: 25, borderRadius: 99, flexShrink: 0, background: st.conditionShare !== false ? C.moss : C.line, position: "relative" }}>
-              <span style={{ position: "absolute", top: 3, left: st.conditionShare !== false ? 20 : 3, width: 19, height: 19, borderRadius: 99, background: "#fff", transition: "left .18s" }} />
-            </span>
-          </button>
           <div style={{ padding: "14px 15px" }}>
-            <div style={{ fontSize: 14, fontWeight: 600 }}>알림</div>
             <div style={{ fontSize: 12, color: C.ink3, marginTop: 4, lineHeight: 1.65 }}>
-              지금은 앱을 열었을 때만 보여드립니다. 브라우저 알림을 켜두면 앱이 열려 있는 동안 넘어온 일을 소리 없이 띄워드려요.
+              지금은 앱을 열었을 때만 보여드립니다. 브라우저 알림을 켜두면 앱이 열려 있는 동안 소리 없이 띄워드려요.
               닫은 앱까지 깨우는 진짜 푸시는 서버 작업이 필요해서 베타 다음 단계입니다.
             </div>
             <button className="press" onClick={async () => {
