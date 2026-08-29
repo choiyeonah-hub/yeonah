@@ -894,6 +894,31 @@ function eligibleRoutines(st, ignoreSeason) {
   });
   return out;
 }
+/* 비사업용 승용차 정기검사 — 최초 등록 4년 뒤 첫 검사, 그 뒤로 2년마다.
+   만료일 전후 31일 안에 받으면 되므로 D-31에 올려둡니다.
+   (승합·화물은 주기가 달라 지금은 승용차만 계산합니다) */
+function nextCarInspection(firstReg, now) {
+  const m = /^(\d{4})-(\d{1,2})$/.exec(String(firstReg || ""));
+  if (!m) return null;
+  const y = Number(m[1]), mo = Number(m[2]);
+  if (mo < 1 || mo > 12) return null;
+  now = now || Date.now();
+  let due = new Date(y + 4, mo - 1, 1).getTime();
+  let guard = 0;
+  while (due < now && guard++ < 40) { const d = new Date(due); due = new Date(d.getFullYear() + 2, d.getMonth(), 1).getTime(); }
+  return due;
+}
+/* 보험 갱신은 '가입한 달'만 알면 됩니다. 날짜까지 적으라고 하면 아무도 안 적어요 */
+function nextInsuranceMonth(month, now) {
+  const mo = Number(month);
+  if (!mo || mo < 1 || mo > 12) return null;
+  now = now || Date.now();
+  const d = new Date(now);
+  let due = new Date(d.getFullYear(), mo - 1, 1).getTime();
+  if (due < now) due = new Date(d.getFullYear() + 1, mo - 1, 1).getTime();
+  return due;
+}
+
 /* 오늘 떠야 할 반복 업무 */
 function dueRoutines(st) {
   const endOfToday = todayKey() + DAY;
@@ -3581,6 +3606,132 @@ function Share() {
 }
 
 /* ── 설정 + 베타 지표 (UX-11) ─────────────────── */
+/* 자동차 검사·보험 시점 —
+   보험사·검사기관 API는 본인인증 없이는 열리지 않습니다. 그래서 연동 대신
+   "등록증 사진 한 장" 또는 "월만 고르기"로 끝내고, 날짜는 법정 주기로 계산합니다. */
+function CarDates() {
+  const { st, setSt, say } = use();
+  const car = st.car || {};
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const fileRef = useRef(null);
+
+  const insp = nextCarInspection(car.firstReg);
+  const ins = nextInsuranceMonth(car.insMonth);
+  const fmt = (t) => t ? new Date(t).toLocaleDateString("ko-KR", { year: "numeric", month: "long" }) : null;
+  const dday = (t) => Math.round((t - todayKey()) / DAY);
+
+  /* 계산한 시점을 정기 일정으로 넣어 알림·담당까지 그대로 씁니다 */
+  const sync = (next) => setSt((sv) => {
+    const cr = (sv.customRoutines || []).filter((r) => r.id !== "car-insp" && r.id !== "car-ins");
+    const ro = { ...sv.routines };
+    delete ro["c:car-insp"]; delete ro["c:car-ins"];
+    const i1 = nextCarInspection(next.firstReg);
+    if (i1) {
+      cr.push({ id: "car-insp", title: "자동차 정기검사 받기", category: "transport", cycle: 730 });
+      ro["c:car-insp"] = { on: true, cycle: 730, nextAt: i1 - 31 * DAY };
+    }
+    const i2 = nextInsuranceMonth(next.insMonth);
+    if (i2) {
+      cr.push({ id: "car-ins", title: "자동차 보험 갱신 비교", category: "transport", cycle: 365 });
+      ro["c:car-ins"] = { on: true, cycle: 365, nextAt: i2 - 14 * DAY };
+    }
+    return { ...sv, car: { ...(sv.car || {}), ...next }, customRoutines: cr, routines: ro };
+  });
+
+  const onPhoto = async (e) => {
+    const f = (e.target.files || [])[0];
+    if (!f) return;
+    setBusy(true); setErr("");
+    try {
+      const img = await shrinkImage(f);
+      const out = await askClaude(`자동차등록증 사진입니다. 아래 두 가지만 읽어주세요.
+- 최초등록일(또는 최초등록연월)
+- 차명
+
+개인정보(차량번호·차대번호·소유자 이름·주소)는 절대 옮기지 마세요.
+읽을 수 없으면 값을 빈 문자열로 두세요.
+출력은 JSON 객체만: {"firstReg":"YYYY-MM","model":"차명"}`, [img]);
+      const v = String((out && out.firstReg) || "");
+      if (/^\d{4}-\d{1,2}$/.test(v)) {
+        const mm = v.split("-"); const norm = `${mm[0]}-${String(Number(mm[1])).padStart(2, "0")}`;
+        sync({ firstReg: norm, model: (out.model || "").slice(0, 20) });
+        say("등록증에서 읽었어요");
+      } else setErr("등록증에서 최초등록일을 못 찾았어요. 아래에서 직접 골라주세요.");
+    } catch { setErr("사진을 읽지 못했어요. 아래에서 직접 골라주셔도 됩니다."); }
+    setBusy(false);
+    if (fileRef.current) fileRef.current.value = "";
+  };
+
+  const thisYear = new Date().getFullYear();
+  const years = []; for (let y = thisYear; y >= thisYear - 24; y--) years.push(y);
+  const [ry, setRy] = useState(() => (car.firstReg || "").split("-")[0] || "");
+  const [rm, setRm] = useState(() => (car.firstReg || "").split("-")[1] || "");
+
+  return (
+    <>
+      <Card style={{ marginTop: 10 }}>
+        <div style={{ padding: 15 }}>
+          <div style={{ fontSize: 14, fontWeight: 600 }}>검사·보험 시점</div>
+          <div style={{ fontSize: 12, color: C.ink3, marginTop: 6, lineHeight: 1.7 }}>
+            보험사·검사기관은 본인인증 없이 정보를 내주지 않아요. 대신 <b>자동차등록증 사진 한 장</b>이면
+            최초등록일을 읽어 법정 검사 주기(신차 4년 → 이후 2년)로 다음 검사 시점을 계산합니다.
+          </div>
+
+          <input ref={fileRef} type="file" accept="image/*" onChange={onPhoto} style={{ display: "none" }} />
+          <button className="press w-full" disabled={busy} onClick={() => fileRef.current && fileRef.current.click()}
+            style={{ marginTop: 13, background: busy ? C.lineSoft : C.moss, color: busy ? C.ink3 : "#fff", border: "none", borderRadius: 12, padding: "13px 0", fontSize: 13.5, fontWeight: 600 }}>
+            {busy ? "등록증 읽는 중…" : "📄 자동차등록증 사진으로 등록"}
+          </button>
+          {err && <div style={{ fontSize: 12, color: C.persim, marginTop: 9, lineHeight: 1.6 }}>{err}</div>}
+
+          <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 18 }}>최초 등록 (직접 고르기)</div>
+          <div className="flex gap-2" style={{ marginTop: 8 }}>
+            <select className="hae" value={ry} onChange={(e) => { setRy(e.target.value); if (e.target.value && rm) sync({ firstReg: `${e.target.value}-${rm}` }); }}
+              style={{ flex: 1.3, border: `1px solid ${C.line}`, borderRadius: 11, padding: "11px 10px", fontSize: 14, background: C.bg, color: C.ink }}>
+              <option value="">연도</option>
+              {years.map((y) => <option key={y} value={String(y)}>{y}년</option>)}
+            </select>
+            <select className="hae" value={rm} onChange={(e) => { setRm(e.target.value); if (ry && e.target.value) sync({ firstReg: `${ry}-${e.target.value}` }); }}
+              style={{ flex: 1, border: `1px solid ${C.line}`, borderRadius: 11, padding: "11px 10px", fontSize: 14, background: C.bg, color: C.ink }}>
+              <option value="">월</option>
+              {Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0")).map((m) => <option key={m} value={m}>{Number(m)}월</option>)}
+            </select>
+          </div>
+
+          <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 18 }}>보험 갱신하는 달</div>
+          <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 4 }}>날짜까지 몰라도 돼요. 그 달 초에 미리 알려드립니다.</div>
+          <div className="grid grid-cols-6 gap-1.5" style={{ marginTop: 9 }}>
+            {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => {
+              const on = Number(car.insMonth) === m;
+              return (
+                <button key={m} className="press" onClick={() => sync({ insMonth: on ? null : m })}
+                  style={{ background: on ? C.mossSoft : C.bg, color: on ? C.moss : C.ink2, border: `1px solid ${on ? C.moss : C.line}`, borderRadius: 10, padding: "9px 0", fontSize: 12, fontWeight: on ? 600 : 400 }}>{m}월</button>
+              );
+            })}
+          </div>
+        </div>
+      </Card>
+
+      {(insp || ins) && (
+        <Card style={{ marginTop: 10, borderColor: C.moss }}>
+          <div style={{ padding: "14px 16px" }}>
+            <div className="mono" style={{ fontSize: 9.5, color: C.moss }}>이렇게 챙길게요</div>
+            {insp && <div style={{ fontSize: 13.5, marginTop: 9, lineHeight: 1.65 }}>
+              정기검사 <b>{fmt(insp)}</b>쯤 · <span style={{ color: C.moss }}>D-{dday(insp)}</span>
+              <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 3 }}>월까지만 계산한 값이에요. 만료 한 달 전에 정기 일정으로 올라오고, 정확한 날짜는 그때 자동차민원 포털에서 확인하시면 됩니다{car.model ? ` · ${car.model}` : ""}</div>
+            </div>}
+            {ins && <div style={{ fontSize: 13.5, marginTop: 11, lineHeight: 1.65 }}>
+              보험 갱신 <b>{fmt(ins)}</b> · <span style={{ color: C.moss }}>D-{dday(ins)}</span>
+              <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 3 }}>2주 전에 비교해보시라고 올려드려요</div>
+            </div>}
+          </div>
+        </Card>
+      )}
+    </>
+  );
+}
+
 function Settings() {
   const { st, setSt, cats, say, setTab, setRoutine } = use();
   const [d, setD] = useState(st);
@@ -3777,6 +3928,7 @@ function Settings() {
                 : "주유·엔진오일·세차가 정기 일정에 올라와요. 주기는 ‘정기 일정 관리 → 교통수단’에서 바꾸세요."}
             </div>
           </div></Card>
+          <CarDates />
         </Section>
       )}
 
