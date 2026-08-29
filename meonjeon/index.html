@@ -1273,7 +1273,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0829-r";
+const BUILD = "0829-s";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -1753,7 +1753,12 @@ function CyclePicker({ current, onPick, onOff, onClose, title, anchor, onAnchor,
               const on = cur.includes(i);
               const next = on ? cur.filter((x) => x !== i) : [...cur, i].sort((a, b) => a - b);
               return (
-                <button key={i} className="press" onClick={() => onPattern({ dows: next, dow: "", dom: "" })}
+                /* 셋 중 하나만 삽니다. 요일을 고르면 월중 날짜와 연중 날짜는 풉니다.
+                   안 그러면 "매달 1일"이 남아 있어서 9월 5일을 넣어도 무시됩니다. */
+                <button key={i} className="press"
+                  onClick={() => onPattern(next.length
+                    ? { dows: next, dow: "", doms: [], dom: "", anchor: "" }
+                    : { dows: [], dow: "" })}
                   style={{ flex: 1, background: on ? C.moss : C.bg, color: on ? "#fff" : C.ink2, border: `1px solid ${on ? C.moss : C.line}`, borderRadius: R.xs, padding: "10px 0", fontSize: 12.5, fontWeight: 600 }}>{w}</button>
               );
             })}
@@ -1767,7 +1772,10 @@ function CyclePicker({ current, onPick, onOff, onClose, title, anchor, onAnchor,
               const on = cur.includes(n);
               const next = on ? cur.filter((x) => x !== n) : [...cur, n].sort((a, b) => a - b);
               return (
-                <button key={n} className="press" onClick={() => onPattern({ doms: next, dom: "", dow: "", dows: [] })}
+                <button key={n} className="press"
+                  onClick={() => onPattern(next.length
+                    ? { doms: next, dom: "", dow: "", dows: [], anchor: "" }
+                    : { doms: [], dom: "" })}
                   style={{ background: on ? C.moss : C.bg, color: on ? "#fff" : C.ink2, border: `1px solid ${on ? C.moss : C.line}`,
                            borderRadius: 10, padding: "9px 0", fontSize: n === 31 ? 11 : 12.5, fontWeight: 600,
                            gridColumn: n === 31 ? "span 2" : undefined }}>{n === 31 ? "말일" : n}</button>
@@ -1821,19 +1829,41 @@ function shrinkImage(file, max = 1200) {
   });
 }
 
-/* 캘린더로 내보내기 (.ics) — 실제 연동 전 다리 역할 */
-function downloadICS(title, whenMs, note) {
+/* 캘린더로 내보내기 (.ics)
+   폰 캘린더는 이미 알림을 잘 보냅니다. 우리가 못 하는 걸 거기에 얹습니다.
+   ⚠ 알림(VALARM)이 없으면 캘린더에 들어가도 아무 소리가 안 납니다.
+      전날 저녁 8시와 당일 아침 8시, 두 번 울리게 넣습니다. */
+function icsText(title, whenMs, note) {
   const d = new Date(whenMs);
   const pad = (n) => String(n).padStart(2, "0");
   const ymd = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`;
-  const ics = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//meonjeon//KO", "BEGIN:VEVENT",
-    `UID:${Date.now()}@meonjeon`, `DTSTAMP:${ymd}T090000Z`, `DTSTART;VALUE=DATE:${ymd}`,
-    `SUMMARY:${title}`, `DESCRIPTION:${(note || "먼저ON에서 보냄").replace(/\n/g, " ")}`,
+  /* 쉼표·세미콜론·줄바꿈은 ics에서 뜻이 있는 글자라 그대로 두면 깨집니다 */
+  const esc = (t) => String(t || "").replace(/\\/g, "\\\\").replace(/([,;])/g, "\\$1").replace(/\r?\n/g, " ").slice(0, 200);
+  const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+  return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//meonjeon//KO", "CALSCALE:GREGORIAN",
+    "BEGIN:VEVENT",
+    `UID:${Date.now()}-${Math.random().toString(36).slice(2, 8)}@meonjeon`,
+    `DTSTAMP:${stamp}`, `DTSTART;VALUE=DATE:${ymd}`,
+    `SUMMARY:${esc(title)}`, `DESCRIPTION:${esc(note || "먼저ON")}`,
+    /* 전날 저녁 8시 (하루 전 0시 기준 +20시간) */
+    "BEGIN:VALARM", "ACTION:DISPLAY", `DESCRIPTION:${esc(title)}`, "TRIGGER:-PT4H", "END:VALARM",
+    /* 당일 아침 8시 */
+    "BEGIN:VALARM", "ACTION:DISPLAY", `DESCRIPTION:${esc(title)}`, "TRIGGER:PT8H", "END:VALARM",
     "END:VEVENT", "END:VCALENDAR"].join("\r\n");
-  const url = URL.createObjectURL(new Blob([ics], { type: "text/calendar" }));
+}
+
+function downloadICS(title, whenMs, note) {
+  const url = URL.createObjectURL(new Blob([icsText(title, whenMs, note)], { type: "text/calendar;charset=utf-8" }));
   const a = document.createElement("a");
-  a.href = url; a.download = `${title}.ics`; a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  a.href = url;
+  /* 아이폰에서 download를 붙이면 캘린더로 안 가고 "다운로드 목록"에 떨어집니다.
+     거기서 한 번 더 눌러야 하는데, 그러면 까먹는 사람에게는 단계가 둘 더 생깁니다.
+     그냥 열면 브라우저가 text/calendar를 보고 캘린더 추가 화면을 띄웁니다. */
+  const ios = /iPad|iPhone|iPod/.test(navigator.userAgent || "");
+  if (!ios) a.download = `${String(title).replace(/[\\/:*?"<>|]/g, "")}.ics`;
+  else { a.target = "_blank"; a.rel = "noopener"; }
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
 }
 
 /* ══════════ 앱 ══════════ */
@@ -2389,7 +2419,15 @@ function RoutineRow({ r, delay = 0, last, compact, manage }) {
           say(dowList(p).length ? `${dowList(p).map((i) => WEEKDAY[i]).join("·")}요일마다 올려드릴게요`
             : domList(p).length ? `매달 ${domList(p).map(domLabel).join("·")}에 올려드릴게요` : "요일·날짜 지정을 풀었어요");
         }}
-        onAnchor={(a) => { setRoutine(r.key, { anchor: a, cycle: a ? 365 : cfg.cycle, nextAt: a ? nextFromAnchor(a, 7) : cfg.nextAt }); setPick(false); say(a ? `${anchorLabel(a)} 기준으로 미리 알려드릴게요` : "날짜를 지웠어요"); }}
+        onAnchor={(a) => {
+          /* 날짜를 넣으면 요일·월중 날짜는 풉니다. 안 그러면 그쪽이 이겨서
+             넣은 날짜가 무시되고 화면도 안 바뀝니다. */
+          setRoutine(r.key, a
+            ? { anchor: a, cycle: 365, dows: [], dow: "", doms: [], dom: "", nextAt: nextFromAnchor(a, 7) }
+            : { anchor: "", nextAt: nextByPattern(cfg) || cfg.nextAt });
+          setPick(false);
+          say(a ? `${anchorLabel(a)} 기준으로 미리 알려드릴게요` : "날짜를 지웠어요");
+        }}
         onOff={() => { setRoutine(r.key, { on: false }); setPick(false); say("이 항목은 접어둘게요"); }}
         onClose={() => { setRoutine(r.key, { nextAt: nextByPattern(cfg) || cfg.nextAt }); setPick(false); }} />}
     </div>
