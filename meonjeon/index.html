@@ -3972,6 +3972,15 @@ function Categories() {
 }
 
 
+/* 늘 두고 쓰는 것들. 이게 있어야 "토마토소스 있으니 파스타" 같은 조합이 나옵니다.
+   재료는 먹으면 없어지지만 이건 떨어질 때까지 계속 있습니다. */
+const STAPLES = [
+  "간장", "된장", "고추장", "고춧가루", "참기름", "들기름", "식초", "다진마늘",
+  "맛술", "굴소스", "마요네즈", "케첩", "토마토소스", "크림소스", "카레가루",
+  "김가루", "조미김", "참치캔", "스팸", "계란", "파스타면", "소면", "즉석밥",
+  "미역", "김치", "어묵", "치즈", "버터",
+];
+
 /* ── 장보기와 식단 ────────────────────────────────
    "뭐 먹지"와 "뭐 사야 하지"는 사실 같은 고민입니다. 한 화면에 둡니다.
    영수증을 찍으면 산 재료를 읽어 손질할 일과 식단 후보를 함께 냅니다.
@@ -3982,6 +3991,7 @@ function MealScreen() {
   const [want, setWant] = useState("");
   const [err, setErr] = useState("");
   const [txt, setTxt] = useState("");
+  const [txt2, setTxt2] = useState("");
   const fileRef = useRef(null);
   const meal = st.meal || null;
   const items = (meal && meal.items) || [];
@@ -4020,7 +4030,8 @@ function MealScreen() {
     try {
       const r = await askClaude(`한국 가정의 살림을 돕는 AI '${BRAND}'입니다. 이번 주 저녁 식단을 짜주세요.
 가구: ${householdLine(st)}
-지금 집에 있는 재료: ${haveNow.length ? haveNow.map((x) => x.name).join(", ") : "모름"}
+지금 집에 있는 재료: ${foods.filter((x) => !x.usedAt).map((x) => x.name).join(", ") || "모름"}
+집에 늘 두고 쓰는 양념·소스: ${staples.map((x) => x.name).join(", ") || "모름"}
 지금 살 것 목록에 있는 것: ${buys.length ? buys.join(", ") : "없음"}
 ${want.trim() ? "요청: " + want.trim() : ""}
 
@@ -4032,6 +4043,10 @@ ${want.trim() ? "요청: " + want.trim() : ""}
 - need에는 사야 할 재료만 넣으세요. 소금·간장·설탕처럼 집에 늘 있는 양념은 빼세요.
 - **집에 있는 재료를 쓰는 메뉴를 가장 먼저** 고르세요. 사놓고 안 먹어 버리는 게
   제일 아깝습니다. 오래된 것부터 쓰는 메뉴면 더 좋습니다.
+- 위에 적힌 **양념·소스를 적극적으로 조합**하세요. 토마토소스가 있으면 파스타,
+  김가루가 있으면 주먹밥, 카레가루가 있으면 카레처럼요. 그게 있는 줄 알기에
+  낼 수 있는 메뉴가 이 앱의 값어치입니다.
+- 그 양념·소스는 need에 넣지 마세요. 이미 집에 있습니다.
 - 그다음으로 살 것 목록에 있는 재료를 쓰는 메뉴를 고르세요.
 
 출력은 JSON 배열만: [{"dish":"14자 이내","why":"왜 이걸 권하는지 20자 이내","need":["재료","재료"],"min":조리시간분}]`);
@@ -4049,6 +4064,25 @@ ${want.trim() ? "요청: " + want.trim() : ""}
   const pantry = (st.pantry || []).filter((x) => !x.usedAt || Date.now() - x.usedAt < 3 * DAY);
   const haveNow = pantry.filter((x) => !x.usedAt);
   const norm = (n) => String(n || "").replace(/\s*구매$/, "").trim();
+
+  const staples = pantry.filter((x) => x.staple && !x.usedAt);
+  const foods = pantry.filter((x) => !x.staple);
+  const hasStaple = (n) => (st.pantry || []).some((x) => x.name === n && x.staple && !x.usedAt);
+
+  /* 양념은 탭 한 번으로 켜고 끕니다. 하나씩 적게 하면 아무도 안 넣습니다 */
+  const toggleStaple = (n) => setSt((sv) => {
+    const cur = sv.pantry || [];
+    const i = cur.findIndex((x) => x.name === n && x.staple);
+    if (i >= 0) return { ...sv, pantry: cur.filter((_, k) => k !== i) };
+    return { ...sv, pantry: [{ id: uid("pt"), name: n, at: Date.now(), usedAt: null, staple: true }, ...cur] };
+  });
+
+  /* 양념이 떨어지면 없애는 게 아니라 살 것으로 보냅니다 */
+  const ranOut = (x) => {
+    setSt((sv) => ({ ...sv, pantry: (sv.pantry || []).filter((y) => y.id !== x.id) }));
+    addTasks([{ title: x.name + " 구매", category: "food", status: "buy", note: "떨어졌어요" }]);
+    say(`${x.name}을 살 것에 담았어요`);
+  };
 
   const toPantry = (names) => setSt((sv) => {
     const cur = (sv.pantry || []).filter((x) => !x.usedAt || Date.now() - x.usedAt < 3 * DAY);
@@ -4199,11 +4233,11 @@ ${want.trim() ? "요청: " + want.trim() : ""}
       <Section eyebrow="PANTRY" title={haveNow.length ? `집에 있는 것 ${haveNow.length}개` : "집에 있는 것"}
         right={haveNow.length ? "먹으면 눌러주세요" : null}>
         <Card>
-          {pantry.length === 0 ? (
+          {foods.length === 0 ? (
             <div style={{ padding: "22px 16px", textAlign: "center", fontSize: 13, color: C.ink3, lineHeight: 1.75 }}>
               아직 비어 있어요.<br />위에서 <b style={{ color: C.moss }}>산 것에 체크</b>하거나 영수증을 찍으면 여기로 옵니다.
             </div>
-          ) : pantry.map((x) => (
+          ) : foods.map((x) => (
             <div key={x.id} className="flex items-center gap-3"
               style={{ padding: "13px 16px", borderBottom: `1px solid ${C.lineSoft}`, opacity: x.usedAt ? 0.45 : 1, transition: "opacity .4s ease" }}>
               <button className="press" onClick={() => eat(x)} aria-label={x.usedAt ? "안 먹었어요" : "먹었어요"}
@@ -4220,11 +4254,54 @@ ${want.trim() ? "요청: " + want.trim() : ""}
             </div>
           ))}
         </Card>
-        {haveNow.length > 0 && (
+        {foods.some((x) => !x.usedAt) && (
           <div style={{ marginTop: 8, fontSize: 11.5, color: C.ink3, lineHeight: 1.7, paddingLeft: 3 }}>
             먹은 것은 줄이 그어지고 3일 뒤 목록에서 사라집니다. 잘못 눌렀으면 다시 누르면 돌아와요.
           </div>
         )}
+      </Section>
+
+      {/* 늘 두고 쓰는 것 — 이게 있어야 조합이 나옵니다 */}
+      <Section eyebrow="STAPLES" title={staples.length ? `늘 있는 것 ${staples.length}개` : "늘 있는 것"}
+        right="탭해서 켜고 끄세요">
+        <Card>
+          <div style={{ padding: "14px 15px" }}>
+            <div style={{ fontSize: 12.5, color: C.ink2, lineHeight: 1.7, marginBottom: 11 }}>
+              집에 <b style={{ color: C.ink }}>늘 두고 쓰는 것</b>을 켜두면 식단이 달라집니다.
+              토마토소스가 있으면 파스타를, 김가루가 있으면 주먹밥을 내놓을 수 있어요.
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {STAPLES.map((n) => {
+                const on = hasStaple(n);
+                return (
+                  <button key={n} className="press" onClick={() => toggleStaple(n)}
+                    style={{ background: on ? C.moss : C.bg, color: on ? "#fff" : C.ink2,
+                             border: `1px solid ${on ? C.moss : C.line}`, borderRadius: R.pill,
+                             padding: "7px 12px", fontSize: 12.5, fontWeight: on ? 600 : 400 }}>{n}</button>
+                );
+              })}
+            </div>
+          </div>
+          {staples.length > 0 && (
+            <div style={{ borderTop: `1px solid ${C.lineSoft}`, padding: "12px 15px" }}>
+              <div style={{ fontSize: 11.5, color: C.ink3, marginBottom: 8 }}>떨어진 게 있으면 눌러주세요. 살 것으로 넘어갑니다</div>
+              <div className="flex flex-wrap gap-1.5">
+                {staples.map((x) => (
+                  <button key={x.id} className="press" onClick={() => ranOut(x)}
+                    style={{ background: C.bg, color: C.ink2, border: `1px solid ${C.line}`, borderRadius: R.pill, padding: "7px 11px", fontSize: 12 }}>
+                    {x.name} <span style={{ color: C.persim }}>떨어짐</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </Card>
+        <div style={{ marginTop: 8 }}>
+          <input className="hae" value={txt2} onChange={(e) => setTxt2(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { const n = txt2.trim(); if (n && !hasStaple(n)) toggleStaple(n); setTxt2(""); } }}
+            placeholder="목록에 없으면 직접 적고 Enter — 예: 트러플오일"
+            style={{ width: "100%", border: `1px solid ${C.line}`, borderRadius: R.sm, padding: "10px 12px", fontSize: 13, background: C.card, color: C.ink }} />
+        </div>
       </Section>
 
       {/* ③ 영수증 — 산 것을 읽어 손질할 일과 식단을 함께 */}
@@ -4261,7 +4338,7 @@ ${want.trim() ? "요청: " + want.trim() : ""}
           {(haveNow.length > 0 || buys.length > 0) && (
             <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 9, lineHeight: 1.6 }}>
               {haveNow.length > 0
-                ? <>집에 있는 <b style={{ color: C.moss }}>{haveNow.slice(0, 4).map((x) => x.name).join(", ")}</b>{haveNow.length > 4 ? ` 외 ${haveNow.length - 4}개` : ""}부터 쓰는 메뉴를 골라드려요.</>
+                ? <>집에 있는 <b style={{ color: C.moss }}>{haveNow.slice(0, 4).map((x) => x.name).join(", ")}</b>{haveNow.length > 4 ? ` 외 ${haveNow.length - 4}개` : ""}부터 쓰는 메뉴를 골라드려요.{staples.length ? ` 양념 ${staples.length}가지도 함께 봅니다.` : ""}</>
                 : <>살 것에 있는 <b style={{ color: C.moss }}>{buys.slice(0, 4).join(", ")}</b>{buys.length > 4 ? ` 외 ${buys.length - 4}개` : ""}를 쓰는 메뉴를 먼저 골라드려요.</>}
             </div>
           )}
