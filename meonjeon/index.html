@@ -521,7 +521,7 @@ const PROMPTS = {
 };
 /* 카테고리별 프롬프트 보강 — 눌러서 그대로 질문이 됩니다 */
 PROMPTS.home = PROMPTS.home.concat(["베란다 청소 언제 해야 해?", "택배 상자 정리 알림 만들어줘", "화분 영양제랑 분갈이 시기 알려줘"]);
-PROMPTS.food = PROMPTS.food.concat(["냉장고 사진 보고 이번 주 식단 짜줘", "남은 재료로 만들 밀키트 추천해줘", "장바구니에 담아둔 거 정리해줘"]);
+PROMPTS.food = PROMPTS.food.concat(["이번 주 식단 짜줘", "남은 재료로 만들 밀키트 추천해줘", "장바구니에 담아둔 거 정리해줘"]);
 PROMPTS.transport = PROMPTS.transport.concat(["연비랑 주행거리로 주유 시점 계산해줘", "다음 엔진오일 교체가 몇 km 남았어?"]);
 PROMPTS.event = PROMPTS.event.concat(["명절 교통편 예약 언제부터야?", "이번 행사에 살 것·입을 옷·선물 정리해줘"]);
 PROMPTS.pet = PROMPTS.pet.concat(["동물병원 정기검진 언제 예약해?", "우리 아이 종류에 맞는 관리 알려줘"]);
@@ -713,7 +713,7 @@ const SEED = [
 
   /* ── 보강한 기본 항목 ──────────────────────────────
      청소·식물·자동차·행사에서 실제로 자주 빠지던 것들 */
-  { id: "N057", cat: "food", f: null, lead: 0, st: "repeat", t: "냉장고 훑고 식단 짜기", tg: "주 1회", ask: "냉장고 사진을 올리면 남은 재료로 식단과 레시피를 짜드려요", cy: "주 1회", g: "냉장고", src: "" },
+  { id: "N057", cat: "food", f: null, lead: 0, st: "repeat", t: "냉장고 훑고 식단 짜기", tg: "주 1회", ask: "장 보고 영수증을 찍으면 남은 재료로 식단을 짜드려요", cy: "주 1회", g: "냉장고", src: "" },
   { id: "N040", cat: "home", f: null, lead: 0, st: "repeat", t: "택배 상자 정리·배출", tg: "현관에 쌓이기 전", ask: "뜯은 상자가 쌓여 있나요?", cy: "주 1회", g: "청소", src: "" },
   { id: "N041", cat: "home", f: null, lead: 0, st: "repeat", t: "택배 반품·교환 보내기", tg: "반품 기한 전", ask: "기한이 지나면 돌려받지 못해요", cy: "주 1회", g: "청소", src: "" },
   { id: "N042", cat: "home", f: null, lead: 0, st: "repeat", t: "베란다 청소", tg: "물때·먼지 쌓이기 전", ask: "바닥과 창틀을 같이 볼까요?", cy: "월 1회", g: "청소", src: "" },
@@ -2934,8 +2934,7 @@ function Speak() {
   const [result, setResult] = useState([]);
   const [listening, setListening] = useState(false);
   const [shots, setShots] = useState([]);        /* 올린 사진 미리보기 */
-  const [scanKind, setScanKind] = useState(null); /* note = 알림장 / fridge = 냉장고 */
-  const [menu, setMenu] = useState(null);         /* 냉장고 스캔이 짜준 식단 */
+  const [hasShot, setHasShot] = useState(false);  /* 사진을 올렸는지 — 안내 문구용 */
   const [answer, setAnswer] = useState("");       /* 질문에 대한 AI의 답 — 담기 전에 먼저 보여줌 */
   const [groupBy, setGroupBy] = useState("cat");  /* 결과를 영역별로 볼지 시점별로 볼지 */
   const fileRef = useRef(null);
@@ -2975,7 +2974,7 @@ function Speak() {
   const stopMic = () => { try { rec.current && rec.current.stop(); } catch {} setListening(false); };
 
   /* 사진으로 담기 — 알림장은 준비물로, 냉장고는 식단으로 */
-  const pickPhoto = (kind) => { setScanKind(kind); if (fileRef.current) { fileRef.current.value = ""; fileRef.current.click(); } };
+  const pickPhoto = () => { if (fileRef.current) { fileRef.current.value = ""; fileRef.current.click(); } };
   /* 이알리미·키즈노트 캡처는 보통 클립보드에 있습니다. 저장 → 앨범에서 찾기를 건너뛰게.
      입력칸 밖에 붙여넣어도 잡히도록 창 전체에서 받습니다 */
   useEffect(() => {
@@ -2993,7 +2992,7 @@ function Speak() {
       for (const it of imgs.slice(0, 3)) { const f = it.getAsFile(); if (f) out.push(await shrinkImage(f)); }
       if (!out.length) return;
       setShots((v) => [...v, ...out].slice(0, 3));
-      setScanKind((k) => k || "note");
+      setHasShot(true);
       setNote("");
       say("캡처를 붙여넣었어요");
     } catch { setNote("붙여넣은 이미지를 읽지 못했어요. 사진 버튼으로 올려주세요."); }
@@ -3018,7 +3017,7 @@ function Speak() {
     const kind = shots.length ? "photo" : "talk";
     if (!spendAI(kind, 1)) { setCapped(kind); return; }
     if (speech) setText(speech);
-    stopMic(); setPhase("thinking"); setMenu(null);
+    stopMic(); setPhase("thinking");
     log("dump_submit", { len: speech.length, shots: shots.length });
     const catList = cats.map((c) => `${c.id}(${c.label})`).join(" ");
     /* "놓친 게 있을까?" 같은 점검 질문에 답하려면 이미 챙기는 일을 알아야 합니다 */
@@ -3067,13 +3066,7 @@ function Speak() {
 출력은 JSON 객체만: {"answer":"질문이 아니면 빈 문자열","items":[{"title":"12자 이내","category":"...","status":"...","note":"20자 이내","when":"YYYY-MM-DD 또는 빈 문자열","newCategory":"","cycle":""}]}`;
 
     /* 사진이 있으면 무엇을 읽어야 하는지 알려줍니다 */
-    const shotPrompt = !shots.length ? "" : scanKind === "fridge"
-      ? `\n\n[사진] 냉장고 안 사진입니다. 보이는 재료를 읽고
-- 먼저 먹어야 할 것(오래돼 보이는 것)을 status:"now" 할 일로
-- 떨어져 보이는 것은 status:"buy" 할 일로 만드세요.
-그리고 그 재료로 만들 수 있는 이번 주 저녁 3끼를 함께 제안하세요.
-출력은 JSON 객체: {"tasks":[위 형식],"menu":[{"day":"월","dish":"12자 이내","use":"쓰는 재료","tip":"밀키트/영상 검색어"}]}`
-      : `\n\n[사진] 무언가를 알려주는 문서나 화면 캡처입니다. 다음 중 하나일 수 있습니다.
+    const shotPrompt = !shots.length ? "" : `\n\n[사진] 무언가를 알려주는 문서나 화면 캡처입니다. 다음 중 하나일 수 있습니다.
 - 어린이집·유치원·학교 알림장, 가정통신문 (종이 사진 또는 이알리미·키즈노트·하이클래스·아이엠스쿨 캡처)
 - 보험 만기 안내, 자동차 검사 안내, 관리비 고지서, 학원 등록 안내 같은 문자·카톡 캡처
 - 병원 예약 안내, 택배·정기배송 알림, 각종 신청 마감 안내
@@ -3105,7 +3098,6 @@ function Speak() {
       try {
         const raw = await askClaude((i === 0 ? prompt : prompt + "\n\n(직전 응답이 비어 있었습니다. 반드시 2개 이상 추출하세요.)") + shotPrompt, shots.length ? shots : null);
         if (raw && !Array.isArray(raw)) {
-          if (Array.isArray(raw.menu)) setMenu(raw.menu);
           if (raw.answer) gotAnswer = String(raw.answer).slice(0, 400);
         }
         items = normalize(Array.isArray(raw) ? raw : (raw && (raw.items || raw.tasks)) || []);
@@ -3238,7 +3230,7 @@ function Speak() {
               <span className="mono" style={{ fontSize: 9.5, color: C.moss }}>{BRAND}의 답</span>
             </div>
             <div style={{ fontSize: 14, lineHeight: 1.85, whiteSpace: "pre-wrap" }}>{answer}</div>
-            <LinkCards group={menu && menu.length ? "식단정기" : null} text={answer.slice(0, 60)} compact />
+            <LinkCards group={null} text={answer.slice(0, 60)} compact />
           </div>
         </Card>
       )}
@@ -3282,23 +3274,6 @@ function Speak() {
           <LinkCards group={null} text={g.items.map((t) => t.title).join(" ")} />
         </Section>
       ))}
-      {menu && menu.length > 0 && (
-        <Section eyebrow="MENU" title="이 재료로 이렇게 드셔보세요" right="냉장고 사진 기준">
-          <Card>
-            {menu.map((m, i) => (
-              <div key={i} style={{ padding: "14px 16px", borderBottom: i === menu.length - 1 ? "none" : `1px solid ${C.lineSoft}` }}>
-                <div className="flex items-center gap-2">
-                  <span className="mono" style={{ fontSize: 11, color: C.moss, background: C.mossSoft, borderRadius: 6, padding: "3px 7px" }}>{m.day}</span>
-                  <span style={{ fontSize: 14.5, fontWeight: 600 }}>{m.dish}</span>
-                </div>
-                {m.use && <div style={{ fontSize: 12, color: C.ink3, marginTop: 5 }}>쓰는 재료 · {m.use}</div>}
-                <LinkCards group="식단정기" text={m.tip || m.dish} compact />
-              </div>
-            ))}
-          </Card>
-        </Section>
-      )}
-
       <div style={{ marginTop: 14, background: C.mossSoft, borderRadius: R.sm, padding: "13px 15px", fontSize: 12.5, color: C.moss, lineHeight: 1.6 }}>
         항목을 누르면 이름·시점·영역·반복을 모두 고칠 수 있어요. 필요 없는 건 빼셔도 됩니다.
       </div>
@@ -3475,16 +3450,16 @@ function Speak() {
           )}
 
           <div className="rail" style={{ marginTop: 12 }}>
-            <button className="press" onClick={() => pickPhoto("note")}
+            <button className="press" onClick={pickPhoto}
               style={{ background: C.bg, border: `1px solid ${C.line}`, borderRadius: R.pill, padding: "9px 14px", fontSize: 12, color: C.ink2 }}>📄 알림장·안내문자 캡처</button>
-            <button className="press" onClick={() => pickPhoto("fridge")}
-              style={{ background: C.bg, border: `1px solid ${C.line}`, borderRadius: R.pill, padding: "9px 14px", fontSize: 12, color: C.ink2 }}>🧊 냉장고 사진</button>
             <button className="press" onClick={() => setText(DEMO_SPEECH)}
               style={{ background: C.bg, border: `1px solid ${C.line}`, borderRadius: R.pill, padding: "9px 14px", fontSize: 12, color: C.ink2 }}>시연용 예시</button>
           </div>
           <input ref={fileRef} type="file" accept="image/*" multiple style={{ display: "none" }} onChange={onFiles} />
           <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 9, lineHeight: 1.65 }}>
+            알림장·가정통신문·안내문자 캡처를 읽어 <b style={{ color: C.ink2 }}>할 일과 마감일</b>만 뽑아드려요.<br />
             노트북이면 캡처해서 <b style={{ color: C.ink2 }}>붙여넣기(Ctrl+V)</b>가 빨라요. 휴대폰은 버튼을 누르면 카메라가 열립니다.
+            장 본 영수증은 <b style={{ color: C.ink2 }}>식단 화면</b>에서 찍어주세요.
           </div>
           {st.plan !== "paid" && leftOf(st, "talk") <= 5 && (
             <div style={{ fontSize: 11.5, color: leftOf(st, "talk") ? C.ink3 : C.persim, marginTop: 10, lineHeight: 1.65 }}>
@@ -3493,7 +3468,7 @@ function Speak() {
                 : `이번 달 AI 정리를 다 쓰셨어요. 직접 적으시면 그대로 챙겨드려요 · ${nextResetLabel()}에 다시 채워집니다`}
             </div>
           )}
-          {scanKind && <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 9, lineHeight: 1.6 }}>
+          {hasShot && <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 9, lineHeight: 1.6 }}>
             사진은 크기를 줄여 AI에 보내고 <b style={{ color: C.ink2 }}>앱에는 저장하지 않습니다</b>. 뽑아낸 할 일만 남아요.
           </div>}
 
