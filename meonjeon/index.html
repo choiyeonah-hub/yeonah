@@ -3527,8 +3527,6 @@ function Share() {
   }, [st.tasks, members]);
 
   const unassigned = st.tasks.filter((t) => !t.done && !t.owner);
-  const top = members.slice().sort((a, b) => s.raised[b.id] - s.raised[a.id])[0] || { name: "-", id: "" };
-  const share = s.human ? Math.round((s.raised[top.id] / s.human) * 100) : 0;
 
   const Bar = ({ data, total, extra }) => (
     <div className="flex" style={{ height: 9, borderRadius: 99, overflow: "hidden", background: C.line, marginTop: 13 }}>
@@ -3554,10 +3552,10 @@ function Share() {
       <div className="rise" style={{ marginTop: 12, borderRadius: R.xl, padding: 22, background: "linear-gradient(165deg, #17332A 0%, #0F1A15 70%)", boxShadow: SHADOW_LIFT }}>
         <div className="mono" style={{ fontSize: 9.5, color: "#7FB79E" }}>MENTAL LOAD</div>
         <div className="disp" style={{ color: "#fff", fontSize: 20, fontWeight: 600, marginTop: 9, lineHeight: 1.5 }}>
-          {s.human ? `이번 주 기억은 주로\n${top.name} 님이 했어요` : "아직 기록이 없어요"}
+          {s.human + s.ai ? `이 집이 기억하고 있는 일\n모두 ${s.human + s.ai}개예요` : "아직 기록이 없어요"}
         </div>
         <div style={{ color: "#93A69B", fontSize: 13, marginTop: 10, lineHeight: 1.7 }}>
-          누가 더 했는지 가리려는 화면이 아니에요. 안 보이던 일을 보이게 하려는 것뿐입니다.
+          누가 더 했는지 가리려는 화면이 아니에요. 집안일이 실제로 몇 개짜리 일인지 보이게 하려는 것뿐입니다.
         </div>
       </div>
 
@@ -3567,7 +3565,7 @@ function Share() {
           <Bar data={s.raised} total={s.human + s.ai} extra={s.ai} />
           <Legend data={s.raised} extraLabel="AI가 대신" extra={s.ai} />
           {s.human > 0 && <div style={{ marginTop: 15, fontSize: 13, color: C.ink2, lineHeight: 1.65 }}>
-            떠올린 일 {s.human}개 중 {share}%가 {top.name} 님에게서 나왔어요.
+            이 {s.human}개는 하기 전에 <b>먼저 기억해야</b> 했던 일이에요. 목록에 적히기 전까지는 아무 데도 없었습니다.
           </div>}
           {s.ai > 0 && <div style={{ marginTop: 12, background: C.mossSoft, color: C.moss, borderRadius: 12, padding: "12px 13px", fontSize: 12.5, lineHeight: 1.65 }}>
             그중 {s.ai}개는 아무도 기억하지 않았는데 AI가 먼저 꺼냈어요. 그만큼 머릿속이 덜 찼다는 뜻이에요.
