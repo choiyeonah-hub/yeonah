@@ -927,6 +927,10 @@ const LINKS = [
     kw: ["체험", "놀러", "나들이", "방학", "캠프", "주말 활동"], g: ["놀이", "학교일정"] },
   { name: "놀이의 발견", desc: "주말에 아이랑 갈 곳 골라보기", url: "https://apps.apple.com/kr/search?term=놀이의발견", tag: "추천",
     kw: ["체험", "놀러", "나들이", "키즈카페", "주말 활동"], g: ["놀이"] },
+  { name: "차이의 놀이", desc: "0~7세 나이에 맞는 집놀이·발달 정보", url: "https://www.chaisplay.com/", tag: "추천",
+    kw: ["놀이", "집놀이", "발달", "교구", "오감", "감각놀이", "비 오는 날"], g: ["놀이", "유아생활"] },
+  { name: "베이비빌리", desc: "임신 주차·월령별 정보와 준비물", url: "https://apps.apple.com/kr/app/id1497301126", tag: "추천",
+    kw: ["임신", "태교", "출산준비", "산후조리", "주차별", "월령"], g: ["임신", "출산준비", "조리원"] },
   { name: "키즈노트", desc: "알림장·공지 확인 (사진으로 올리면 준비물만 뽑아드려요)", url: "https://www.kidsnote.com/", tag: "추천",
     kw: ["알림장", "준비물", "공지"], g: ["기관준비물", "보육정기"] },
   { name: "e알리미", desc: "학교 가정통신문·설문 (캡처해 올리면 할 일만 뽑아드려요)", url: "https://apps.apple.com/kr/search?term=e알리미", tag: "추천",
@@ -947,7 +951,7 @@ const LINKS = [
   { name: "미소 · 정리수납", desc: "집 정리를 전문가가 — 무료 견적 최대 3곳", url: "https://miso.kr/storageconsultation-rfq", tag: "추천",
     kw: ["정리", "정리수납", "집 정리", "수납", "짐 정리", "옷장 정리", "입주청소"], g: ["이사", "청소정기"] },
   { name: "미니창고 다락", desc: "계절옷·이불·이삿짐을 필요한 크기만큼 맡기기", url: "https://www.dalock.kr/", tag: "추천",
-    kw: ["짐 보관", "옷 보관", "계절옷 보관", "창고", "이삿짐 보관"], g: ["이사"] },
+    kw: ["짐 보관", "옷 보관", "계절옷 보관", "창고", "이삿짐 보관"], g: ["이사", "옷관리", "정리"] },
   { name: "스프링클", desc: "돌잔치 장소·돌상·스냅·답례품", url: "https://apps.apple.com/kr/search?term=스프링클 돌잔치", tag: "추천",
     kw: ["돌잔치", "돌상", "돌스냅", "답례품", "백일"], g: ["돌잔치"] },
   { name: "냠냠일기", desc: "먹은 재료·알레르기 반응 기록", url: "https://apps.apple.com/kr/search?term=냠냠일기", tag: "추천",
@@ -956,7 +960,9 @@ const LINKS = [
     kw: ["기차", "KTX", "승차권", "명절 교통", "귀성"], g: ["행사정기"] },
 ];
 
-/* 한 자리에 최대 2개까지만 붙입니다 (광고판처럼 보이지 않게) */
+/* 맞는 것을 다 돌려줍니다. 몇 개만 보일지는 LinkCards가 정합니다 —
+   여기서 미리 2개로 자르면, 이미 "이미 있어요"로 내린 것이 자리를 차지한 채
+   걸러져서 한 개만 남거나 아무것도 안 남습니다. 새로 넣은 링크도 영영 못 뜹니다. */
 const linksFor = ({ group, text, flags }) => {
   const t = String(text || "");
   const hit = LINKS.filter((l) => {
@@ -968,7 +974,7 @@ const linksFor = ({ group, text, flags }) => {
     if ((l.not || []).some((k) => t.includes(k))) return false;
     return (group && (l.g || []).includes(group)) || (l.kw || []).some((k) => t.includes(k));
   });
-  return hit.slice(0, 2);
+  return hit;
 };
 const linkUrl = (l, text) => l.url.replace("{q}", encodeURIComponent(String(text || "").slice(0, 30)));
 
@@ -1216,7 +1222,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0829-h";
+const BUILD = "0829-i";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -1505,7 +1511,10 @@ function LinkCards({ group, text, compact }) {
     if (l.always) return true;
     const from = seen[l.name] || clicked[l.name];
     return !from || (Date.now() - from) / DAY < 90;
-  });
+  })
+    /* 아직 못 보신 것을 앞으로. 한 자리에 2개까지만 — 그 이상은 광고판이 됩니다 */
+    .sort((a, b) => (seen[a.name] ? 1 : 0) - (seen[b.name] ? 1 : 0))
+    .slice(0, 2);
   /* 어디에서 뜬 카드인지 — 제휴 협상 때 "돌잔치 화면에서 몇 번" 을 말할 수 있어야 합니다 */
   const from = String(text || group || "").trim().slice(0, 24);
   useEffect(() => {
