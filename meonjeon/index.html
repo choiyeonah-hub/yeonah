@@ -3648,6 +3648,28 @@ function Settings() {
   const [routineCat, setRoutineCat] = useState(null);
   const [pickKey, setPickKey] = useState(null);
   const [newRoutine, setNewRoutine] = useState("");
+  const [carQ, setCarQ] = useState("");
+  const [carBusy, setCarBusy] = useState(false);
+  const autoFillCar = async () => {
+    const q = carQ.trim();
+    if (!q) return say("차종을 적어주세요 (예: 쏘렌토 2022)");
+    setCarBusy(true);
+    let got = null;
+    try {
+      const r = await askClaude(`한국에서 팔리는 차 "${q}"의 대략적인 공인 복합연비(km/L), 연료탱크 용량(L), 권장 엔진오일 교체주기(km)를 알려주세요.
+하이브리드 모델이면 하이브리드 기준으로. 확실치 않으면 그 차급의 일반적인 값으로.
+출력은 JSON만: {"kmPerL":숫자,"tankL":숫자,"oilEvery":숫자}`);
+      if (r && Number(r.kmPerL) > 3 && Number(r.tankL) > 20) got = { kmPerL: Number(r.kmPerL), tankL: Number(r.tankL), oilEvery: Number(r.oilEvery) || 10000 };
+    } catch {}
+    if (!got) {
+      const hit = carLookup(q);
+      if (hit) got = { kmPerL: hit[1], tankL: hit[2], oilEvery: 10000 };
+    }
+    setCarBusy(false);
+    if (!got) return say("이 차는 못 찾았어요. 아래에 직접 넣어주세요");
+    setD((sv) => ({ ...sv, car: { ...(sv.car || {}), kmPerL: got.kmPerL, tankL: got.tankL, oilEvery: got.oilEvery } }));
+    say(`${q} 기준 연비 ${got.kmPerL}km/L · 탱크 ${got.tankL}L로 채웠어요. 다르면 고치세요`);
+  };
 
   const routineGroups = useMemo(() => {
     const g = {};
