@@ -11,3 +11,6 @@ prisma/dev.db-journal
 .DS_Store
 npm-debug.log*
 next-env.d.ts
+
+# 배포 패키지는 빌드 산출물이라 추적하지 않습니다 (파일로 따로 전달)
+*.zip
