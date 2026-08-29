@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="theme-color" content="#F2F8F6" />
 <title>먼저ON — 내가 생각하기 전에 먼저 오는 것</title>
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="먼저ON" />
 <link rel="manifest" href="/manifest.json" />
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -139,6 +142,8 @@ async function boot() {
     return;
   }
   SB = supabase.createClient(cfg.url, cfg.anonKey);
+  /* 알림을 켤 때 쓰는 공개 키 — 앱 쪽에서 꺼내 씁니다 */
+  window.__VAPID = cfg.vapidPublicKey || '';
 
   const { data: { session } } = await SB.auth.getSession();
   if (!session) return askEmail();
@@ -220,6 +225,8 @@ async function connectHousehold(user) {
     HH = data;
   }
   try { localStorage.setItem('meonjeon:hh', HH.id); } catch {}
+  /* 알림 등록에 어느 집인지 알려줘야 합니다 */
+  window.__HH = HH.id;
 
   /* 로그인한 사람을 가구 구성원과 연결 */
   const st = HH.state && Object.keys(HH.state).length ? HH.state : null;
@@ -1284,7 +1291,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0829-z";
+const BUILD = "0829-aa";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -1932,6 +1939,159 @@ function downloadICS(title, whenMs, note) {
   else { a.target = "_blank"; a.rel = "noopener"; }
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+
+/* ── 알림 ──────────────────────────────────────
+   폰 잠금화면까지 가는 진짜 알림입니다. 앱을 안 열어도 옵니다 —
+   "잘 까먹는 사람"에게는 이게 앱의 본체입니다.
+
+   ⚠ 아이폰은 홈 화면에 추가해야만 됩니다. 애플이 그렇게 막아놨습니다. */
+const standalone = () => {
+  try {
+    return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+  } catch { return false; }
+};
+/* 서버가 준 공개 키를 브라우저가 알아듣는 모양으로 바꿉니다 */
+function urlB64ToUint8(b64) {
+  const pad = "=".repeat((4 - (b64.length % 4)) % 4);
+  const raw = atob((b64 + pad).replace(/-/g, "+").replace(/_/g, "/"));
+  return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
+}
+
+async function turnOnPush(hour) {
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+    return { error: "이 브라우저는 알림을 지원하지 않아요" };
+  }
+  if (inApp) return { error: `${inApp} 안에서는 알림을 못 켭니다. 위 안내대로 브라우저로 열어주세요` };
+  if (isIOS() && !standalone()) return { error: "ios-home" };
+  if (!window.__VAPID) return { error: "서버에 알림 키가 아직 없어요 (VAPID_PUBLIC_KEY)" };
+  if (!window.__HH) return { error: "가구 정보를 아직 못 읽었어요. 새로고침해 주세요" };
+
+  const perm = await Notification.requestPermission();
+  if (perm !== "granted") return { error: "알림 권한이 꺼져 있어요. 브라우저 설정에서 허용해 주세요" };
+
+  const reg = await navigator.serviceWorker.register("/sw.js");
+  await navigator.serviceWorker.ready;
+  let sub = await reg.pushManager.getSubscription();
+  if (!sub) {
+    sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlB64ToUint8(window.__VAPID),
+    });
+  }
+  const r = await fetch("/api/push-subscribe", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+    body: JSON.stringify({
+      sub: sub.toJSON(), householdId: window.__HH, hour,
+      /* 서버는 UTC로 돕니다. 한국이면 -540이 넘어가니 뒤집어서 보냅니다 */
+      tzOffset: -new Date().getTimezoneOffset(),
+    }),
+  });
+  if (!r.ok) { const j = await r.json().catch(() => ({})); return { error: j.error || "알림 등록에 실패했어요" }; }
+  return { ok: true };
+}
+
+async function turnOffPush() {
+  try {
+    const reg = await navigator.serviceWorker.getRegistration();
+    const sub = reg && (await reg.pushManager.getSubscription());
+    if (sub) await sub.unsubscribe();
+  } catch {}
+  await fetch("/api/push-subscribe", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+    body: JSON.stringify({ off: true, householdId: window.__HH }),
+  }).catch(() => {});
+}
+
+/* 알림 설정 상자.
+   아이폰은 홈 화면에 추가해야만 알림이 됩니다 — 그걸 모르면 "안 오네" 하고 끝이라
+   막혔을 때 무엇을 해야 하는지 화면에 그대로 적어둡니다. */
+const PUSH_HOURS = [6, 7, 8, 9, 10, 20, 21];
+const hourLabel = (h) => (h < 12 ? `오전 ${h}시` : h === 12 ? "낮 12시" : `오후 ${h - 12}시`);
+
+function PushBox() {
+  const { st, setSt, say } = use();
+  const nt = st.notify || {};
+  const hour = nt.hour == null ? 8 : nt.hour;
+  const [busy, setBusy] = useState(false);
+  const [howto, setHowto] = useState(false);
+
+  const on = async (h) => {
+    setBusy(true);
+    const r = await turnOnPush(h).catch((e) => ({ error: String((e && e.message) || e) }));
+    setBusy(false);
+    if (r.error === "ios-home") { setHowto(true); return; }
+    if (r.error) return say(r.error);
+    setHowto(false);
+    setSt((sv) => ({ ...sv, notify: { ...(sv.notify || {}), on: true, hour: h } }));
+    say(`매일 ${hourLabel(h)}에 알려드릴게요`);
+  };
+  const off = async () => {
+    setBusy(true);
+    await turnOffPush();
+    setBusy(false);
+    setSt((sv) => ({ ...sv, notify: { ...(sv.notify || {}), on: false } }));
+    say("알림을 껐어요");
+  };
+
+  return (
+    <Card>
+      <div style={{ padding: "14px 15px" }}>
+        <div style={{ fontSize: 13.5, fontWeight: 600, color: C.ink }}>
+          {nt.on ? `매일 ${hourLabel(hour)} · 켜짐` : "매일 아침 한 번, 폰으로"}
+        </div>
+        <div style={{ fontSize: 12, color: C.ink3, marginTop: 5, lineHeight: 1.7 }}>
+          앱을 닫아둬도 그날 <b>머리 쓸 일</b>만 한 줄로 보내드립니다. 하루 한 번이고, 그 이상 보내지 않아요.
+        </div>
+
+        <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 13, marginBottom: 7 }}>받을 시각</div>
+        <div className="flex flex-wrap gap-1.5">
+          {PUSH_HOURS.map((h) => (
+            <button key={h} className="press" disabled={busy}
+              onClick={() => (nt.on ? on(h) : setSt((sv) => ({ ...sv, notify: { ...(sv.notify || {}), hour: h } })))}
+              style={{
+                background: h === hour ? C.moss : C.bg, color: h === hour ? "#fff" : C.ink2,
+                border: `1px solid ${h === hour ? C.moss : C.line}`, borderRadius: R.pill,
+                padding: "7px 12px", fontSize: 12,
+              }}>{hourLabel(h)}</button>
+          ))}
+        </div>
+
+        <div className="flex gap-2" style={{ marginTop: 13 }}>
+          <button className="press" disabled={busy} onClick={() => on(hour)}
+            style={{ background: C.moss, color: "#fff", border: "none", borderRadius: R.pill, padding: "10px 16px", fontSize: 12.5, opacity: busy ? 0.6 : 1 }}>
+            {busy ? "잠시만요…" : nt.on ? "다시 확인" : "알림 켜기"}
+          </button>
+          {nt.on && (
+            <button className="press" disabled={busy} onClick={off}
+              style={{ background: C.bg, border: `1px solid ${C.line}`, borderRadius: R.pill, padding: "10px 16px", fontSize: 12.5, color: C.ink2 }}>
+              끄기
+            </button>
+          )}
+        </div>
+
+        {howto && (
+          <div style={{ marginTop: 13, background: C.sunSoft, border: `1px solid ${C.line}`, borderRadius: 14, padding: "12px 13px", fontSize: 12, color: C.ink2, lineHeight: 1.85 }}>
+            <div style={{ fontWeight: 600, color: C.ink, marginBottom: 5 }}>아이폰은 한 단계가 더 있어요</div>
+            애플이 <b>홈 화면에 추가한 앱</b>에만 알림을 허용합니다. 딱 한 번만 하시면 됩니다.
+            <div style={{ marginTop: 8 }}>
+              1. 사파리 아래쪽 <b>공유 버튼</b>(네모에 화살표)<br />
+              2. <b>홈 화면에 추가</b><br />
+              3. 홈 화면에 생긴 <b>먼저ON</b> 아이콘으로 다시 들어와서 <b>알림 켜기</b>
+            </div>
+          </div>
+        )}
+
+        {inApp && (
+          <div style={{ marginTop: 11, fontSize: 11.5, color: C.persim, lineHeight: 1.7 }}>
+            지금 {inApp} 안에서 보고 계셔서 알림을 켤 수 없어요. 오른쪽 위 메뉴에서 <b>다른 브라우저로 열기</b>를 눌러주세요.
+          </div>
+        )}
+      </div>
+    </Card>
+  );
 }
 
 /* 네이버·카카오·인스타 앱 안의 브라우저는 파일을 캘린더로 못 넘기고,
@@ -5819,22 +5979,7 @@ function Settings() {
       </Section>
 
       <Section eyebrow="NOTIFY" title="알림">
-        <Card>
-          <div style={{ padding: "14px 15px" }}>
-            <div style={{ fontSize: 12, color: C.ink3, marginTop: 4, lineHeight: 1.65 }}>
-              지금은 앱을 열었을 때만 보여드립니다. 브라우저 알림을 켜두면 앱이 열려 있는 동안 소리 없이 띄워드려요.
-              닫은 앱까지 깨우는 진짜 푸시는 서버 작업이 필요해서 베타 다음 단계입니다.
-            </div>
-            <button className="press" onClick={async () => {
-              if (!("Notification" in window)) return say("이 브라우저는 알림을 지원하지 않아요");
-              const p = await Notification.requestPermission();
-              setSt((sv) => ({ ...sv, notify: { ...(sv.notify || {}), on: p === "granted" } }));
-              say(p === "granted" ? "알림을 켰어요" : "알림 권한이 꺼져 있어요");
-            }} style={{ marginTop: 11, background: C.bg, border: `1px solid ${C.line}`, borderRadius: R.pill, padding: "9px 14px", fontSize: 12.5, color: C.ink2 }}>
-              {(st.notify || {}).on ? "알림 켜짐 · 다시 확인" : "브라우저 알림 켜기"}
-            </button>
-          </div>
-        </Card>
+        <PushBox />
       </Section>
 
       <Section eyebrow="ROUTINE" title="정기 일정 관리" right="영역을 골라 주기를 조정하세요">

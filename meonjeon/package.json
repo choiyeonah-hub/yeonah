@@ -1,0 +1,10 @@
+{
+  "name": "meonjeon",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "가족이 기억해야 할 일을 가족보다 먼저 기억하는 AI 살림 비서",
+  "dependencies": {
+    "web-push": "^3.6.7"
+  }
+}

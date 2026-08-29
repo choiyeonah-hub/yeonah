@@ -36,7 +36,7 @@ $$;
 drop policy if exists hh_sel on public.households;
 drop policy if exists hh_upd on public.households;
 drop policy if exists hm_sel on public.household_members;
-drop policy if exists hm_ins on public.household_members;
+drop policy if exists hm_ins on public.household_members;   -- 예전 버전에서 만들어졌으면 제거
 
 -- 내 가구만 읽고 쓸 수 있다
 create policy hh_sel on public.households
@@ -45,8 +45,11 @@ create policy hh_upd on public.households
   for update using (id in (select public.my_household_ids()));
 create policy hm_sel on public.household_members
   for select using (household_id in (select public.my_household_ids()));
-create policy hm_ins on public.household_members
-  for insert with check (user_id = auth.uid());
+-- ⚠️ household_members에는 INSERT 정책을 두지 않습니다.
+--    user_id = auth.uid() 만 확인하면, 로그인한 사람이 아무 household_id나 적어
+--    남의 가구에 스스로를 밀어넣을 수 있습니다(가구 id를 알게 되는 경우).
+--    합류는 초대 코드를 확인하는 join_household() 로만 가능하고,
+--    그 함수는 security definer라 정책 없이도 동작합니다.
 
 -- 가구 새로 만들기
 create or replace function public.create_household()
@@ -78,8 +81,11 @@ grant execute on function public.create_household()      to authenticated;
 grant execute on function public.join_household(text)    to authenticated;
 grant execute on function public.my_household_ids()      to authenticated;
 
--- 가족이 수정하면 상대 화면에 바로 알리기
-alter publication supabase_realtime add table public.households;
+-- 가족이 수정하면 상대 화면에 바로 알리기 (이미 등록돼 있으면 건너뜀)
+do $$ begin
+  alter publication supabase_realtime add table public.households;
+exception when duplicate_object then null;
+end $$;
 
 -- ── 베타 지표 조회용 뷰 (Supabase Table Editor에서 바로 확인) ──
 create or replace view public.beta_metrics as
@@ -96,4 +102,61 @@ select
   h.updated_at                                          as 마지막사용
 from public.households h;
 
-grant select on public.beta_metrics to authenticated;
+-- ⚠️ 이 뷰는 모든 가구를 가로질러 봅니다. 로그인 사용자에게 주면
+--    남의 가구 데이터가 보이므로, 대시보드(SQL Editor)에서만 봅니다.
+revoke all on public.beta_metrics from anon, authenticated;
+
+-- ── 제휴 카드 성과: 어디서 몇 번 보였고 몇 번 눌렸나 ──
+create or replace view public.partner_stats as
+select
+  e->'props'->>'name' as 파트너,
+  e->'props'->>'from' as 뜬자리,
+  count(*) filter (where e->>'name' = 'partner_show')  as 노출,
+  count(*) filter (where e->>'name' = 'partner_click') as 클릭,
+  round(100.0 * count(*) filter (where e->>'name' = 'partner_click')
+        / nullif(count(*) filter (where e->>'name' = 'partner_show'), 0), 1) as 클릭률
+from public.households h,
+     lateral jsonb_array_elements(coalesce(h.state->'events', '[]'::jsonb)) e
+where e->>'name' in ('partner_show', 'partner_click')
+group by 1, 2
+order by 클릭 desc nulls last, 노출 desc;
+
+revoke all on public.partner_stats from anon, authenticated;
+
+-- ════════════════════════════════════════════════════════
+-- 알림 구독 (웹 푸시)
+-- 이 부분만 따로 붙여넣어도 됩니다
+-- ════════════════════════════════════════════════════════
+create table if not exists public.push_subs (
+  endpoint     text primary key,
+  p256dh       text not null,
+  auth         text not null,
+  household_id uuid not null references public.households(id) on delete cascade,
+  user_id      uuid not null references auth.users(id) on delete cascade,
+  hour         int  not null default 8,     -- 그 집이 고른 시각 (0~23, 그 지역 시간)
+  tz_offset    int  not null default 540,   -- 한국은 UTC+9 = 540분
+  updated_at   timestamptz not null default now()
+);
+
+create index if not exists push_subs_user on public.push_subs(user_id);
+create index if not exists push_subs_hh   on public.push_subs(household_id);
+
+alter table public.push_subs enable row level security;
+
+-- 내 구독만 보고 고칠 수 있습니다. 남의 알림은 못 건드립니다.
+drop policy if exists ps_sel on public.push_subs;
+drop policy if exists ps_ins on public.push_subs;
+drop policy if exists ps_upd on public.push_subs;
+drop policy if exists ps_del on public.push_subs;
+
+create policy ps_sel on public.push_subs for select
+  using (user_id = auth.uid());
+create policy ps_ins on public.push_subs for insert
+  with check (user_id = auth.uid() and household_id in (select public.my_household_ids()));
+create policy ps_upd on public.push_subs for update
+  using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy ps_del on public.push_subs for delete
+  using (user_id = auth.uid());
+
+-- 보내는 쪽(api/push-send)은 service_role로 접근하므로 RLS를 통과합니다.
+-- 그 키는 Vercel 환경변수에만 두고 브라우저에는 절대 내려보내지 않습니다.

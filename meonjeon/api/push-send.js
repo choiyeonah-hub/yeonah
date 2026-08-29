@@ -1,0 +1,90 @@
+/* 매일 정해진 시각에 "오늘 머리 쓸 일"을 보냅니다.
+   Vercel Cron이 매시 정각에 부릅니다. 지금 시각이 그 집이 고른 시각인
+   구독에만 보냅니다.
+
+   ⚠ 여기서만 service_role을 씁니다 — 모든 가구를 읽어야 하니까요.
+      이 함수는 브라우저에서 못 부릅니다(CRON_SECRET으로 막습니다).
+      키는 Vercel 환경변수에만 있고 브라우저에는 절대 안 내려갑니다. */
+import webpush from "web-push";
+
+/* 알림에 담을 한 줄을 만듭니다. AI를 쓰지 않습니다 — 이미 있는 데이터로 조립합니다 */
+const DAY = 86400000;
+const startOfDay = (t) => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); };
+
+function todayLine(state, tzOffset) {
+  const st = state || {};
+  /* 그 집의 오늘 자정 (서버는 UTC라 시차를 더해서 봅니다) */
+  const local = Date.now() + tzOffset * 60000;
+  const today = startOfDay(local) - tzOffset * 60000;
+  const tasks = (st.tasks || []).filter((t) => t && !t.done);
+
+  /* 오늘까지 온 것 + 지금 해야 하는 것. 살 것은 빼둡니다 — 급하지 않으니까요 */
+  const now = tasks.filter((t) => t.status !== "buy" && ((t.dueAt || 0) <= today + DAY || t.status === "now"));
+  if (!now.length) return null;                       /* 없는 날은 안 보냅니다 */
+  const titles = now.slice(0, 3).map((t) => String(t.title || "").slice(0, 24));
+  const more = now.length - titles.length;
+  return {
+    title: `오늘 머리 쓸 일 ${now.length}가지`,
+    body: titles.join(" · ") + (more > 0 ? ` 외 ${more}개` : ""),
+  };
+}
+
+export default async function handler(req, res) {
+  /* Vercel Cron만 부를 수 있게 막습니다 */
+  const secret = (process.env.CRON_SECRET || "").trim();
+  const given = String(req.headers.authorization || "").replace(/^Bearer /, "");
+  if (!secret || given !== secret) return res.status(401).json({ error: "unauthorized" });
+
+  const url = (process.env.SUPABASE_URL || "").trim();
+  const service = (process.env.SUPABASE_SERVICE_KEY || "").trim();
+  const pub = (process.env.VAPID_PUBLIC_KEY || "").trim();
+  const priv = (process.env.VAPID_PRIVATE_KEY || "").trim();
+  const mail = (process.env.VAPID_SUBJECT || "mailto:noreply@meonjeon.app").trim();
+  if (!url || !service || !pub || !priv) {
+    return res.status(500).json({ error: "알림 설정이 아직입니다 (SUPABASE_SERVICE_KEY / VAPID 키)" });
+  }
+  webpush.setVapidDetails(mail, pub, priv);
+
+  const H = { apikey: service, Authorization: `Bearer ${service}`, "Content-Type": "application/json" };
+  const subsRes = await fetch(`${url}/rest/v1/push_subs?select=*`, { headers: H });
+  if (!subsRes.ok) return res.status(500).json({ error: "구독 목록을 못 읽었어요" });
+  const subs = await subsRes.json();
+
+  /* 지금이 그 집의 몇 시인지 보고, 고른 시각인 것만 고릅니다 */
+  const utcH = new Date().getUTCHours();
+  const due = subs.filter((s) => {
+    const localH = (utcH + Math.round((Number(s.tz_offset) || 0) / 60) + 24) % 24;
+    return localH === (Number(s.hour) || 8);
+  });
+  if (!due.length) return res.status(200).json({ ok: true, sent: 0, checked: subs.length });
+
+  /* 필요한 가구만 한 번씩 읽습니다 */
+  const ids = [...new Set(due.map((s) => s.household_id))];
+  const hhRes = await fetch(`${url}/rest/v1/households?select=id,state&id=in.(${ids.join(",")})`, { headers: H });
+  const hhs = hhRes.ok ? await hhRes.json() : [];
+  const stateOf = Object.fromEntries(hhs.map((h) => [h.id, h.state]));
+
+  let sent = 0, quiet = 0, gone = 0;
+  for (const s of due) {
+    const line = todayLine(stateOf[s.household_id], Number(s.tz_offset) || 0);
+    if (!line) { quiet++; continue; }               /* 오늘 할 게 없으면 안 보냅니다 */
+    try {
+      await webpush.sendNotification(
+        { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
+        JSON.stringify(line)
+      );
+      sent++;
+    } catch (e) {
+      /* 404·410이면 그 구독은 죽은 겁니다. 지웁니다 */
+      if (e && (e.statusCode === 404 || e.statusCode === 410)) {
+        gone++;
+        await fetch(`${url}/rest/v1/push_subs?endpoint=eq.${encodeURIComponent(s.endpoint)}`, { method: "DELETE", headers: H }).catch(() => {});
+      } else {
+        console.error("push failed", e && e.statusCode, String((e && e.message) || "").slice(0, 120));
+      }
+    }
+  }
+  /* 내용은 로그에 안 남깁니다 — 할 일 제목은 개인정보입니다 */
+  console.log("push run", { checked: subs.length, due: due.length, sent, quiet, gone });
+  return res.status(200).json({ ok: true, sent, quiet, gone });
+}

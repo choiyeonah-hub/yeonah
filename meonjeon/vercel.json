@@ -17,11 +17,30 @@
           "value": "no-cache, must-revalidate, max-age=0"
         }
       ]
+    },
+    {
+      "source": "/sw.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, must-revalidate, max-age=0"
+        },
+        {
+          "key": "Service-Worker-Allowed",
+          "value": "/"
+        }
+      ]
     }
   ],
   "functions": {
     "api/*.js": {
       "maxDuration": 60
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/push-send",
+      "schedule": "0 * * * *"
+    }
+  ]
 }
