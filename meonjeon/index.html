@@ -1008,6 +1008,8 @@ const DEFAULT_STATE = {
   tasks: [], routines: {}, customRoutines: [], prefs: {}, groupsOff: {}, customCats: [],
   events: [], feedback: [], discoverSnoozed: [], dismissedDiscover: [],
   discoverCache: null, pantry: [],
+  /* 최근에 낸 식단 메뉴 — 다음에 짤 때 겹치지 않게 씁니다 */
+  mealPast: [],
   /* 주간 카드를 본 주 (일요일 날짜) */
   weekCard: {},
   /* 기본 분담: 카테고리 → 담당자. 여기 있는 건 매번 정하지 않아도 됩니다 */
@@ -1302,7 +1304,8 @@ const Btn = ({ children, onClick, kind = "primary", disabled, style }) => {
   const base = { width: "100%", borderRadius: R.md, padding: "16px 0", fontSize: 15, fontWeight: 600, border: "none", cursor: disabled ? "default" : "pointer", letterSpacing: "-.01em" };
   const kinds = {
     primary: { background: disabled ? C.line : C.ink, color: disabled ? C.ink3 : "#fff" },
-    accent: { background: C.moss, color: "#fff" },
+    /* 화면마다 강조색이 다릅니다. --ac를 정한 화면에서는 그 색을 씁니다 */
+    accent: { background: `var(--ac, ${C.moss})`, color: "#fff" },
     ghost: { background: "transparent", color: C.ink2, border: `1px solid ${C.line}` },
     quiet: { background: "transparent", color: C.ink3, fontSize: 13, fontWeight: 400, padding: "12px 0" },
   };
@@ -2375,9 +2378,6 @@ function RecCard({ rec, delay = 0, flat }) {
   };
   const feedback = (type) => {
     setSt((s) => ({ ...s, feedback: [...s.feedback, { id: seed.id, type, ts: Date.now() }] }));
-    /* 피드백을 바로 반영: 이르면 늦추고, 늦으면 당깁니다 */
-    if (type === "너무 이름") setPref(rec.key, { lead: Math.max(3, (rec.lead || 30) - 30) });
-    if (type === "너무 늦음") setPref(rec.key, { lead: (rec.lead || 30) + 30 });
   };
   return (
     <>
@@ -2439,13 +2439,6 @@ function RecCard({ rec, delay = 0, flat }) {
             {[7, 14, 30, 60, 90, 120, 180, 270].map((dd) => (
               <button key={dd} className="press" onClick={() => { setPref(rec.key, { lead: dd }); feedback("수정"); setMode(null); say(`${dd}일 전부터 알려드릴게요`); }}
                 style={{ background: rec.lead === dd ? C.mossSoft : C.bg, color: rec.lead === dd ? C.moss : C.ink2, border: `1px solid ${rec.lead === dd ? C.moss : C.line}`, borderRadius: 12, padding: "13px 0", fontSize: 13, fontWeight: 600 }}>{dd}일</button>
-            ))}
-          </div>
-          <div style={{ fontSize: 12, color: C.ink3, marginTop: 18 }}>이 제안 어땠나요?</div>
-          <div className="flex gap-2" style={{ marginTop: 8 }}>
-            {["딱 필요", "너무 이름", "너무 늦음"].map((f) => (
-              <button key={f} className="press" onClick={() => { feedback(f); setMode(null); say("반영할게요"); }}
-                style={{ flex: 1, background: C.bg, border: `1px solid ${C.line}`, borderRadius: 999, padding: "10px 0", fontSize: 12.5, color: C.ink2 }}>{f}</button>
             ))}
           </div>
         </Sheet>
@@ -4127,13 +4120,19 @@ function MealScreen() {
       { dish: "김치볶음밥", why: "남은 밥 처리", need: ["김치", "햄", "계란"], min: 15 },
       { dish: "닭볶음탕", why: "주말에 한 번", need: ["닭볶음탕용 닭", "감자", "당근"], min: 50 },
     ];
-    let got = null;
+    /* 매번 같은 게 나오면 안 씁니다. 지난번에 낸 메뉴를 알려주고 피하게 합니다 */
+    const past = (st.mealPast || []).slice(-24);
+    const m = new Date().getMonth() + 1;
+    const season = m <= 2 || m === 12 ? "겨울" : m <= 5 ? "봄" : m <= 8 ? "여름" : "가을";
+    let got = null, fell = false;
     try {
       const r = await askClaude(`한국 가정의 살림을 돕는 AI '${BRAND}'입니다. 이번 주 저녁 식단을 짜주세요.
 가구: ${householdLine(st)}
+오늘: ${todayStr()} (${season})
 지금 집에 있는 재료: ${foods.filter((x) => !x.usedAt).map((x) => x.name).join(", ") || "모름"}
 집에 늘 두고 쓰는 양념·소스: ${staples.map((x) => x.name).join(", ") || "모름"}
 지금 살 것 목록에 있는 것: ${buys.length ? buys.join(", ") : "없음"}
+${past.length ? "최근에 이미 낸 메뉴(다시 내지 마세요): " + past.join(", ") : ""}
 ${want.trim() ? "요청: " + want.trim() : ""}
 
 규칙
@@ -4149,14 +4148,24 @@ ${want.trim() ? "요청: " + want.trim() : ""}
   낼 수 있는 메뉴가 이 앱의 값어치입니다.
 - 그 양념·소스는 need에 넣지 마세요. 이미 집에 있습니다.
 - 그다음으로 살 것 목록에 있는 재료를 쓰는 메뉴를 고르세요.
+- **최근에 이미 낸 메뉴는 절대 다시 내지 마세요.** 주재료도 조리법도 바꾸세요.
+  된장찌개를 냈으면 다음엔 찌개 말고 볶음이나 구이, 면, 덮밥 쪽으로 가세요.
+- 7개 안에서도 조리법이 겹치지 않게 하세요. 국물 2개, 볶음 2개, 구이·조림 2개,
+  면이나 덮밥 1개처럼 갈래를 흩어주세요.
+- ${season}에 나는 재료를 한두 개는 꼭 쓰세요.
 
 출력은 JSON 배열만: [{"dish":"14자 이내","why":"왜 이걸 권하는지 20자 이내","need":["재료","재료"],"min":조리시간분}]`);
       if (Array.isArray(r) && r.length) got = r.filter((x) => x && x.dish).slice(0, 8);
+      if (!got) setErr("AI가 식단을 못 짜서 기본 식단을 보여드렸어요. 잠시 뒤 다시 눌러보세요.");
     } catch (e) {
       setErr(e && e.message ? e.message : "식단을 못 받아왔어요");
     }
-    if (!got) { refundAI("talk", 1); got = FALLBACK; }
-    setSt((sv) => ({ ...sv, meal: { at: Date.now(), items: got, chosen: [] } }));
+    if (!got) {
+      /* 기본 식단은 늘 같습니다. 그걸 보고 계신 거면 AI가 안 불린 겁니다 */
+      refundAI("talk", 1); got = FALLBACK; fell = true;
+    }
+    setSt((sv) => ({ ...sv, meal: { at: Date.now(), items: got, chosen: [], fell },
+                     mealPast: fell ? (sv.mealPast || []) : [...(sv.mealPast || []), ...got.map((x) => x.dish)].slice(-24) }));
     setBusy(false); setWant("");
   };
 
@@ -4246,7 +4255,8 @@ ${want.trim() ? "요청: " + want.trim() : ""}
         addTasks(prep.map((x) => ({ title: String(x.title).slice(0, 20), category: "food", status: "now",
           note: x.note || "산 김에", dueAt: todayKey() + (Number(x.days) || 0) * DAY })), "ai");
       }
-      setSt((sv) => ({ ...sv, meal: { at: Date.now(), items: meals, chosen: [], bought } }));
+      setSt((sv) => ({ ...sv, meal: { at: Date.now(), items: meals, chosen: [], bought },
+                       mealPast: [...(sv.mealPast || []), ...meals.map((x) => x.dish)].slice(-24) }));
       if (bought.length) toPantry(bought);
       say(`재료 ${bought.length}개를 읽고 ${prep.length ? `손질할 일 ${prep.length}개와 ` : ""}식단 ${meals.length}개를 냈어요`);
     } catch (er) {
@@ -4286,7 +4296,7 @@ ${want.trim() ? "요청: " + want.trim() : ""}
   };
 
   return (
-    <>
+    <div style={{ "--ac": C.leaf }}>
       <div style={{ marginTop: 18, paddingLeft: 2 }}>
         <div className="disp" style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-.03em" }}>장보기와 식단</div>
         <p style={{ fontSize: 13.5, color: C.ink2, marginTop: 9, lineHeight: 1.7 }}>
@@ -4403,7 +4413,7 @@ ${want.trim() ? "요청: " + want.trim() : ""}
                 {staples.map((x) => (
                   <button key={x.id} className="press" onClick={() => ranOut(x)}
                     style={{ background: C.bg, color: C.ink2, border: `1px solid ${C.line}`, borderRadius: R.pill, padding: "7px 11px", fontSize: 12 }}>
-                    {x.name} <span style={{ color: C.persim }}>떨어짐</span>
+                    {x.name} <span style={{ color: C.sun }}>떨어짐</span>
                   </button>
                 ))}
               </div>
@@ -4449,6 +4459,16 @@ ${want.trim() ? "요청: " + want.trim() : ""}
             style={{ width: "100%", border: `1px solid ${C.line}`, borderRadius: R.sm, padding: "12px 13px", fontSize: 13.5, background: C.bg, color: C.ink }} />
           <div style={{ height: 10 }} />
           <Btn disabled={busy} onClick={gen}>{busy ? "짜는 중…" : items.length ? "다시 짜기" : "이번 주 식단 짜줘"}</Btn>
+          {meal && meal.fell && (
+            <div style={{ fontSize: 11.5, color: C.sun, marginTop: 9, lineHeight: 1.7 }}>
+              지금 보이는 건 <b>기본 식단</b>이에요. AI를 못 불러서 늘 같은 다섯 개가 나옵니다.
+            </div>
+          )}
+          {(st.mealPast || []).length > 0 && !(meal && meal.fell) && (
+            <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 9, lineHeight: 1.7 }}>
+              최근에 낸 {Math.min((st.mealPast || []).length, 24)}개는 빼고 짭니다.
+            </div>
+          )}
           {(haveNow.length > 0 || buys.length > 0) && (
             <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 9, lineHeight: 1.6 }}>
               {haveNow.length > 0
@@ -4511,7 +4531,7 @@ ${want.trim() ? "요청: " + want.trim() : ""}
           </div>
         </Card>
       )}
-    </>
+    </div>
   );
 }
 
