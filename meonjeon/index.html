@@ -1208,7 +1208,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0829-f";
+const BUILD = "0829-g";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -4171,13 +4171,13 @@ function MealScreen() {
     const past = (st.mealPast || []).slice(-24);
     const m = new Date().getMonth() + 1;
     const season = m <= 2 || m === 12 ? "겨울" : m <= 5 ? "봄" : m <= 8 ? "여름" : "가을";
-    let got = null, fell = false;
+    let got = null, fell = false, why = "";
     try {
       const r = await askClaude(`한국 가정의 살림을 돕는 AI '${BRAND}'입니다. 이번 주 저녁 식단을 짜주세요.
 가구: ${householdLine(st)}
 오늘: ${todayStr()} (${season})
-지금 집에 있는 재료: ${foods.filter((x) => !x.usedAt).map((x) => x.name).join(", ") || "모름"}
-집에 늘 두고 쓰는 양념·소스: ${staples.map((x) => x.name).join(", ") || "모름"}
+지금 집에 있는 재료: ${foods.filter((x) => !x.usedAt).slice(0, 20).map((x) => x.name).join(", ") || "모름"}
+집에 늘 두고 쓰는 양념·소스: ${staples.slice(0, 20).map((x) => x.name).join(", ") || "모름"}
 지금 살 것 목록에 있는 것: ${buys.length ? buys.join(", ") : "없음"}
 ${past.length ? "최근에 이미 낸 메뉴(다시 내지 마세요): " + past.join(", ") : ""}
 ${want.trim() ? "요청: " + want.trim() : ""}
@@ -4203,15 +4203,18 @@ ${want.trim() ? "요청: " + want.trim() : ""}
 
 출력은 JSON 배열만: [{"dish":"14자 이내","why":"왜 이걸 권하는지 20자 이내","need":["재료","재료"],"min":조리시간분}]`);
       if (Array.isArray(r) && r.length) got = r.filter((x) => x && x.dish).slice(0, 8);
-      if (!got) setErr("AI가 식단을 못 짜서 기본 식단을 보여드렸어요. 잠시 뒤 다시 눌러보세요.");
+      if (!got) why = "AI가 식단 모양이 아닌 답을 보냈어요";
     } catch (e) {
-      setErr(e && e.message ? e.message : "식단을 못 받아왔어요");
+      why = (e && e.message) || "식단을 못 받아왔어요";
+      console.error("meal gen failed", e && e.code, why);
     }
     if (!got) {
-      /* 기본 식단은 늘 같습니다. 그걸 보고 계신 거면 AI가 안 불린 겁니다 */
+      /* 기본 식단은 늘 같습니다. 그걸 보고 계신 거면 AI가 안 불린 겁니다.
+         왜 못 불렀는지는 다음에 다시 누를 때 지워지면 안 됩니다. 같이 저장합니다. */
       refundAI("talk", 1); got = FALLBACK; fell = true;
+      setErr(why);
     }
-    setSt((sv) => ({ ...sv, meal: { at: Date.now(), items: got, chosen: [], fell },
+    setSt((sv) => ({ ...sv, meal: { at: Date.now(), items: got, chosen: [], fell, why: fell ? why : "" },
                      mealPast: fell ? (sv.mealPast || []) : [...(sv.mealPast || []), ...got.map((x) => x.dish)].slice(-24) }));
     setBusy(false); setWant("");
   };
@@ -4507,8 +4510,9 @@ ${want.trim() ? "요청: " + want.trim() : ""}
           <div style={{ height: 10 }} />
           <Btn disabled={busy} onClick={gen}>{busy ? "짜는 중…" : items.length ? "다시 짜기" : "이번 주 식단 짜줘"}</Btn>
           {meal && meal.fell && (
-            <div style={{ fontSize: 11.5, color: C.sun, marginTop: 9, lineHeight: 1.7 }}>
+            <div style={{ marginTop: 10, background: C.sunSoft, borderRadius: 12, padding: "11px 13px", fontSize: 11.5, color: C.sun, lineHeight: 1.75 }}>
               지금 보이는 건 <b>기본 식단</b>이에요. AI를 못 불러서 늘 같은 다섯 개가 나옵니다.
+              {meal.why ? <><br /><b>이유 · {meal.why}</b></> : null}
             </div>
           )}
           {(st.mealPast || []).length > 0 && !(meal && meal.fell) && (
