@@ -389,7 +389,7 @@ const SEED = [
   { id: "L036", cat: "edu", kid: 1, w: [60, 73], lead: 14, st: "remember", t: "예비소집 참석", tg: "입학 전 12~1월", ask: "예비소집 날짜를 캘린더에 넣을까요?", cy: "1회", g: "취학", src: "S05" },
   { id: "L037", cat: "edu", kid: 1, w: [60, 73], lead: 30, st: "decide", t: "돌봄교실·방과후 신청", tg: "입학 전", ask: "퇴근시간과 방과후 공백을 계산할까요?", cy: "학기별", g: "취학", src: "" },
   { id: "L038", cat: "edu", kid: 1, w: [73, 144], lead: 14, st: "repeat", t: "학사일정 등록", tg: "학기 시작 전", ask: "학교 학사일정을 가져올까요?", cy: "학기별", g: "학교일정", src: "S06" },
-  { id: "L039", cat: "edu", kid: 1, w: [73, 144], lead: 7, st: "conditional", t: "체험학습 준비물 분해", tg: "행사일", ask: "도시락·복장·서류를 자동으로 나눌까요?", cy: "수시", g: "학교일정", src: "" },
+  { id: "L039", cat: "edu", kid: 1, w: [73, 144], lead: 7, st: "conditional", t: "체험학습 안내문 오면 스캔", tg: "안내문 수신 시", ask: "알림장 사진을 올리면 도시락·복장·제출 서류를 할 일로 나눠드려요", cy: "수시", g: "학교일정", src: "", scan: 1 },
   { id: "L040", cat: "edu", kid: 1, w: [73, 180], lead: 1, st: "remember", t: "준비물·제출물 D-1 확인", tg: "제출일", ask: "", cy: "수시", g: "학교일정", src: "" },
   { id: "L041", cat: "edu", kid: 1, w: [73, 216], lead: 30, st: "remember", t: "학원 재등록·레벨테스트", tg: "새 학기", ask: "다음 학기 등록 공지가 왔나요?", cy: "학기별", g: "학원", src: "" },
   { id: "L042", cat: "edu", kid: 1, w: [73, 156], lead: 14, st: "repeat", t: "신발·실내화 사이즈 확인", tg: "학기/계절 시작", ask: "지금 발 사이즈를 재볼까요?", cy: "2~3개월", g: "성장", src: "" },
@@ -710,7 +710,9 @@ const LINKS = [
   { name: "놀이의 발견", desc: "주말에 아이랑 갈 곳 골라보기", url: "https://apps.apple.com/kr/search?term=놀이의발견", tag: "추천",
     kw: ["체험", "놀러", "나들이", "키즈카페", "주말 활동"], g: ["놀이"] },
   { name: "키즈노트", desc: "알림장·공지 확인 (사진으로 올리면 준비물만 뽑아드려요)", url: "https://www.kidsnote.com/", tag: "추천",
-    kw: ["알림장", "가정통신문", "준비물", "공지"], g: ["기관준비물", "보육정기", "교육정기"] },
+    kw: ["알림장", "준비물", "공지"], g: ["기관준비물", "보육정기"] },
+  { name: "e알리미", desc: "학교 가정통신문·설문 (캡처해 올리면 할 일만 뽑아드려요)", url: "https://apps.apple.com/kr/search?term=e알리미", tag: "추천",
+    kw: ["가정통신문", "학교 공지", "체험학습", "제출"], g: ["학교일정", "교육정기"] },
   { name: "학교알리미", desc: "학사일정·방학 날짜 확인", url: "https://www.schoolinfo.go.kr/", tag: "정보",
     kw: ["학사일정", "방학", "개학"], g: ["학교일정"] },
   { name: "오피넷", desc: "한국석유공사 · 근처 싼 주유소", url: "https://www.opinet.co.kr/", tag: "정보",
@@ -1872,7 +1874,7 @@ function TaskRow({ t, delay = 0, last }) {
 
 /* ── 생애주기 추천 카드 ───────────────────────── */
 function RecCard({ rec, delay = 0 }) {
-  const { st, setPref, setSt, addTasks, say, log } = use();
+  const { st, setPref, setSt, addTasks, say, log, setTab } = use();
   const [mode, setMode] = useState(null);
   const seed = rec.seed;
   const category = seed.kid ? `kid:${rec.child.id}` : seed.cat;
@@ -1902,6 +1904,12 @@ function RecCard({ rec, delay = 0 }) {
               </span>
             </div>
             {seed.ask && <div style={{ marginTop: 12, background: C.mossSoft, color: C.moss, borderRadius: 12, padding: "11px 13px", fontSize: 13, lineHeight: 1.55 }}>{seed.ask}</div>}
+            {(seed.scan || /알림장|통신문|안내문/.test(seed.t)) && (
+              <button className="press w-full flex items-center justify-center gap-2" onClick={() => { setTab("speak"); say("📄 알림장·통신문 사진 버튼을 눌러 찍어주세요"); }}
+                style={{ marginTop: 10, background: C.ink, color: "#fff", border: "none", borderRadius: R.sm, padding: "13px 0", fontSize: 13.5, fontWeight: 600 }}>
+                📄 알림장 사진으로 바로 분석하기
+              </button>
+            )}
             <button className="press w-full" onClick={() => accept()}
               style={{ marginTop: 14, background: C.moss, color: "#fff", border: "none", borderRadius: R.md, padding: "15px 0", fontSize: 14.5, fontWeight: 600 }}>할 일에 등록하기</button>
             <div className="flex gap-2" style={{ marginTop: 8 }}>
@@ -3176,6 +3184,43 @@ function AnnScreen() {
 /* ── 영역(카테고리) ───────────────────────────── */
 function Categories() {
   const { st, setSt, cats, openCat, setOpenCat, addTasks, say, log, setTab } = use();
+  const [tripDate, setTripDate] = useState("");
+  const [tripBusy, setTripBusy] = useState(false);
+
+  /* 여행 준비 분해 — AI가 만들고, 실패하면 기본 목록 */
+  const genTrip = async () => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(tripDate)) return say("출발 날짜를 골라주세요");
+    const evtMs = new Date(tripDate + "T00:00:00").getTime();
+    if (evtMs < todayKey()) return say("지난 날짜예요");
+    setTripBusy(true);
+    const FALLBACK = [
+      { title: "숙소·교통 예약 확인", category: "travel", daysBefore: 14, note: "취소 기한도 같이" },
+      { title: "여권·신분증 확인", category: "travel", daysBefore: 14, note: "해외면 유효기간 6개월" },
+      { title: "짐 목록 만들기", category: "travel", daysBefore: 5, note: "아이 짐은 따로" },
+      { title: "상비약·멀미약 챙기기", category: "health", daysBefore: 3, note: "" },
+      { title: "환전·여행자보험", category: "finance", daysBefore: 3, note: "해외면" },
+      { title: "화분·반려동물 맡기기", category: "home", daysBefore: 2, note: "부탁할 곳 미리 연락" },
+      { title: "냉장고 정리", category: "food", daysBefore: 1, note: "상할 것 먼저 먹기" },
+      { title: "짐 싸기", category: "travel", daysBefore: 1, note: "충전기·유모차 확인" },
+    ];
+    let items = FALLBACK;
+    try {
+      const r = await askClaude(`한국 가정의 살림을 돕는 AI '${BRAND}'입니다. ${tripDate} 출발 가족 여행을 준비합니다.
+가구: ${householdLine(st)}
+출발 전에 해야 할 준비를 6~9개로 나누세요. 예약확인·서류·짐·집 비우기 준비(화분·반려동물·냉장고)를 포함하고, 이 가구에 해당 없는 건 빼세요.
+출력은 JSON 배열만: [{"title":"12자 이내","category":"travel|home|food|health|finance","daysBefore":숫자,"note":"15자 이내"}]`);
+      if (Array.isArray(r) && r.length) items = r.filter((x) => x && x.title).slice(0, 9);
+    } catch {}
+    const rows = items.map((it) => {
+      const due = new Date(evtMs - (Number(it.daysBefore) || 1) * DAY);
+      return { title: String(it.title).slice(0, 20),
+        category: ["travel", "home", "food", "health", "finance"].includes(it.category) ? it.category : "travel",
+        status: "remember", note: `${due.getMonth() + 1}/${due.getDate()}까지${it.note ? " · " + it.note : ""}` };
+    });
+    addTasks(rows, "ai");
+    setTripBusy(false); setTripDate("");
+    say(`여행 준비 ${rows.length}개를 영역별로 담았어요`);
+  };
   const [picked, setPicked] = useState({});
   const [aiItems, setAiItems] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -3218,6 +3263,26 @@ function Categories() {
             <div style={{ fontSize: 12.5, color: C.ink3, marginTop: 3 }}>반복 {myRoutines.length}개 · 진행 중 {mine.length}건</div>
           </div>
         </div>
+
+        {openCat.id === "travel" && (
+          <Card style={{ marginTop: 14, borderColor: C.sea }}>
+            <div style={{ padding: "15px 16px" }}>
+              <div className="mono" style={{ fontSize: 9.5, color: C.sea }}>TRIP PREP</div>
+              <div style={{ fontSize: 15, fontWeight: 600, marginTop: 7 }}>출발 날짜를 넣으면 준비를 나눠드려요</div>
+              <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 5, lineHeight: 1.6 }}>
+                예약 확인·서류·짐 싸기에 화분·반려동물 맡기기, 냉장고 정리 같은 <b style={{ color: C.ink }}>집 비우기 준비</b>까지 날짜별로 담습니다.
+              </div>
+              <div className="flex gap-2" style={{ marginTop: 11 }}>
+                <input className="hae" type="date" value={tripDate} onChange={(e) => setTripDate(e.target.value)}
+                  style={{ flex: 1, border: `1px solid ${C.line}`, borderRadius: R.sm, padding: "11px 12px", fontSize: 14, background: C.bg, color: C.ink }} />
+                <button className="press" disabled={tripBusy} onClick={genTrip}
+                  style={{ background: tripBusy ? C.line : C.moss, color: tripBusy ? C.ink3 : "#fff", border: "none", borderRadius: R.sm, padding: "0 16px", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
+                  {tripBusy ? "나누는 중…" : "준비 담기"}
+                </button>
+              </div>
+            </div>
+          </Card>
+        )}
 
         {/* 예시 질문 — 고정입니다. 누르면 말하기 화면 입력칸에 그대로 들어가요 */}
         <div style={{ marginTop: 16 }}>
