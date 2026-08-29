@@ -3279,8 +3279,10 @@ function Categories() {
 
   if (openCat) {
     const baseKey = openCat.child ? "kid" : openCat.id;
-    const list = [...(BLIND[baseKey] || []), ...aiItems];
     const mine = st.tasks.filter((t) => t.category === openCat.id && !t.done);
+    /* 이미 담았거나 반복으로 도는 항목은 "놓친 것" 목록에서 뺍니다 */
+    const list = [...(BLIND[baseKey] || []), ...aiItems]
+      .filter((c) => !st.tasks.some((t) => !t.done && t.title === c.t));
     const myRoutines = eligibleRoutines(st, true).filter((r) => (r.child ? `kid:${r.child.id}` : r.seed.cat) === openCat.id);
     const chosen = list.filter((_, i) => picked[i]);
     const prompts = PROMPTS[baseKey] || PROMPTS.etc;
