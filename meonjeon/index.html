@@ -1243,7 +1243,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0829-n";
+const BUILD = "0829-o";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -4324,11 +4324,14 @@ ${want.trim() ? "요청: " + want.trim() : ""}
   /* 재고 — 산 것은 집에 있고, 먹으면 없어집니다.
      "샀어요"에 줄이 그어지듯 "먹었어요"에도 줄이 그어집니다. */
   const pantry = (st.pantry || []).filter((x) => !x.usedAt || Date.now() - x.usedAt < 3 * DAY);
-  const haveNow = pantry.filter((x) => !x.usedAt);
   const norm = (n) => String(n || "").replace(/\s*구매$/, "").trim();
 
+  /* 늘 있는 것(양념)과 집에 있는 것(장 본 재료)은 다른 칸에 따로 보여줍니다.
+     한쪽에 세면 다른 쪽에서 또 세면 안 됩니다 — "집에 있는 것 27개"라고
+     써놓고 목록은 "아직 비어 있어요"가 뜨던 일이 있었습니다. */
   const staples = pantry.filter((x) => x.staple && !x.usedAt);
   const foods = pantry.filter((x) => !x.staple);
+  const haveNow = foods.filter((x) => !x.usedAt);
   const hasStaple = (n) => (st.pantry || []).some((x) => x.name === n && x.staple && !x.usedAt);
 
   /* 양념은 탭 한 번으로 켜고 끕니다. 하나씩 적게 하면 아무도 안 넣습니다 */
@@ -4622,11 +4625,13 @@ ${want.trim() ? "요청: " + want.trim() : ""}
               최근에 낸 {Math.min((st.mealPast || []).length, 24)}개는 빼고 짭니다.
             </div>
           )}
-          {(haveNow.length > 0 || buys.length > 0) && (
+          {(haveNow.length > 0 || staples.length > 0 || buys.length > 0) && (
             <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 9, lineHeight: 1.6 }}>
               {haveNow.length > 0
-                ? <>집에 있는 <b style={{ color: C.leaf }}>{haveNow.slice(0, 4).map((x) => x.name).join(", ")}</b>{haveNow.length > 4 ? ` 외 ${haveNow.length - 4}개` : ""}부터 쓰는 메뉴를 골라드려요.{staples.length ? ` 양념 ${staples.length}가지도 함께 봅니다.` : ""}</>
-                : <>살 것에 있는 <b style={{ color: C.leaf }}>{buys.slice(0, 4).join(", ")}</b>{buys.length > 4 ? ` 외 ${buys.length - 4}개` : ""}를 쓰는 메뉴를 먼저 골라드려요.</>}
+                ? <>집에 있는 <b style={{ color: C.leaf }}>{haveNow.slice(0, 4).map((x) => x.name).join(", ")}</b>{haveNow.length > 4 ? ` 외 ${haveNow.length - 4}개` : ""}부터 쓰는 메뉴를 골라드려요.{staples.length ? ` 늘 있는 것 ${staples.length}가지도 함께 봅니다.` : ""}</>
+                : buys.length > 0
+                ? <>살 것에 있는 <b style={{ color: C.leaf }}>{buys.slice(0, 4).join(", ")}</b>{buys.length > 4 ? ` 외 ${buys.length - 4}개` : ""}를 쓰는 메뉴를 먼저 골라드려요.{staples.length ? ` 늘 있는 것 ${staples.length}가지도 함께 봅니다.` : ""}</>
+                : <>켜두신 <b style={{ color: C.leaf }}>늘 있는 것 {staples.length}가지</b>를 조합한 메뉴를 골라드려요. 장을 보고 영수증을 찍으면 훨씬 정확해집니다.</>}
             </div>
           )}
         </div>
