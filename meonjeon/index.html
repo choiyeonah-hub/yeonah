@@ -1182,11 +1182,13 @@ async function authHeaders() {
   return window.__TOKEN ? { Authorization: "Bearer " + window.__TOKEN } : {};
 }
 
-async function askClaude(prompt, images) {
+/* search를 켜면 서버가 웹 검색 도구를 붙입니다.
+   검색은 한 번마다 따로 과금되므로 주 2회 "미리 찾아보기"에서만 켭니다. */
+async function askClaude(prompt, images, search) {
   const res = await fetch("/api/classify", {
     method: "POST",
     headers: { "Content-Type": "application/json", ...(await authHeaders()) },
-    body: JSON.stringify({ prompt, images: images || undefined, promptVersion: PROMPT_VERSION }),
+    body: JSON.stringify({ prompt, images: images || undefined, search: search || undefined, promptVersion: PROMPT_VERSION }),
   });
   if (!res.ok) {
     let why = "";
@@ -2507,6 +2509,8 @@ function DiscoverCard({ item, onAdd, onLater, onNo, delay = 0 }) {
           </div>
           <div style={{ fontSize: 16, fontWeight: 600, letterSpacing: "-.015em", lineHeight: 1.4 }}>{item.title}</div>
           <div style={{ fontSize: 13, color: C.ink2, marginTop: 7, lineHeight: 1.6 }}>{item.why}</div>
+          {/* 웹에서 확인한 것이면 어디서 봤는지 밝힙니다. 지어낸 것과 구분되게 */}
+          {item.src ? <div style={{ fontSize: 11.5, color: C.moss, marginTop: 8, background: C.mossSoft, borderRadius: 8, padding: "6px 9px", display: "inline-block" }}>🔎 {item.src}에서 확인</div> : null}
           <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 8 }}>담으면 · {cat.emoji} {cat.label} 영역으로 들어갑니다</div>
           <LinkCards group={null} text={`${item.title} ${item.why || ""}`} />
 
@@ -2622,10 +2626,22 @@ function Home() {
 
 가구: ${householdLine(st)}
 오늘 날짜: ${todayStr()}
+사는 곳: ${(st.place && st.place.label) || "한국"}
 이미 챙기는 일: ${[...openTasks.map((t) => t.title), ...due.map((d) => d.seed.t)].slice(0, 20).join(", ") || "없음"}
 
+먼저 웹을 검색해서 지금 실제로 있는 것을 확인하세요. 검색은 2~3번까지만.
+- 예방접종·건강검진처럼 누구나 아는 것은 제안하지 마세요. 그건 이미 앱이 챙깁니다.
+- 대신 이런 걸 찾으세요:
+  · 지자체가 실제로 운영하는 것 (장난감 대여소, 육아종합지원센터, 무료 검진·교육, 지원금 신청 기간)
+  · 이 시기 어린이집·유치원·학교 행사에 미리 준비할 것 (한복, 체육복, 학예회 의상, 방학 숙제 준비물)
+  · 계절 살림 중 때를 놓치면 곤란한 것 (김장 예약, 보일러 점검, 제철 예방)
+- 실제로 검색해서 확인된 것만 쓰세요. 없으면 지어내지 말고 일반적인 것으로 대체하세요.
+- 사는 곳이 구체적이면 그 지역 기준으로 찾고, 아니면 전국 공통으로 찾으세요.
+
+한국 가정 기준입니다. 출처가 광고 글이면 쓰지 마세요.
+
 규칙: 계절·다가오는 행사·아이 나이를 고려. 이미 챙기는 일과 겹치지 않게. 지금부터 준비해야 의미 있는 것만.
-출력은 JSON 배열만: [{"title":"14자 이내","why":"왜 지금인지 40자 이내","when":"다시 알릴 시점(예: 9월에)","category":"추정 카테고리"}]`);
+출력은 마지막에 JSON 배열만: [{"title":"14자 이내","why":"왜 지금인지 40자 이내","when":"다시 알릴 시점(예: 9월에)","category":"추정 카테고리","src":"어디서 봤는지 12자 이내, 없으면 빈 문자열"}]`, null, true);
         if (Array.isArray(r)) {
           const items = r.filter((x) => x && x.title && !st.dismissedDiscover.includes(x.title)).slice(0, 2);
           setDisc((d) => [...d, ...items].slice(0, 3));

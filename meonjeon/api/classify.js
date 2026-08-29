@@ -4,6 +4,18 @@
 export const config = { api: { bodyParser: { sizeLimit: "6mb" } } };
 
 const MAX_IMAGES = 3;
+/* 웹 검색은 주 2회 "미리 찾아보기"에서만 켭니다. 검색 한 번마다 따로 과금되기 때문에
+   말하기 정리·사진 인식에서는 절대 켜지 않습니다.
+   찾는 곳도 살림에 쓸모 있는 데로 좁힙니다. 아무 데나 뒤지면 광고 글이 올라옵니다. */
+const SEARCH_DOMAINS = [
+  "reddit.com", "youtube.com",
+  "blog.naver.com", "cafe.naver.com", "post.naver.com", "in.naver.com",
+  "brunch.co.kr", "tistory.com",
+  "gov.kr", "korea.kr", "kdca.go.kr", "childcare.go.kr", "schoolinfo.go.kr",
+  "seoul.go.kr", "nhis.or.kr", "familynet.or.kr",
+];
+const MAX_SEARCHES = 3;      /* 한 번의 발굴에서 검색 3회까지 */
+const MAX_ROUNDS = 3;        /* pause_turn으로 끊기면 이어받는 횟수 */
 const MAX_IMAGE_BYTES = 1_500_000;          // base64 기준 약 1.5MB
 const OK_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
@@ -40,7 +52,7 @@ export default async function handler(req, res) {
 
   const workspace = (process.env.ANTHROPIC_WORKSPACE_ID || "").trim();
 
-  const { prompt, images } = req.body || {};
+  const { prompt, images, search } = req.body || {};
   if (!prompt || typeof prompt !== "string") return res.status(400).json({ error: "prompt 없음" });
   if (prompt.length > 8000) return res.status(400).json({ error: "prompt too long" });
 
@@ -58,25 +70,44 @@ export default async function handler(req, res) {
   }
 
   const content = shots.length ? [...shots, { type: "text", text: prompt }] : prompt;
+  /* 웹 검색은 사진이 없는 요청에서만, 그리고 클라이언트가 명시적으로 켰을 때만 */
+  const useSearch = search === true && shots.length === 0;
+
+  const headers = {
+    "x-api-key": key,
+    "anthropic-version": "2023-06-01",
+    "content-type": "application/json",
+    /* 계정에 연결된(identity-linked) 키는 어느 워크스페이스에서 쓰는지도 알려줘야 합니다.
+       워크스페이스에 묶인 키를 쓰면 이 값은 없어도 됩니다. */
+    ...(workspace ? { "anthropic-workspace-id": workspace } : {}),
+  };
+  const base = {
+    model: "claude-sonnet-5",
+    max_tokens: useSearch ? 3000 : shots.length ? 2000 : 1400,
+    ...(useSearch ? {
+      tools: [{
+        type: "web_search_20260209",
+        name: "web_search",
+        max_uses: MAX_SEARCHES,
+        allowed_domains: SEARCH_DOMAINS,
+      }],
+    } : {}),
+  };
 
   try {
-    const r = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": key,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-        /* 계정에 연결된(identity-linked) 키는 어느 워크스페이스에서 쓰는지도 알려줘야 합니다.
-           워크스페이스에 묶인 키를 쓰면 이 값은 없어도 됩니다. */
-        ...(workspace ? { "anthropic-workspace-id": workspace } : {}),
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-5",
-        max_tokens: shots.length ? 2000 : 1400,
-        messages: [{ role: "user", content }],
-      }),
-    });
-    const data = await r.json();
+    const messages = [{ role: "user", content }];
+    let data = null, r = null;
+    /* 검색을 쓰면 한 번에 안 끝나고 pause_turn으로 돌아올 수 있습니다.
+       그대로 두면 답이 잘린 채로 화면에 갑니다. 끝날 때까지 이어받습니다. */
+    for (let round = 0; round < MAX_ROUNDS; round++) {
+      r = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST", headers, body: JSON.stringify({ ...base, messages }),
+      });
+      data = await r.json();
+      if (!r.ok) break;
+      if (data.stop_reason !== "pause_turn") break;
+      messages.push({ role: "assistant", content: data.content });
+    }
     if (!r.ok) {
       /* 무엇이 잘못됐는지 화면에 알려줘야 손을 쓸 수 있습니다.
          키 값 자체는 절대 내보내지 않고, 종류와 사유만 전달합니다. */
@@ -104,6 +135,10 @@ export default async function handler(req, res) {
       return res.status(502).json({ error: friendly });
     }
     // 원문 프롬프트와 사진은 로그에 남기지 않습니다 (개인정보 최소화)
+    if (useSearch) {
+      const n = (data.content || []).filter((b) => b.type === "web_search_tool_result").length;
+      console.log("discover with web search, results blocks:", n);
+    }
     return res.status(200).json({ content: data.content });
   } catch (e) {
     console.error("classify failed", e && e.name, e && e.message);
