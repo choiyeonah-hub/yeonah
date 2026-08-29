@@ -934,15 +934,16 @@ const LINKS = [
   { name: "학교알리미", desc: "학사일정·방학 날짜 확인", url: "https://www.schoolinfo.go.kr/", tag: "정보",
     kw: ["학사일정", "방학", "개학"], g: ["학교일정"] },
   { name: "오피넷", desc: "한국석유공사 · 근처 싼 주유소", url: "https://www.opinet.co.kr/", tag: "정보",
-    kw: ["주유", "기름", "휘발유", "경유"], g: ["자동차", "자동차정기"] },
+    flag: "car", kw: ["주유", "기름", "휘발유", "경유"], g: ["자동차", "자동차정기"] },
   { name: "자동차민원 대국민포털", desc: "검사 예약·과태료 조회", url: "https://www.ecar.go.kr/", tag: "정보",
-    kw: ["자동차 검사", "정기검사", "과태료"], g: ["자동차"] },
+    flag: "car", kw: ["자동차 검사", "정기검사", "과태료"], g: ["자동차"] },
   { name: "네이버지도에서 동물병원", desc: "가까운 병원·영업시간 확인", url: "https://map.naver.com/p/search/동물병원", tag: "정보",
-    kw: ["동물병원", "반려동물 진료", "접종"], g: ["반려정기"] },
+    flag: "pet", kw: ["동물병원", "반려동물", "강아지", "고양이", "심장사상충", "중성화"],
+    not: ["소아과", "어린이집", "유치원", "영유아", "초등", "등원", "하원", "학교"], g: ["반려정기"] },
   { name: "짐싸", desc: "포장이사·입주청소 견적을 한 번에 비교", url: "https://www.zimssa.com/", tag: "추천",
-    kw: ["이사", "이삿짐", "포장이사", "이사 견적", "용달"], g: ["이사"] },
+    flag: "moving", kw: ["이사", "이삿짐", "포장이사", "이사 견적", "용달"], g: ["이사"] },
   { name: "이사모아", desc: "이사 견적을 여러 곳에서 받아 비교", url: "https://24moamoa.com/", tag: "추천",
-    kw: ["이사", "이사 견적", "포장이사", "원룸이사"], g: ["이사"] },
+    flag: "moving", kw: ["이사", "이사 견적", "포장이사", "원룸이사"], g: ["이사"] },
   { name: "미소 · 정리수납", desc: "집 정리를 전문가가 — 무료 견적 최대 3곳", url: "https://miso.kr/storageconsultation-rfq", tag: "추천",
     kw: ["정리", "정리수납", "집 정리", "수납", "짐 정리", "옷장 정리", "입주청소"], g: ["이사", "청소정기"] },
   { name: "미니창고 다락", desc: "계절옷·이불·이삿짐을 필요한 크기만큼 맡기기", url: "https://www.dalock.kr/", tag: "추천",
@@ -956,10 +957,17 @@ const LINKS = [
 ];
 
 /* 한 자리에 최대 2개까지만 붙입니다 (광고판처럼 보이지 않게) */
-const linksFor = ({ group, text }) => {
+const linksFor = ({ group, text, flags }) => {
   const t = String(text || "");
-  const hit = LINKS.filter((l) =>
-    (group && (l.g || []).includes(group)) || (l.kw || []).some((k) => t.includes(k)));
+  const hit = LINKS.filter((l) => {
+    /* 이 집에 해당 없는 건 아예 안 봅니다. 차 없는 집에 주유소를 띄우면
+       그 자리는 광고가 아니라 소음입니다 */
+    if (l.flag && flags && !flags[l.flag]) return false;
+    /* 다른 데를 가리키는 말이 있으면 이 링크가 아닙니다.
+       "둘째 6개월 예방접종"의 "접종" 두 글자에 동물병원이 붙던 일이 있었습니다 */
+    if ((l.not || []).some((k) => t.includes(k))) return false;
+    return (group && (l.g || []).includes(group)) || (l.kw || []).some((k) => t.includes(k));
+  });
   return hit.slice(0, 2);
 };
 const linkUrl = (l, text) => l.url.replace("{q}", encodeURIComponent(String(text || "").slice(0, 30)));
@@ -1208,7 +1216,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0829-g";
+const BUILD = "0829-h";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -1492,7 +1500,7 @@ function LinkCards({ group, text, compact }) {
   const clicked = st.linkClicks || {};
   const seen = st.linkSeen || {};
   const off = st.linkOff || {};
-  const hits = linksFor({ group, text }).filter((l) => {
+  const hits = linksFor({ group, text, flags: st.flags }).filter((l) => {
     if (off[l.name] && Date.now() - off[l.name] < 180 * DAY) return false;
     if (l.always) return true;
     const from = seen[l.name] || clicked[l.name];
