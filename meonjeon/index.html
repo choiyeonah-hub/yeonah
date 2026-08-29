@@ -124,12 +124,29 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const show = (html) => { gate.innerHTML = html; gate.style.display = 'block'; };
+const GATE_BUILD = '0829-af';
+const show = (html) => {
+  gate.innerHTML = html +
+    `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
+  gate.style.display = 'block';
+};
 const hideGate = () => { gate.style.display = 'none'; };
 
 /* .env.example의 예시 값이 그대로 들어간 경우를 잡아냅니다.
    값이 있는데도 앱이 이상하게 도는 것보다, 여기서 말해주는 편이 낫습니다. */
 const isExample = (v) => !v || /xxxxxxxx|^sk-ant-\.\.\.$|^eyJ\.\.\.$|^https:\/\/xxx/i.test(String(v).trim());
+
+const isIPhone = () => /iPad|iPhone|iPod/.test(String(navigator.userAgent || ''));
+/* 카카오·네이버 앱 안에서는 홈 화면 추가도, 알림도 안 됩니다 */
+const inAppName = () => {
+  const u = String(navigator.userAgent || '');
+  if (/KAKAOTALK/i.test(u)) return '카카오톡';
+  if (/NAVER|Whale.*inapp/i.test(u)) return '네이버 앱';
+  if (/Instagram/i.test(u)) return '인스타그램';
+  if (/FBAN|FBAV/i.test(u)) return '페이스북';
+  if (/DaumApps/i.test(u)) return '다음 앱';
+  return null;
+};
 
 /* 홈 화면에 추가한 앱으로 들어왔는지 — 사파리와는 다른 방입니다 */
 const isStandalone = () => {
@@ -166,6 +183,16 @@ function askEmail() {
     <h1>먼저ON</h1>
     <p>생각나는 건 말하세요.<br>생각나지 않는 건 먼저 챙길게요.</p>
     ${join ? '<div class="msg">가족 초대를 받으셨네요. 로그인하면 같은 집으로 들어갑니다.</div>' : ''}
+    ${inAppName() ? `<div class="msg" style="background:#F9E9EE;color:#A84362">
+        지금 <b>${inAppName()}</b> 안에서 보고 계세요. 여기서는 알림을 켤 수 없습니다.<br>
+        주소창의 <b>meonjeon.vercel.app</b>을 꾹 눌러 복사한 뒤,
+        ${isIPhone() ? '<b>사파리</b>' : '<b>크롬</b>'}에 붙여넣어 열어주세요.
+      </div>` : isIPhone() && !isStandalone() ? `<div class="msg">
+        <b>아이폰은 로그인 전에 한 가지만 먼저</b><br>
+        아래쪽 <b>공유 버튼</b>(□에 ↑) → <b>홈 화면에 추가</b> → 생긴 <b>먼저</b> 아이콘으로 들어와서 로그인하세요.<br>
+        <span style="opacity:.8">이러면 로그인을 한 번만 하면 되고, 알림도 받을 수 있습니다.
+        지금 여기서 로그인하면 나중에 한 번 더 하셔야 해요.</span>
+      </div>` : ''}
     <div style="margin-top:26px">
       <input id="em" type="email" inputmode="email" autocomplete="email" placeholder="이메일 주소" />
       <button id="go">로그인 링크 받기</button>
@@ -1360,7 +1387,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0829-ae";
+const BUILD = "0829-af";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
