@@ -880,7 +880,7 @@ const PET_TYPES = {
 const LINKS = [
   { always: 1, name: "쿠팡에서 장보기", desc: "담아둔 목록 그대로 검색", url: "https://www.coupang.com/np/search?q={q}", tag: "추천",
     kw: ["장보기", "구매", "사기", "주문", "생수", "휴지", "세제", "기저귀", "분유", "사료", "모래"], g: ["식단정기", "소모품", "육아소모품", "반려정기"] },
-  { once: 1, name: "냉장고 관리 앱 찾기", desc: "재고 등록하면 유통기한 알림에 식단까지", url: "https://apps.apple.com/kr/search?term=냉장고 관리", tag: "추천",
+  { name: "냉장고 관리 앱 찾기", desc: "재고 등록하면 유통기한 알림에 식단까지", url: "https://apps.apple.com/kr/search?term=냉장고 관리", tag: "추천",
     kw: ["냉장고", "재고", "유통기한", "식재료", "장보기"], g: ["냉장고", "식단정기"] },
   { always: 1, name: "유튜브 레시피 보기", desc: "따라 하기 쉬운 영상부터", url: "https://www.youtube.com/results?search_query={q}+레시피", tag: "추천",
     kw: ["식단", "반찬", "요리", "밀키트", "레시피"], g: ["식단정기", "냉장고"] },
@@ -896,11 +896,11 @@ const LINKS = [
     kw: ["문화센터", "돌봄센터", "가족 프로그램"], g: ["보육정기", "놀이"] },
   { name: "아자스쿨", desc: "아이 체험·방과후 프로그램 예약", url: "https://www.azaschool.com/", tag: "추천",
     kw: ["체험", "놀러", "나들이", "방학", "캠프", "주말 활동"], g: ["놀이", "학교일정"] },
-  { once: 1, name: "놀이의 발견", desc: "주말에 아이랑 갈 곳 골라보기", url: "https://apps.apple.com/kr/search?term=놀이의발견", tag: "추천",
+  { name: "놀이의 발견", desc: "주말에 아이랑 갈 곳 골라보기", url: "https://apps.apple.com/kr/search?term=놀이의발견", tag: "추천",
     kw: ["체험", "놀러", "나들이", "키즈카페", "주말 활동"], g: ["놀이"] },
-  { once: 1, name: "키즈노트", desc: "알림장·공지 확인 (사진으로 올리면 준비물만 뽑아드려요)", url: "https://www.kidsnote.com/", tag: "추천",
+  { name: "키즈노트", desc: "알림장·공지 확인 (사진으로 올리면 준비물만 뽑아드려요)", url: "https://www.kidsnote.com/", tag: "추천",
     kw: ["알림장", "준비물", "공지"], g: ["기관준비물", "보육정기"] },
-  { once: 1, name: "e알리미", desc: "학교 가정통신문·설문 (캡처해 올리면 할 일만 뽑아드려요)", url: "https://apps.apple.com/kr/search?term=e알리미", tag: "추천",
+  { name: "e알리미", desc: "학교 가정통신문·설문 (캡처해 올리면 할 일만 뽑아드려요)", url: "https://apps.apple.com/kr/search?term=e알리미", tag: "추천",
     kw: ["가정통신문", "학교 공지", "체험학습", "제출"], g: ["학교일정", "교육정기"] },
   { name: "학교알리미", desc: "학사일정·방학 날짜 확인", url: "https://www.schoolinfo.go.kr/", tag: "정보",
     kw: ["학사일정", "방학", "개학"], g: ["학교일정"] },
@@ -910,13 +910,13 @@ const LINKS = [
     kw: ["자동차 검사", "정기검사", "과태료"], g: ["자동차"] },
   { name: "네이버지도에서 동물병원", desc: "가까운 병원·영업시간 확인", url: "https://map.naver.com/p/search/동물병원", tag: "정보",
     kw: ["동물병원", "반려동물 진료", "접종"], g: ["반려정기"] },
-  { once: 1, name: "이사 견적 비교", desc: "여러 업체 방문견적 한 번에", url: "https://apps.apple.com/kr/search?term=이사견적", tag: "추천",
+  { name: "이사 견적 비교", desc: "여러 업체 방문견적 한 번에", url: "https://apps.apple.com/kr/search?term=이사견적", tag: "추천",
     kw: ["이사", "이삿짐", "포장이사"], g: ["이사"] },
-  { once: 1, name: "짐 보관 서비스 찾기", desc: "계절옷·이불을 상자째 맡기고 필요할 때 받기", url: "https://apps.apple.com/kr/search?term=짐보관", tag: "추천",
+  { name: "짐 보관 서비스 찾기", desc: "계절옷·이불을 상자째 맡기고 필요할 때 받기", url: "https://apps.apple.com/kr/search?term=짐보관", tag: "추천",
     kw: ["짐 보관", "옷 보관", "계절옷 보관"], g: [] },
-  { once: 1, name: "스프링클", desc: "돌잔치 장소·돌상·스냅·답례품", url: "https://apps.apple.com/kr/search?term=스프링클 돌잔치", tag: "추천",
+  { name: "스프링클", desc: "돌잔치 장소·돌상·스냅·답례품", url: "https://apps.apple.com/kr/search?term=스프링클 돌잔치", tag: "추천",
     kw: ["돌잔치", "돌상", "돌스냅", "답례품", "백일"], g: ["돌잔치"] },
-  { once: 1, name: "냠냠일기", desc: "먹은 재료·알레르기 반응 기록", url: "https://apps.apple.com/kr/search?term=냠냠일기", tag: "추천",
+  { name: "냠냠일기", desc: "먹은 재료·알레르기 반응 기록", url: "https://apps.apple.com/kr/search?term=냠냠일기", tag: "추천",
     kw: ["이유식", "미음", "유아식", "알레르기"], g: ["이유식"] },
   { name: "코레일", desc: "명절 승차권 예매는 보통 한 달 전부터", url: "https://www.letskorail.com/", tag: "정보",
     kw: ["기차", "KTX", "승차권", "명절 교통", "귀성"], g: ["행사정기"] },
@@ -1403,47 +1403,71 @@ function PromptRail({ list, onUse, note }) {
 const SHOWN = new Set();
 function LinkCards({ group, text, compact }) {
   const { st, setSt, log } = use();
-  /* 누른 게 "했다"는 뜻인 링크와 아닌 링크가 다릅니다.
-     · once   앱 설치 — 한 번 깔면 끝. 계속 띄우면 그게 광고입니다 → 누르면 90일 숨김
-     · always 쿠팡·레시피 — 장은 늘 봅니다 → 안 숨김
-     · 기본   코레일 예매·정부24 신청 — 들어갔다고 예매한 게 아닙니다.
-              "아 맞다 예매해야지" 하고 못 할 수도 있어요 → 90일간 계속 띄우고
-              그 뒤에 숨깁니다 (그쯤이면 그 건은 끝났을 테니) */
+  /* 눌렀다고 깐 것도, 예매한 것도 아닙니다. 앱은 알 수가 없습니다.
+     그래서 클릭으로 숨기지 않고 90일간 그대로 둡니다.
+     대신 사용자가 직접 "이미 있어요"를 누르면 그때 내립니다 —
+     판단은 앱이 아니라 쓰는 사람이 합니다.
+     · always  쿠팡·레시피처럼 늘 필요한 것 → 안 내림
+     · 기본     첫 노출로부터 90일 → 그 뒤 자동으로 내림 */
   const clicked = st.linkClicks || {};
+  const seen = st.linkSeen || {};
+  const off = st.linkOff || {};
   const hits = linksFor({ group, text }).filter((l) => {
-    const at = clicked[l.name];
-    if (!at || l.always) return true;
-    const days = (Date.now() - at) / DAY;
-    return l.once ? days >= 90 : days < 90;
+    if (off[l.name] && Date.now() - off[l.name] < 180 * DAY) return false;
+    if (l.always) return true;
+    const from = seen[l.name] || clicked[l.name];
+    return !from || (Date.now() - from) / DAY < 90;
   });
   /* 어디에서 뜬 카드인지 — 제휴 협상 때 "돌잔치 화면에서 몇 번" 을 말할 수 있어야 합니다 */
   const from = String(text || group || "").trim().slice(0, 24);
   useEffect(() => {
+    const fresh = hits.filter((l) => !seen[l.name] && !l.always);
     hits.forEach((l) => {
       const key = l.name + "|" + from;
       if (SHOWN.has(key)) return;
       SHOWN.add(key);
       log("partner_show", { name: l.name, g: group || null, from });
     });
+    /* 90일은 처음 보여드린 날부터 셉니다 */
+    if (fresh.length) {
+      const now = Date.now();
+      setSt((sv) => {
+        const cur = sv.linkSeen || {};
+        const add = {};
+        fresh.forEach((l) => { if (!cur[l.name]) add[l.name] = now; });
+        return Object.keys(add).length ? { ...sv, linkSeen: { ...cur, ...add } } : sv;
+      });
+    }
   }, [hits.map((l) => l.name).join(","), from]);
   if (!hits.length) return null;
   return (
     <div className="flex flex-col gap-1.5" style={{ marginTop: compact ? 8 : 12 }}>
       {hits.map((l) => (
-        <button key={l.name} className="press flex items-center gap-2.5 w-full text-left"
-          onClick={() => {
-            log("partner_click", { name: l.name, g: group || null, from });
-            setSt((sv) => ({ ...sv, linkClicks: { ...(sv.linkClicks || {}), [l.name]: Date.now() } }));
-            window.open(linkUrl(l, text), "_blank", "noopener");
-          }}
-          style={{ background: C.bg, border: `1px solid ${C.line}`, borderRadius: R.sm, padding: "10px 12px" }}>
-          <span className="mono" style={{ fontSize: 9, color: C.ink3, border: `1px solid ${C.line}`, borderRadius: 5, padding: "1px 5px", flexShrink: 0 }}>{l.tag}</span>
-          <span className="flex-1 min-w-0">
-            <span style={{ display: "block", fontSize: 13, fontWeight: 600 }}>{l.name}</span>
-            <span style={{ display: "block", fontSize: 11.5, color: C.ink3, marginTop: 2 }}>{l.desc}</span>
-          </span>
-          <span style={{ fontSize: 13, color: C.moss }}>›</span>
-        </button>
+        <div key={l.name} className="flex items-center" style={{ background: C.bg, border: `1px solid ${C.line}`, borderRadius: R.sm }}>
+          <button className="press flex items-center gap-2.5 flex-1 min-w-0 text-left"
+            onClick={() => {
+              log("partner_click", { name: l.name, g: group || null, from });
+              setSt((sv) => ({ ...sv, linkClicks: { ...(sv.linkClicks || {}), [l.name]: Date.now() } }));
+              window.open(linkUrl(l, text), "_blank", "noopener");
+            }}
+            style={{ background: "transparent", border: "none", padding: "10px 4px 10px 12px" }}>
+            <span className="mono" style={{ fontSize: 9, color: C.ink3, border: `1px solid ${C.line}`, borderRadius: 5, padding: "1px 5px", flexShrink: 0 }}>{l.tag}</span>
+            <span className="flex-1 min-w-0">
+              <span style={{ display: "block", fontSize: 13, fontWeight: 600 }}>{l.name}</span>
+              <span style={{ display: "block", fontSize: 11.5, color: C.ink3, marginTop: 2 }}>{l.desc}</span>
+            </span>
+            <span style={{ fontSize: 13, color: C.moss }}>›</span>
+          </button>
+          {/* 내릴지 말지는 쓰는 사람이 정합니다. 앱은 깔았는지 알 수 없으니까요 */}
+          {!l.always && (
+            <button className="press" aria-label="이 카드 그만 보기" title="이미 있어요"
+              onClick={() => {
+                log("partner_off", { name: l.name, from });
+                setSt((sv) => ({ ...sv, linkOff: { ...(sv.linkOff || {}), [l.name]: Date.now() } }));
+              }}
+              style={{ background: "transparent", border: "none", padding: "10px 11px", fontSize: 11, color: C.ink3, flexShrink: 0, lineHeight: 1 }}>✕</button>
+          )}
+        </div>
       ))}
     </div>
   );
