@@ -836,8 +836,6 @@ const LINKS = [
     kw: ["장보기", "구매", "사기", "주문", "생수", "휴지", "세제", "기저귀", "분유", "사료", "모래"], g: ["식단정기", "소모품", "육아소모품", "반려정기"] },
   { name: "냉장고 관리 앱 찾기", desc: "재고 등록하면 유통기한 알림에 식단까지", url: "https://apps.apple.com/kr/search?term=냉장고 관리", tag: "추천",
     kw: ["냉장고", "재고", "유통기한", "식재료", "장보기"], g: ["냉장고", "식단정기"] },
-  { name: "만개의레시피", desc: "남은 재료로 만들 수 있는 요리", url: "https://www.10000recipe.com/recipe/list.html?q={q}", tag: "추천",
-    kw: ["식단", "반찬", "요리", "밀키트", "레시피"], g: ["식단정기"] },
   { name: "유튜브 레시피 보기", desc: "따라 하기 쉬운 영상부터", url: "https://www.youtube.com/results?search_query={q}+레시피", tag: "추천",
     kw: ["식단", "반찬", "요리", "밀키트", "레시피"], g: ["식단정기", "냉장고"] },
   { name: "예방접종도우미", desc: "질병관리청 · 접종 이력과 다음 일정", url: "https://nip.kdca.go.kr/", tag: "정보",
@@ -1698,6 +1696,7 @@ function App() {
                 {tab === "speak" && <Speak />}
                 {tab === "time" && <Timeline />}
                 {tab === "ann" && <AnnScreen />}
+                {tab === "meal" && <MealScreen />}
                 {tab === "share" && <Share />}
                 {tab === "set" && <Settings />}
               </div>
@@ -3566,7 +3565,7 @@ function Speak() {
    음력 항목은 올해 양력 날짜로 잡고, 지나면 다음 해를
    추정(+354일)해두고 확인을 부탁합니다. */
 function AnnScreen() {
-  const { st, setSt, addTasks, say } = use();
+  const { st, setSt, addTasks, say, setTab } = use();
   const [name, setName] = useState("");
   const [mm, setMM] = useState("");
   const [dd, setDD] = useState("");
@@ -3661,7 +3660,8 @@ function AnnScreen() {
 
   return (
     <>
-      <div style={{ marginTop: 18, paddingLeft: 2 }}>
+      <PageHead onBack={() => setTab("set")} backLabel="설정" />
+      <div style={{ marginTop: 14, paddingLeft: 2 }}>
         <div className="disp" style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-.03em" }}>경조사</div>
         <p style={{ fontSize: 13.5, color: C.ink2, marginTop: 9, lineHeight: 1.7 }}>
           생신·기일·결혼기념일을 넣어두면 정한 만큼 미리 올려드려요.<br />한 번 넣으면 매년 챙깁니다.
@@ -3944,6 +3944,164 @@ function Categories() {
         </div>
       </div>
     </Section>
+  );
+}
+
+
+/* ── 식단 ─────────────────────────────────────────
+   "이번 주 뭐 먹지"는 매일 돌아오는데 매번 처음부터 생각합니다.
+   AI가 한 주치를 쭉 늘어놓고, 마음에 드는 것만 고르면
+   재료가 살 것 목록으로 넘어갑니다. */
+function MealScreen() {
+  const { st, setSt, addTasks, say, log, spendAI, refundAI, setTab } = use();
+  const [busy, setBusy] = useState(false);
+  const [want, setWant] = useState("");
+  const [err, setErr] = useState("");
+  const meal = st.meal || null;
+  const items = (meal && meal.items) || [];
+  const chosen = (meal && meal.chosen) || [];
+  const isOn = (dish) => chosen.indexOf(dish) >= 0;
+  /* "두부 구매" → "두부". 프롬프트에도 화면에도 재료 이름만 보이는 게 맞습니다 */
+  const buys = st.tasks.filter((t) => t.status === "buy" && !t.done).map((t) => t.title.replace(/\s*구매$/, ""));
+
+  const toggle = (dish) => setSt((sv) => {
+    const cur = (sv.meal && sv.meal.chosen) || [];
+    const next = cur.indexOf(dish) >= 0 ? cur.filter((x) => x !== dish) : [...cur, dish];
+    return { ...sv, meal: { ...(sv.meal || {}), chosen: next } };
+  });
+
+  const gen = async () => {
+    if (!spendAI("talk", 1)) return say("이번 달 AI 정리를 다 쓰셨어요");
+    setBusy(true); setErr("");
+    log("meal_gen", { want: want.length });
+    const FALLBACK = [
+      { dish: "된장찌개와 계란말이", why: "재료가 늘 있는 조합", need: ["두부", "애호박", "계란", "대파"], min: 25 },
+      { dish: "소고기 미역국", why: "끓여두면 이틀 먹어요", need: ["미역", "국거리 소고기"], min: 40 },
+      { dish: "간장 불고기", why: "아이도 잘 먹는 간", need: ["불고기감", "양파", "당근"], min: 30 },
+      { dish: "김치볶음밥", why: "남은 밥 처리", need: ["김치", "햄", "계란"], min: 15 },
+      { dish: "닭볶음탕", why: "주말에 한 번", need: ["닭볶음탕용 닭", "감자", "당근"], min: 50 },
+    ];
+    let got = null;
+    try {
+      const r = await askClaude(`한국 가정의 살림을 돕는 AI '${BRAND}'입니다. 이번 주 저녁 식단을 짜주세요.
+가구: ${householdLine(st)}
+지금 살 것 목록에 있는 것: ${buys.length ? buys.join(", ") : "없음"}
+${want.trim() ? "요청: " + want.trim() : ""}
+
+규칙
+- 한국 가정에서 실제로 자주 해 먹는 저녁 메뉴로 7개를 제안하세요.
+- 아이가 있으면 아이가 먹을 수 있는 간의 메뉴를 반 이상 넣으세요.
+- 재료가 겹치게 짜서 장을 한 번에 볼 수 있게 하세요. 한 번 산 재료를 두 끼에 쓰면 좋습니다.
+- 한 주에 한 번은 40분 이상 걸리는 것, 나머지는 30분 안쪽으로.
+- need에는 사야 할 재료만 넣으세요. 소금·간장·설탕처럼 집에 늘 있는 양념은 빼세요.
+- 살 것 목록에 이미 있는 재료를 쓰는 메뉴를 우선하세요.
+
+출력은 JSON 배열만: [{"dish":"14자 이내","why":"왜 이걸 권하는지 20자 이내","need":["재료","재료"],"min":조리시간분}]`);
+      if (Array.isArray(r) && r.length) got = r.filter((x) => x && x.dish).slice(0, 8);
+    } catch (e) {
+      setErr(e && e.message ? e.message : "식단을 못 받아왔어요");
+    }
+    if (!got) { refundAI("talk", 1); got = FALLBACK; }
+    setSt((sv) => ({ ...sv, meal: { at: Date.now(), items: got, chosen: [] } }));
+    setBusy(false); setWant("");
+  };
+
+  /* 고른 메뉴의 재료를 살 것으로 — 이미 목록에 있는 건 다시 담지 않습니다 */
+  const toBuy = () => {
+    const need = [];
+    items.forEach((m) => {
+      if (!isOn(m.dish)) return;
+      (m.need || []).forEach((n) => {
+        const t = String(n).trim();
+        if (!t) return;
+        if (need.indexOf(t) >= 0) return;
+        if (buys.indexOf(t) >= 0) return;
+        need.push(t);
+      });
+    });
+    if (!need.length) return say("담을 재료가 없어요. 이미 목록에 다 있습니다");
+    addTasks(need.map((n) => ({ title: n + " 구매", category: "food", status: "buy", note: "이번 주 식단" })), "ai");
+    log("meal_tobuy", { n: need.length });
+    say(`재료 ${need.length}개를 살 것에 담았어요`);
+    setTab("home");
+  };
+
+  return (
+    <>
+      <div style={{ marginTop: 18, paddingLeft: 2 }}>
+        <div className="disp" style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-.03em" }}>이번 주 뭐 먹지</div>
+        <p style={{ fontSize: 13.5, color: C.ink2, marginTop: 9, lineHeight: 1.7 }}>
+          쭉 늘어놓아 드릴게요. 마음에 드는 것만 고르면 <b style={{ color: C.ink }}>재료가 살 것으로</b> 넘어갑니다.
+        </p>
+      </div>
+
+      <Card style={{ marginTop: 16 }}>
+        <div style={{ padding: 16 }}>
+          <input className="hae" value={want} onChange={(e) => setWant(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && !busy) gen(); }}
+            placeholder="원하는 게 있으면 적어주세요 — 예: 매운 것 빼고, 아이 반찬 위주"
+            style={{ width: "100%", border: `1px solid ${C.line}`, borderRadius: R.sm, padding: "12px 13px", fontSize: 13.5, background: C.bg, color: C.ink }} />
+          <div style={{ height: 10 }} />
+          <Btn kind="accent" disabled={busy} onClick={gen}>{busy ? "짜는 중…" : items.length ? "다시 짜기" : "이번 주 식단 짜줘"}</Btn>
+          {buys.length > 0 && (
+            <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 9, lineHeight: 1.6 }}>
+              살 것에 있는 <b style={{ color: C.moss }}>{buys.slice(0, 4).join(", ")}</b>{buys.length > 4 ? ` 외 ${buys.length - 4}개` : ""}를 쓰는 메뉴를 먼저 골라드려요.
+            </div>
+          )}
+        </div>
+      </Card>
+
+      {err && <div style={{ marginTop: 12, background: C.sunSoft, color: C.sun, borderRadius: 12, padding: "11px 13px", fontSize: 12.5, lineHeight: 1.7 }}>
+        {err} 아래는 기본 예시라 참고만 해주세요.
+      </div>}
+
+      {items.length > 0 && (
+        <Section eyebrow="MENU" title="고르실 것만 고르세요" right={chosen.length ? `${chosen.length}개 고름` : `${items.length}개`}>
+          <Card>
+            {items.map((m, i) => {
+              const on = isOn(m.dish);
+              return (
+                <button key={i} className="press rise flex items-start gap-3 w-full text-left" onClick={() => toggle(m.dish)}
+                  style={{ background: on ? C.mossSoft : "transparent", border: "none",
+                           borderBottom: i === items.length - 1 ? "none" : `1px solid ${C.line}`,
+                           padding: "14px 16px", animationDelay: `${i * 45}ms` }}>
+                  <span style={{ width: 22, height: 22, marginTop: 1, borderRadius: 7, flexShrink: 0,
+                                 border: `1.5px solid ${on ? C.moss : C.line}`, background: on ? C.moss : "transparent",
+                                 color: "#fff", fontSize: 12, lineHeight: "20px", textAlign: "center" }}>{on ? "✓" : ""}</span>
+                  <span className="flex-1 min-w-0">
+                    <span style={{ display: "block", fontSize: 15, fontWeight: 600, color: on ? C.moss : C.ink }}>{m.dish}</span>
+                    {m.why && <span style={{ display: "block", fontSize: 12, color: C.ink3, marginTop: 3 }}>{m.why}</span>}
+                    {(m.need || []).length > 0 && (
+                      <span style={{ display: "block", fontSize: 11.5, color: C.ink3, marginTop: 5 }}>
+                        살 것 · {(m.need || []).join(", ")}
+                      </span>
+                    )}
+                  </span>
+                  {m.min ? <span className="mono" style={{ fontSize: 11, color: C.ink3, whiteSpace: "nowrap", marginTop: 3 }}>{m.min}분</span> : null}
+                </button>
+              );
+            })}
+          </Card>
+          <LinkCards group="식단정기" text={items.map((m) => m.dish).join(" ")} />
+        </Section>
+      )}
+
+      {chosen.length > 0 && (
+        <div style={{ marginTop: 18 }}>
+          <Btn kind="accent" onClick={toBuy}>고른 {chosen.length}개 · 재료를 살 것에 담기</Btn>
+          <div style={{ textAlign: "center", fontSize: 11.5, color: C.ink3, marginTop: 8 }}>이미 목록에 있는 재료는 빼고 담습니다</div>
+        </div>
+      )}
+
+      {items.length === 0 && !busy && (
+        <Card style={{ marginTop: 14 }}>
+          <div style={{ padding: "26px 20px", textAlign: "center", fontSize: 13, color: C.ink3, lineHeight: 1.8 }}>
+            아직 짠 식단이 없어요.<br />
+            냉장고를 찍어서 짜고 싶으면 <b style={{ color: C.moss }}>말하기 → 사진</b>으로 올려주세요.
+          </div>
+        </Card>
+      )}
+    </>
   );
 }
 
@@ -4335,7 +4493,7 @@ function Settings() {
           <span className="flex items-center gap-3">
             <span style={{ fontSize: 20 }}>🗓</span>
             <span className="flex-1 min-w-0">
-              <span style={{ display: "block", fontSize: 14, fontWeight: 600 }}>경조사 탭에서 등록해요</span>
+              <span style={{ display: "block", fontSize: 14, fontWeight: 600 }}>경조사 등록하기</span>
               <span style={{ display: "block", fontSize: 12, color: C.ink3, marginTop: 3 }}>생신·기일(음력 포함)·결혼기념일을 날짜로 넣으면 미리 떠요</span>
             </span>
             <span style={{ fontSize: 14, color: C.moss }}>›</span>
@@ -4662,7 +4820,7 @@ function TabBar() {
     { id: "home", label: "오늘", icon: "◉" },
     { id: "cat", label: "영역", icon: "▦" },
     { id: "speak", label: "말하기", icon: "✦", primary: true },
-    { id: "ann", label: "경조사", icon: "❖" },
+    { id: "meal", label: "식단", icon: "❖" },
     { id: "time", label: "타임라인", icon: "◷" },
     { id: "share", label: "나눔", icon: "◑" },
   ];
