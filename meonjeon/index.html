@@ -2643,6 +2643,7 @@ function Speak() {
   const [scanKind, setScanKind] = useState(null); /* note = 알림장 / fridge = 냉장고 */
   const [menu, setMenu] = useState(null);         /* 냉장고 스캔이 짜준 식단 */
   const [answer, setAnswer] = useState("");       /* 질문에 대한 AI의 답 — 담기 전에 먼저 보여줌 */
+  const [groupBy, setGroupBy] = useState("cat");  /* 결과를 영역별로 볼지 시점별로 볼지 */
   const fileRef = useRef(null);
   const [note, setNote] = useState("");
   const [failed, setFailed] = useState(false);
@@ -2692,10 +2693,16 @@ function Speak() {
     stopMic(); setPhase("thinking"); setMenu(null);
     log("dump_submit", { len: speech.length, shots: shots.length });
     const catList = cats.map((c) => `${c.id}(${c.label})`).join(" ");
+    /* "놓친 게 있을까?" 같은 점검 질문에 답하려면 이미 챙기는 일을 알아야 합니다 */
+    const already = [
+      ...st.tasks.filter((t) => !t.done).map((t) => t.title),
+      ...dueRoutines(st).map((r) => r.seed.t),
+    ].slice(0, 40).join(", ");
     const prompt = `당신은 한국 가정의 인지부하를 대신 기억해주는 AI 비서 '${BRAND}'입니다.
 사용자가 두서없이 말한 내용을 실행 가능한 할 일로 분해·분류하세요.
 
 이 가구: ${householdLine(st)}
+이미 챙기고 있는 일: ${already || "아직 없음"}
 발화: "${speech}"
 
 규칙
@@ -2710,9 +2717,18 @@ function Speak() {
 - 다만 돌잔치·백일·결혼식·이사처럼 전문 앱/업체가 따로 있는 준비는 세부로 쪼개지 마세요.
   "돌잔치 기획하기" 같은 한 줄로만 만들고, 장소·답례품·의상 같은 하위 항목은 만들지 마세요.
 
-- 사용자가 "식단 짜줘", "추천해줘", "알려줘"처럼 답을 원하는 질문이면:
-  먼저 answer에 실제 답(식단표·추천 목록·설명)을 240자 이내로 쓰고, 그 답을 실행하는 데 필요한 일을 items로 뽑으세요.
-  예: "이번 주 식단 짜줘" → answer에 요일별 메뉴, items에 [장보기, 재료 손질] 같은 것.
+- 사용자의 말이 질문이면 (물음표로 끝나거나 "있을까 / 어때 / 뭐가 / 어떻게 / 추천 / 짜줘 / 알려줘 / 봐줘 / 괜찮을까 / 놓친 / 빠진 / 챙길 게" 등이 들어가면)
+  answer를 반드시 채우세요. 비워두면 안 됩니다.
+- 답을 원하는 질문("식단 짜줘", "추천해줘")이면:
+  answer에 실제 답(식단표·추천 목록·설명)을 300자 이내로 쓰고, 그 답을 실행하는 데 필요한 일을 items로 뽑으세요.
+  예: "이번 주 식단 짜줘" → answer에 요일별 메뉴, items에 [장보기, 재료 손질].
+- 점검을 요청하는 질문("이번 주 아이 관련해서 놓친 거 있을까?", "뭐 챙겨야 해?", "확인해줘")이면:
+  ① 위 '이미 챙기고 있는 일'에 이미 있는 것은 절대 다시 제안하지 마세요.
+  ② 이 가구의 아이 나이·계절·이번 달 시기를 근거로, 빠져 있을 법한 일만 고르세요.
+  ③ answer에는 왜 지금 그게 필요한지를 300자 이내로 짧게 설명하고 (예: "5살이면 이맘때 ○○를 시작해요"),
+     items에는 그중 실제로 담을 만한 것만 3~6개 넣으세요.
+  ④ 질문에 범위가 있으면(예: "아이 관련") 그 범위의 카테고리로만 items를 만드세요.
+  ⑤ 정말 빠진 게 없으면 answer에 "지금은 빠진 게 없어 보여요"라고 쓰고 items는 비우세요.
 - 그냥 할 일을 쏟아낸 것이면 answer 없이 items만.
 
 출력은 JSON 객체만: {"answer":"질문이 아니면 빈 문자열","items":[{"title":"12자 이내","category":"...","status":"...","note":"20자 이내","newCategory":"","cycle":""}]}`;
@@ -2756,7 +2772,16 @@ function Speak() {
     setResult(items); setPhase("result");
   };
 
-  const grouped = STATUS_ORDER.map((s) => ({ s, items: result.filter((r) => r.status === s) })).filter((g) => g.items.length);
+  /* 어느 영역으로 넘어가는지 먼저 보이게, 기본은 영역별입니다 */
+  const grouped = (groupBy === "cat"
+    ? [...cats, { id: "etc", emoji: "🗂", label: "기타" }].map((c) => ({
+        key: c.id, label: `${c.emoji} ${c.label}`, color: C.ink,
+        hint: `${result.filter((r) => r.category === c.id).length}개`,
+        items: result.filter((r) => r.category === c.id) }))
+    : STATUS_ORDER.map((k) => ({
+        key: k, label: STATUS[k].label, color: STATUS[k].fg, hint: STATUS[k].hint,
+        items: result.filter((r) => r.status === k) }))
+  ).filter((g) => g.items.length);
   const newCats = [...new Set(result.filter((r) => r.category === "etc" && r.newCategory).map((r) => r.newCategory))];
 
   if (phase === "thinking") return (
@@ -2795,15 +2820,23 @@ function Speak() {
               <span className="mono" style={{ fontSize: 9.5, color: C.moss }}>{BRAND}의 답</span>
             </div>
             <div style={{ fontSize: 14, lineHeight: 1.85, whiteSpace: "pre-wrap" }}>{answer}</div>
-            <LinkCards group="식단정기" text={answer.slice(0, 40)} compact />
+            <LinkCards group={menu && menu.length ? "식단정기" : null} text={answer.slice(0, 60)} compact />
           </div>
         </Card>
       )}
       {answer && result.length > 0 && (
         <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 16, paddingLeft: 3, fontWeight: 600 }}>이걸 하려면 이런 일이 필요해요 👇</div>
       )}
+      {result.length > 1 && (
+        <div className="flex gap-1.5" style={{ marginTop: 18, background: C.card, border: `1px solid ${C.lineSoft}`, borderRadius: R.pill, padding: 4, boxShadow: SHADOW }}>
+          {[["cat", "영역별로 보기"], ["time", "시점별로 보기"]].map(([k, l]) => (
+            <button key={k} className="press" onClick={() => setGroupBy(k)}
+              style={{ flex: 1, background: groupBy === k ? C.ink : "transparent", color: groupBy === k ? "#fff" : C.ink2, border: "none", borderRadius: R.pill, padding: "9px 0", fontSize: 12.5, fontWeight: groupBy === k ? 600 : 400 }}>{l}</button>
+          ))}
+        </div>
+      )}
       {grouped.map((g, gi) => (
-        <Section key={g.s} title={<span style={{ color: STATUS[g.s].fg }}>{STATUS[g.s].label}</span>} right={STATUS[g.s].hint}>
+        <Section key={g.key} title={<span style={{ color: g.color }}>{g.label}</span>} right={g.hint}>
           <Card>{g.items.map((t, i, a) => {
             const cat = cats.find((c) => c.id === t.category) || { emoji: "🗂", label: t.newCategory || "기타" };
             const idx = result.indexOf(t);
