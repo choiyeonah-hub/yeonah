@@ -298,6 +298,7 @@ function cycleToDays(cy) {
   if (s.includes("2주")) return 14;
   if (s.includes("월 1회") || s.includes("월령별")) return 30;
   if (s.includes("2~3개월") || s.includes("계절")) return 75;
+  if (s.includes("2개월")) return 60;
   if (s.includes("3개월")) return 90;
   if (s.includes("학기")) return 120;
   if (s.includes("6개월")) return 180;
@@ -466,6 +467,7 @@ const SEED = [
   { id: "N032", cat: "kid", kid: 1, w: [12, 156], lead: 30, st: "repeat", t: "생일잔치 준비", tg: "생일", ask: "장소·초대 인원부터 정할까요?", cy: "연 1회", g: "유아생활", src: "" },
   { id: "N033", cat: "kid", kid: 1, w: [0, 108], lead: 0, st: "repeat", t: "손발톱 깎아주기", tg: "길어지기 전", ask: "", cy: "2주", g: "유아생활", src: "" },
   { id: "N065", cat: "kid", kid: 1, w: [0, 156], lead: 7, st: "repeat", t: "아이 미용·머리 자르기", tg: "덥수룩해지기 전", ask: "집에서 자르나요, 미용실 예약인가요?", cy: "2~3개월", g: "유아생활", src: "" },
+  { id: "N066", cat: "etc", f: null, lead: 3, st: "repeat", t: "미용실 예약·머리 하기", tg: "2개월마다", ask: "커트·염색·펌 주기가 다르면 주기를 바꿔주세요", cy: "2개월", g: "나를위해", src: "" },
   { id: "N034", cat: "kid", kid: 1, w: [24, 132], lead: 0, st: "repeat", t: "머리 정리·묶어주기", tg: "등원 전", ask: "", cy: "매일", g: "유아생활", src: "" },
   { id: "N035", cat: "kid", kid: 1, w: [12, 108], lead: 0, st: "repeat", t: "다음날 옷 챙겨두기", tg: "전날 밤", ask: "내일 날씨에 맞는 옷인가요?", cy: "매일", g: "유아생활", src: "" },
   { id: "N036", cat: "kid", kid: 1, w: [36, 156], lead: 30, st: "repeat", t: "눈 검진", tg: "연 1회", ask: "눈을 자주 찡그리지 않나요?", cy: "연 1회", g: "유아생활", src: "" },
@@ -2278,6 +2280,74 @@ function MovePlan() {
   );
 }
 
+/* ── 살 것 목록 ────────────────────────────────────
+   "사야 해"라고 말한 것 + 직접 적은 것.
+   체크하면 취소선이 그어지고 잠시 뒤 스르륵 사라집니다. */
+function BuyList() {
+  const { st, setSt, cats, complete, addTasks, say, log } = use();
+  const [txt, setTxt] = useState("");
+  const buys = st.tasks.filter((t) => t.status === "buy");
+  const open = buys.filter((t) => !t.done).length;
+  const bought = buys.length - open;
+
+  /* 체크 = 취소선. 목록에 그대로 남고, 다시 누르면 되돌아옵니다 */
+  const buy = (t) => complete(t.id);
+  const add = () => {
+    const names = txt.split(/[,·]+/).map((x) => x.trim()).filter(Boolean);
+    if (!names.length) return;
+    addTasks(names.map((n) => ({ title: n, category: "etc", status: "buy", note: "" })));
+    setTxt(""); say(`${names.length}개 적어뒀어요`);
+  };
+  const copyList = async () => {
+    const text = buys.filter((t) => !t.done).map((t) => "· " + t.title).join("\n");
+    try { await navigator.clipboard.writeText(text); say("복사했어요. 쿠팡·메모 어디든 붙여넣으세요"); }
+    catch { window.alert("복사가 막혀 있어요. 아래를 길게 눌러 복사하세요:\n\n" + text); }
+  };
+
+  return (
+    <Fold icon="🛒" title={open ? `살 것 ${open}개` : "살 것 적어두기"}
+      sub={open ? buys.filter((t) => !t.done).slice(0, 3).map((t) => t.title).join(" · ") : "말로 해도, 여기 적어도 모입니다"}>
+      <div style={{ margin: "0 -15px -15px" }}>
+        {buys.map((t, i) => {
+          const cat = cats.find((c) => c.id === t.category) || { emoji: "🗂" };
+          const gone = t.done;
+          return (
+            <div key={t.id} className="flex items-center gap-3"
+              style={{ padding: "12px 16px", borderBottom: `1px solid ${C.lineSoft}`,
+                       opacity: gone ? 0.45 : 1, transition: "opacity .4s ease" }}>
+              <button className="press" onClick={() => buy(t)} aria-label="샀어요"
+                style={{ width: 22, height: 22, borderRadius: 7, flexShrink: 0, border: `1.5px solid ${gone ? C.moss : C.line}`, background: gone ? C.moss : "transparent", color: "#fff", fontSize: 12, lineHeight: "20px" }}>{gone ? "✓" : ""}</button>
+              <span className="flex-1 min-w-0" style={{ fontSize: 14.5, fontWeight: 500, textDecoration: gone ? "line-through" : "none", color: gone ? C.ink3 : C.ink, transition: "color .4s" }}>{t.title}</span>
+              <span style={{ fontSize: 13 }}>{cat.emoji}</span>
+            </div>
+          );
+        })}
+        <div className="flex items-center gap-2" style={{ padding: "11px 12px", background: C.bg }}>
+          <input className="hae" value={txt} onChange={(e) => setTxt(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") add(); }} placeholder="휴지, 두부 — 쉼표로 여러 개"
+            style={{ flex: 1, border: `1px solid ${C.line}`, borderRadius: R.sm, padding: "10px 12px", fontSize: 13.5, background: C.card, color: C.ink }} />
+          <button className="press" onClick={add}
+            style={{ background: C.moss, color: "#fff", border: "none", borderRadius: R.sm, padding: "10px 14px", fontSize: 12.5, fontWeight: 600 }}>적기</button>
+        </div>
+        {open > 0 && (
+          <div className="flex gap-2" style={{ padding: "0 12px 12px", background: C.bg }}>
+            <button className="press" onClick={copyList}
+              style={{ flex: 1.3, background: C.ink, color: "#fff", border: "none", borderRadius: R.sm, padding: "11px 0", fontSize: 12.5, fontWeight: 600 }}>📋 목록 한꺼번에 복사</button>
+            <button className="press" onClick={() => { log("partner_click", { name: "쿠팡", g: "buy" }); window.open("https://www.coupang.com/np/search?q=" + encodeURIComponent(buys.filter((t) => !t.done)[0].title), "_blank", "noopener"); }}
+              style={{ flex: 1, background: C.card, color: C.ink2, border: `1px solid ${C.line}`, borderRadius: R.sm, padding: "11px 0", fontSize: 12.5 }}>쿠팡 열기</button>
+          </div>
+        )}
+        {bought > 0 && (
+          <button className="press w-full" onClick={() => { setSt((sv) => ({ ...sv, tasks: sv.tasks.filter((t) => !(t.status === "buy" && t.done)) })); say("산 것을 정리했어요"); }}
+            style={{ background: C.bg, border: "none", borderTop: `1px solid ${C.lineSoft}`, padding: "11px 0", fontSize: 12, color: C.ink3, width: "100%" }}>
+            줄 그어진 {bought}개 지우기
+          </button>
+        )}
+      </div>
+    </Fold>
+  );
+}
+
 /* ── ③ AI 발견 카드 ──────────────────────────── */
 function DiscoverCard({ item, onAdd, onLater, onNo, delay = 0 }) {
   const { cats } = use();
@@ -2575,39 +2645,7 @@ function Home() {
         )}
       </Section>
 
-      {/* 살 것 — "뭐 사야 해"라고 말한 것들이 자동으로 모입니다 */}
-      {(() => {
-        const buys = openTasks.filter((t) => t.status === "buy");
-        if (!buys.length) return null;
-        const copyList = async () => {
-          const text = buys.map((t) => "· " + t.title).join("\n");
-          try { await navigator.clipboard.writeText(text); say("복사했어요. 쿠팡·메모 어디든 붙여넣으세요"); }
-          catch { window.alert("복사가 막혀 있어요. 아래를 길게 눌러 복사하세요:\n\n" + text); }
-        };
-        return (
-          <Fold icon="🛒" title={`살 것 ${buys.length}개`} sub={buys.slice(0, 3).map((t) => t.title).join(" · ")}>
-            <div style={{ margin: "0 -15px -15px" }}>
-              {buys.map((t, i) => {
-                const cat = cats.find((c) => c.id === t.category) || { emoji: "🗂" };
-                return (
-                  <div key={t.id} className="flex items-center gap-3" style={{ padding: "12px 16px", borderBottom: i === buys.length - 1 ? "none" : `1px solid ${C.lineSoft}` }}>
-                    <button className="press" onClick={() => { complete(t.id); say("샀어요 표시! 목록에서 뺐어요"); }} aria-label="샀어요"
-                      style={{ width: 22, height: 22, borderRadius: 7, flexShrink: 0, border: `1.5px solid ${C.line}`, background: "transparent" }} />
-                    <span className="flex-1 min-w-0" style={{ fontSize: 14.5, fontWeight: 500 }}>{t.title}</span>
-                    <span style={{ fontSize: 13 }}>{cat.emoji}</span>
-                  </div>
-                );
-              })}
-              <div className="flex gap-2" style={{ padding: "11px 12px", borderTop: `1px solid ${C.lineSoft}`, background: C.bg }}>
-                <button className="press" onClick={copyList}
-                  style={{ flex: 1.3, background: C.ink, color: "#fff", border: "none", borderRadius: R.sm, padding: "11px 0", fontSize: 12.5, fontWeight: 600 }}>📋 목록 한꺼번에 복사</button>
-                <button className="press" onClick={() => { log("partner_click", { name: "쿠팡", g: "buy" }); window.open("https://www.coupang.com/np/search?q=" + encodeURIComponent(buys[0].title), "_blank", "noopener"); }}
-                  style={{ flex: 1, background: C.card, color: C.ink2, border: `1px solid ${C.line}`, borderRadius: R.sm, padding: "11px 0", fontSize: 12.5 }}>쿠팡 열기</button>
-              </div>
-            </div>
-          </Fold>
-        );
-      })()}
+      <BuyList />
 
       {only !== "mine" && level !== "low" && (disc.length > 0 || loadingDisc) && (
         <Fold icon="✦" tone={C.sprout} defaultOpen={false}
