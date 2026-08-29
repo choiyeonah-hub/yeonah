@@ -42,6 +42,81 @@
 <script>
 /* ── 부팅: 설정 → 로그인 → 가구 연결 → 앱 실행 ────────────── */
 let SB = null, HH = null, MYUID = null, LASTWRITE = 0;
+/* BASE = 마지막으로 서버와 맞춘 상태. 세 갈래 병합의 기준점입니다 */
+let BASE = null, BASE_AT = null;
+
+/* ── 가족 화면 합치기 ──────────────────────────────────────
+   두 사람이 각자 화면에서 고치면, 나중에 저장한 쪽이 상대가 담은 것을
+   통째로 덮어썼습니다. 아내가 담은 두부·시금치와 남편이 담은 아이스크림이
+   서로를 지웠습니다. 저장 직전에 서버를 다시 읽고, BASE를 기준으로
+   "내가 바꾼 것"과 "상대가 바꾼 것"을 합쳐서 씁니다. */
+const clone = (o) => JSON.parse(JSON.stringify(o));
+const J = (x) => JSON.stringify(x === undefined ? null : x);
+/* id로 구분되는 목록들 */
+const ID_LISTS = ['tasks', 'shopping', 'toss', 'customRoutines', 'customCats', 'children', 'members', 'discoverSnoozed'];
+/* 키마다 따로 판단해야 하는 사전들 */
+const KEY_MAPS = ['routines', 'prefs', 'duty', 'groupsOff', 'flags', 'petTypes', 'dismissedDiscover'];
+
+function mergeList(base, mine, theirs) {
+  base = Array.isArray(base) ? base : []; mine = Array.isArray(mine) ? mine : []; theirs = Array.isArray(theirs) ? theirs : [];
+  const B = new Map(base.map((x) => [x && x.id, x])), T = new Map(theirs.map((x) => [x && x.id, x]));
+  const mineIds = new Set(mine.map((x) => x && x.id));
+  const out = [];
+  for (const x of mine) {
+    const id = x && x.id, b = B.get(id), t = T.get(id);
+    const changedByMe = J(x) !== J(b);
+    /* 상대가 지웠는데 나도 손대지 않았으면 지운 것을 따릅니다 */
+    if (!T.has(id) && B.has(id) && !changedByMe) continue;
+    /* 둘 다 고쳤으면 지금 저장하는 내 것을, 나만 안 고쳤으면 상대 것을 */
+    out.push(changedByMe || !T.has(id) ? x : t);
+  }
+  /* 상대가 새로 담은 것 — 내 화면엔 아직 없던 것 */
+  for (const t of theirs) {
+    const id = t && t.id;
+    if (mineIds.has(id)) continue;
+    if (B.has(id)) continue;          /* 내가 지운 것은 되살리지 않습니다 */
+    out.push(t);
+  }
+  return out;
+}
+
+function mergeMap(base, mine, theirs) {
+  base = base || {}; mine = mine || {}; theirs = theirs || {};
+  const out = {};
+  for (const k of new Set([...Object.keys(mine), ...Object.keys(theirs)])) {
+    const inM = k in mine, inT = k in theirs, inB = k in base;
+    const changedByMe = J(mine[k]) !== J(base[k]);
+    if (!inM) { if (inB) continue; out[k] = theirs[k]; continue; }
+    if (!inT) { if (inB && !changedByMe) continue; out[k] = mine[k]; continue; }
+    out[k] = changedByMe ? mine[k] : theirs[k];
+  }
+  return out;
+}
+
+/* 이벤트 로그는 양쪽 다 계속 쌓입니다. 겹치는 것만 빼고 이어붙입니다 */
+function mergeEvents(mine, theirs) {
+  const seen = new Set(), out = [];
+  for (const e of [...(mine || []), ...(theirs || [])]) {
+    const k = (e && e.ts) + '|' + (e && e.name);
+    if (seen.has(k)) continue;
+    seen.add(k); out.push(e);
+  }
+  out.sort((a, b) => (a.ts || 0) - (b.ts || 0));
+  return out.slice(-1200);
+}
+
+function merge3(base, mine, theirs) {
+  base = base || {};
+  const out = {};
+  for (const k of new Set([...Object.keys(mine || {}), ...Object.keys(theirs || {})])) {
+    if (ID_LISTS.indexOf(k) >= 0) { out[k] = mergeList(base[k], mine[k], theirs[k]); continue; }
+    if (KEY_MAPS.indexOf(k) >= 0) { out[k] = mergeMap(base[k], mine[k], theirs[k]); continue; }
+    if (k === 'events' || k === 'feedback') { out[k] = mergeEvents(mine[k], theirs[k]); continue; }
+    /* 나머지(설정값·오늘 컨디션 등)는 바꾼 쪽을 남깁니다 */
+    out[k] = J(mine[k]) !== J(base[k]) ? mine[k] : (k in (theirs || {}) ? theirs[k] : mine[k]);
+  }
+  return out;
+}
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
@@ -133,15 +208,27 @@ async function connectHousehold(user) {
   window.storage = {
     async get(k) {
       const { data } = await SB.from('households').select('state, updated_at').eq('id', HH.id).single();
-      if (data) { HH.state = data.state; HH.updated_at = data.updated_at; }
+      if (data) { HH.state = data.state; HH.updated_at = data.updated_at; BASE = clone(data.state || {}); BASE_AT = data.updated_at; }
       if (!HH.state || !Object.keys(HH.state).length) throw new Error('empty');
       return { key: k, value: JSON.stringify(HH.state) };
     },
     async set(k, v) {
-      HH.state = JSON.parse(v);
+      const mine = JSON.parse(v);
+      let out = mine;
+      /* 내가 마지막으로 읽은 뒤 가족이 저장했는지 봅니다 */
+      try {
+        const { data: cur } = await SB.from('households').select('state, updated_at').eq('id', HH.id).single();
+        if (cur && cur.updated_at !== BASE_AT && cur.state && Object.keys(cur.state).length) {
+          out = merge3(BASE || {}, mine, cur.state);
+        }
+      } catch (e) { /* 못 읽었으면 내 것을 그대로 씁니다. 저장을 놓치는 것보단 낫습니다 */ }
+      const at = new Date().toISOString();
       LASTWRITE = Date.now();
-      await SB.from('households').update({ state: HH.state, updated_at: new Date().toISOString(), updated_by: MYUID }).eq('id', HH.id);
-      return { key: k, value: v };
+      await SB.from('households').update({ state: out, updated_at: at, updated_by: MYUID }).eq('id', HH.id);
+      HH.state = out; BASE = clone(out); BASE_AT = at;
+      /* 합치면서 내 화면에 없던 게 들어왔으면 화면에도 바로 반영합니다 */
+      if (JSON.stringify(out) !== JSON.stringify(mine) && typeof window.__applyRemote === 'function') window.__applyRemote(out);
+      return { key: k, value: JSON.stringify(out) };
     },
     async delete() { HH.state = {}; await SB.from('households').update({ state: {} }).eq('id', HH.id); return { deleted: true }; },
     async list() { return { keys: ['meonjeon'] }; },
@@ -150,7 +237,17 @@ async function connectHousehold(user) {
   /* 가족이 고치면 알려주기 */
   SB.channel('hh').on('postgres_changes',
     { event: 'UPDATE', schema: 'public', table: 'households', filter: 'id=eq.' + HH.id },
-    (p) => { if (p.new.updated_by !== MYUID && Date.now() - LASTWRITE > 3000) document.getElementById('sync').style.display = 'flex'; }
+    async (p) => {
+      if (p.new.updated_by === MYUID) return;
+      /* 가족이 고친 것을 바로 받아옵니다. "새로고침"을 누르게 하지 않습니다 */
+      try {
+        const { data } = await SB.from('households').select('state, updated_at').eq('id', HH.id).single();
+        if (!data || !data.state || !Object.keys(data.state).length) return;
+        HH.state = data.state; BASE = clone(data.state); BASE_AT = data.updated_at;
+        if (typeof window.__applyRemote === 'function') { window.__applyRemote(data.state); return; }
+      } catch (e) {}
+      if (Date.now() - LASTWRITE > 3000) document.getElementById('sync').style.display = 'flex';
+    }
   ).subscribe();
 
   /* 상단 바: 초대 코드 / 로그아웃 */
@@ -1470,6 +1567,8 @@ function App() {
   const [toast, setToast] = useState(null);
   const [openCat, setOpenCat] = useState(null);
   const first = useRef(true);
+  /* 가족이 고친 걸 받아 화면에 넣을 때, 그걸 다시 저장하지 않도록 한 번 건너뜁니다 */
+  const skipSave = useRef(false);
 
   useEffect(() => {
     (async () => {
@@ -1487,9 +1586,21 @@ function App() {
   useEffect(() => {
     if (!ready) return;
     if (first.current) { first.current = false; return; }
+    if (skipSave.current) { skipSave.current = false; return; }
     const t = setTimeout(() => { window.storage.set("meonjeon", JSON.stringify(st)).catch(() => {}); }, 500);
     return () => clearTimeout(t);
   }, [st, ready]);
+
+  /* 가족이 다른 기기에서 고치면 여기로 들어옵니다.
+     "새로고침" 버튼을 누르게 하지 않고 화면에 바로 반영합니다 */
+  useEffect(() => {
+    window.__applyRemote = (remote) => {
+      if (!remote || !Object.keys(remote).length) return;
+      skipSave.current = true;
+      setSt((sv) => (JSON.stringify(sv) === JSON.stringify({ ...DEFAULT_STATE, ...remote }) ? sv : { ...DEFAULT_STATE, ...remote }));
+    };
+    return () => { delete window.__applyRemote; };
+  }, []);
 
   const log = (name, props) => setSt((s) => ({ ...s, events: [...s.events.slice(-1200), { name, props, ts: Date.now() }] }));
   const say = (m) => { setToast(m); setTimeout(() => setToast(null), 2300); };
