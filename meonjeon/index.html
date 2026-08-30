@@ -124,7 +124,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0831-k';
+const GATE_BUILD = '0831-m';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1574,7 +1574,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0831-k";
+const BUILD = "0831-m";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -5475,8 +5475,6 @@ function Categories() {
   }
 
   return (
-    <>
-    <WelfareWeek />
     <Section eyebrow="AREAS" title="우리 집 관리 영역" right="탭하면 놓친 것부터">
       <div className="grid grid-cols-2 gap-2.5">
         {allCats.map((c, i) => {
@@ -5514,7 +5512,6 @@ function Categories() {
         </div>
       </div>
     </Section>
-    </>
   );
 }
 
@@ -6280,8 +6277,8 @@ function WeekCard({ onClose }) {
             0이 찍힌 사람이 보면 그 화면은 무기가 됩니다.
             그리고 "누가 더 했다"까지만 말하고 끝나면 읽는 사람은
             "그래서 어쩌라고"가 됩니다. 앱이 할 말이 아닙니다.
-            대신 아래 '아직 주인이 없는 일'이 다음에 할 것을 줍니다 —
-            지난주를 재는 대신 이번 주를 나눕니다. */}
+            담당자를 정하는 화면 자체를 뺐습니다 — 누가 할지 정하는 것도 일입니다.
+            영역마다 담당자는 설정에 있고, 할 일 카드에서도 정할 수 있습니다. */}
 
         <div style={{ marginTop: 14, fontSize: 11.5, color: C.ink3, lineHeight: 1.75 }}>
           받을 수 있었던 복지, 기한이 있던 신청, 미리 안 하면 손해였던 것들이에요.
@@ -6428,7 +6425,7 @@ function welfarePick(st) {
 }
 
 function WelfareWeek() {
-  const { st, setSt, addTasks, say, cats, setTab } = use();
+  const { st, setSt, say, cats, setTab } = use();
   const sd = useMemo(() => welfarePick(st), [st.tasks, st.flags, st.children, st.welfareOff]);
   if (!sd) return null;
   /* 어느 영역의 이야기인지 먼저 보여줍니다 — 복지는 따로 노는 게 아니라
@@ -6513,10 +6510,12 @@ function WelfareWeek() {
           ) : sd.tg ? <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 7 }}>{sd.tg}</div> : null}
 
           <div className="flex items-center gap-2 flex-wrap" style={{ marginTop: 14 }}>
-            <Btn onClick={() => { addTasks([{ title: sd.t, category: sd.cat, status: sd.st, note: sd.tg || "", coverage: "system", seedId: sd.id }], "ai"); say(`${cat.label || "할 일"}에 담았어요`); }}>할 일로 담기</Btn>
-            <button className="press" onClick={() => { hide(); say("다음 주에 다른 걸 보여드릴게요"); }}
-              style={{ background: "transparent", border: `1px solid ${C.line}`, borderRadius: 999, padding: "9px 14px", fontSize: 12.5, color: C.ink2 }}>
-              이미 알아요
+            {/* 복지는 마감이 없습니다. 할 일로 담으면 타임라인에 "시점 미정"만 쌓이고,
+                할 일 목록이 읽을 수 없을 만큼 길어집니다.
+                읽고 알아두는 것이 이 카드가 하는 일입니다. 담는 건 하지 않습니다. */}
+            <button className="press" onClick={() => { hide(); say("다음 것을 보여드릴게요"); }}
+              style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 999, padding: "10px 16px", fontSize: 13, color: C.ink2, fontWeight: 600 }}>
+              읽었어요
             </button>
           </div>
 
@@ -6532,72 +6531,129 @@ function WelfareWeek() {
   );
 }
 
-function WelfareHint() {
-  const { st, setTab } = use();
-  const sd = useMemo(() => welfarePick(st), [st.tasks, st.flags, st.children, st.welfareOff]);
-  if (!sd) return null;
+/* 우리 집에 해당되는 복지를 한 자리에 모읍니다.
+   "이번 주 알아둘 것" 하나만 보여주면 나머지는 영영 안 보이고,
+   전부 펼쳐놓으면 읽히지 않습니다. 하나는 펼치고 나머지는 접어둡니다. */
+function WelfareAll() {
+  const { st, setSt, cats, say } = use();
+  const [open, setOpen] = useState(null);
+  const now = useMemo(() => welfarePick(st), [st.tasks, st.flags, st.children, st.welfareOff]);
+  const kids = st.children || [];
+  const fits = (sd) => {
+    if (!sd.wf) return false;
+    if (sd.f && !st.flags[sd.f]) return false;
+    if (sd.nkid && kids.length < sd.nkid) return false;
+    if (sd.kid) {
+      const w = sd.w || [0, 9999];
+      if (!kids.some((ch) => { const m = childMonths(ch); return m >= w[0] && m <= w[1]; })) return false;
+    }
+    return true;
+  };
+  const rest = SEED.filter((sd) => fits(sd) && (!now || sd.id !== now.id));
+  if (!rest.length) return null;
+  const off = st.welfareOff || {};
   return (
-    <button className="press w-full text-left" onClick={() => setTab("cat")}
-      style={{ marginTop: 10, background: C.sunSoft, border: "none", borderRadius: 16, padding: "14px 16px" }}>
-      <div className="mono" style={{ fontSize: 9.5, color: C.moss }}>이번 주 알아둘 것</div>
-      <div style={{ fontSize: 13.5, color: C.ink, fontWeight: 600, marginTop: 5 }}>{sd.t}</div>
-      <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 5 }}>영역 화면 맨 위에 있어요 ›</div>
-    </button>
+    <Section eyebrow="ALL" title="우리 집에 해당되는 것" right={`${rest.length}개`}>
+      <Card>
+        {rest.map((sd, i) => {
+          const wd = WELFARE_DETAIL[sd.id] || {};
+          const cat = (cats || []).find((c) => c.id === sd.cat) || {};
+          const on = open === sd.id;
+          return (
+            <div key={sd.id} style={{ borderBottom: i === rest.length - 1 ? "none" : `1px solid ${C.line}` }}>
+              <button className="press w-full text-left" onClick={() => setOpen(on ? null : sd.id)}
+                style={{ background: "transparent", border: "none", padding: "14px 16px", display: "block" }}>
+                <div className="flex items-baseline gap-2">
+                  <span style={{ fontSize: 13 }}>{cat.emoji}</span>
+                  <span style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 500,
+                    color: off[sd.id] ? C.ink3 : C.ink }}>{sd.t}</span>
+                  <span style={{ fontSize: 11, color: C.ink3 }}>{on ? "접기" : "보기"}</span>
+                </div>
+                {!on && wd.what && (
+                  <div style={{ fontSize: 12, color: C.ink3, marginTop: 5, overflow: "hidden",
+                    textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{wd.what}</div>
+                )}
+              </button>
+              {on && (
+                <div style={{ padding: "0 16px 16px" }}>
+                  {wd.what && <div className="hae" style={{ fontSize: 13.5, color: C.ink, lineHeight: 1.8 }}>{wd.what}</div>}
+                  {wd.who && <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 9, lineHeight: 1.7 }}>
+                    <span className="mono" style={{ fontSize: 9.5, color: C.moss, marginRight: 7 }}>누가</span>{wd.who}</div>}
+                  {wd.where && <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 5, lineHeight: 1.7 }}>
+                    <span className="mono" style={{ fontSize: 9.5, color: C.moss, marginRight: 7 }}>어디에</span>{wd.where}</div>}
+                  {wd.miss && (
+                    <div style={{ marginTop: 11, background: C.persimSoft, borderRadius: 12, padding: "11px 13px" }}>
+                      <div className="mono" style={{ fontSize: 9.5, color: C.persim }}>놓치는 이유</div>
+                      <div style={{ fontSize: 12.5, color: C.ink, marginTop: 5, lineHeight: 1.75 }}>{wd.miss}</div>
+                    </div>
+                  )}
+                  <div style={{ marginTop: 11 }}><LinkCards group={sd.g} text={sd.t} compact noAd /></div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </Card>
+    </Section>
   );
 }
 
-/* ── 나눔 (UX-10) ─────────────────────────────── */
-function Share() {
-  const { st, assign, say, setTab } = use();
-  const members = st.members;
+/* ── 정보 (구 나눔·맡기기) ───────────────────────
+   담당자를 정하는 화면이었습니다. 그런데 영역마다 담당자는 이미 설정에 있고,
+   할 일 카드에서도 정할 수 있습니다. 무엇보다 "누가 할지 정하는 것"이
+   그 자체로 또 하나의 일이었습니다.
 
-  const unassigned = st.tasks.filter((t) => !t.done && !t.owner && t.status !== "buy");
-  const openBuys = st.tasks.filter((t) => !t.done && t.status === "buy").length;
+   대신 이 자리에 알아두면 좋은 것을 모읍니다. 복지도, 이달의 소식도
+   여기 한 곳에 있습니다. 읽는 화면이라 할 일이 늘지 않습니다. */
+function Share() {
+  const { st, setSt, setTab, say } = use();
+  const news = (st.news || {}).items || [];
 
   return (
     <>
       <div style={{ marginTop: 18, paddingLeft: 2 }}>
-        <div className="disp" style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-.03em" }}>맡기기</div>
+        <div className="disp" style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-.03em" }}>알아두면 좋은 것</div>
         <p style={{ fontSize: 13.5, color: C.ink2, marginTop: 9, lineHeight: 1.7 }}>
-          지난주를 재는 화면이 아니에요.
-          <b style={{ color: C.ink }}> 아직 주인이 없는 일을 누가 할지 정하는 곳</b>입니다.
+          몰라서 못 받는 게 많습니다. <b style={{ color: C.ink }}>읽어두기만 하면 되는 화면</b>이에요 —
+          할 일은 늘지 않습니다.
         </p>
       </div>
 
-      <Section eyebrow="OPEN" title="아직 주인이 없는 일" right={`${unassigned.length}건`}>
+      <WelfareWeek />
+      <WelfareAll />
+
+      <Section eyebrow="MONTHLY" title="이달의 소식" right={news.length ? `${news.length}건` : ""}>
         <Card>
-          {unassigned.length ? unassigned.map((t, i) => (
-            <div key={t.id} className="rise" style={{ padding: "14px 16px", borderBottom: i === unassigned.length - 1 ? "none" : `1px solid ${C.line}`, animationDelay: `${i * 45}ms` }}>
-              <div style={{ fontSize: 14.5, fontWeight: 500 }}>{t.title}</div>
-              <div className="flex items-center gap-2 flex-wrap" style={{ marginTop: 9 }}>
-                {members.map((m) => (
-                  <button key={m.id} className="press flex items-center gap-1.5" onClick={() => { assign(t.id, m.id); say(`${m.name}에게 넘겼어요`); }}
-                    style={{ background: C.bg, border: `1px solid ${C.line}`, borderRadius: 999, padding: "6px 12px", fontSize: 12, color: C.ink2 }}>
-                    <span style={{ width: 7, height: 7, borderRadius: 99, background: m.color, display: "inline-block" }} />{m.name}에게
-                  </button>
+          <div style={{ padding: "16px 18px" }}>
+            {news.length ? (
+              <>
+                {news.slice(0, 4).map((n, i) => (
+                  <div key={i} style={{ marginTop: i ? 11 : 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600 }}>{n.title}</div>
+                    <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 4, lineHeight: 1.7 }}>{n.body}</div>
+                    {n.deadline && <div className="mono" style={{ fontSize: 10.5, color: C.persim, marginTop: 4 }}>{n.deadline} 마감</div>}
+                  </div>
                 ))}
-              </div>
-            </div>
-          )) : <div style={{ padding: "24px 18px", fontSize: 13.5, color: C.ink3, textAlign: "center" }}>모든 일에 담당자가 있어요.</div>}
+                <button className="press" onClick={() => setTab("news")}
+                  style={{ marginTop: 13, background: "transparent", border: "none", padding: 0, fontSize: 12.5, color: C.moss, fontWeight: 600 }}>
+                  자세히 보기 ›
+                </button>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize: 13, color: C.ink3, lineHeight: 1.8 }}>
+                  한 달에 한 번, 이 집 아이 나이에 맞는 행정·지원 정보를 찾아둡니다.
+                </div>
+                <div style={{ marginTop: 13 }}>
+                  <Btn kind="ghost" onClick={() => { setSt((sv) => ({ ...sv, newsAsk: Date.now() })); setTab("home"); }}>
+                    지금 찾아보기
+                  </Btn>
+                </div>
+              </>
+            )}
+          </div>
         </Card>
-        {openBuys > 0 && (
-          <button className="press w-full text-left" onClick={() => setTab("home")}
-            style={{ marginTop: 10, background: C.mossSoft, border: "none", borderRadius: R.sm, padding: "13px 15px" }}>
-            <div style={{ fontSize: 12.5, color: C.moss, lineHeight: 1.65 }}>
-              살 것 <b>{openBuys}개</b>는 담당자를 나누지 않아요. 먼저 가는 사람이 사고, 사면 줄이 그어져 또 사지 않습니다.
-            </div>
-            <div style={{ fontSize: 11.5, color: C.moss, marginTop: 5, fontWeight: 600 }}>오늘 화면의 살 것 목록으로 ›</div>
-          </button>
-        )}
       </Section>
-
-      <WeekCard />
-
-      {/* 복지 카드는 영역 탭에 있습니다. 그런데 "주간카드"라는 이름 때문에
-          이 화면에서 찾게 됩니다 — 만든 사람이 두 번 다 여기서 찾았습니다.
-          이름이 자리를 이깁니다. 그러면 자리로 데려다주는 줄을 둡니다. */}
-      <WelfareHint />
-
     </>
   );
 }
@@ -7238,6 +7294,22 @@ function Settings() {
             누른 사람은 바로 소식 화면으로 넘어갑니다. 안내는 거기서 합니다 */}
         <Btn kind="ghost" onClick={() => { setSt((s2) => ({ ...s2, newsAsk: Date.now() })); setTab("home"); }}>이달의 소식 보기</Btn>
         <div style={{ height: 8 }} />
+        {/* 복지를 할 일로 담던 때에 쌓인 것들입니다. 이제는 안 담기지만
+            이미 들어간 건 남아 있습니다. 조용히 지우지 않고 눌러서 지우게 합니다 —
+            남의 할 일을 앱이 마음대로 지우면 안 됩니다. */}
+        {(() => {
+          const wfIds = new Set(SEED.filter((x) => x.wf).map((x) => x.id));
+          const n = st.tasks.filter((t) => !t.done && wfIds.has(t.seedId)).length;
+          if (!n) return null;
+          return (
+            <Btn kind="ghost" onClick={() => {
+              if (!confirm(`복지 항목 ${n}개를 할 일에서 뺄까요? 정보 화면에서는 그대로 보입니다.`)) return;
+              setSt((sv) => ({ ...sv, tasks: sv.tasks.filter((t) => t.done || !wfIds.has(t.seedId)) }));
+              say(`${n}개를 할 일에서 뺐어요`);
+            }}>복지 {n}개를 할 일에서 빼기</Btn>
+          );
+        })()}
+        <div style={{ height: 8 }} />
         <Btn kind="quiet" onClick={() => { if (confirm("모든 데이터를 지우고 처음부터 시작할까요?")) { window.storage.delete("meonjeon").catch(() => {}); setSt(DEFAULT_STATE); } }}>데이터 전체 삭제</Btn>
       </div>
 
@@ -7266,7 +7338,7 @@ function TabBar() {
     { id: "speak", label: "말하기", icon: "✦", primary: true },
     { id: "meal", label: "식단", icon: "❖" },
     { id: "time", label: "타임라인", icon: "◷" },
-    { id: "share", label: "맡기기", icon: "◑" },
+    { id: "share", label: "정보", icon: "◑" },
   ].filter((it) => !(solo && it.id === "share"));
   return (
     <nav style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 440,
