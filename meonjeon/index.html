@@ -124,7 +124,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0831-n';
+const GATE_BUILD = '0831-p';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1574,7 +1574,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0831-n";
+const BUILD = "0831-p";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -4222,7 +4222,7 @@ function Home() {
       /* 누른 사람은 소식 화면으로 먼저 보냅니다. 결과가 있든 없든
          거기서 상황이 보여야 합니다 — 소식이 있어야만 들어갈 수 있는
          화면이면, 소식이 없을 때 영영 못 들어갑니다 */
-      if (forced) { setSt((sv) => ({ ...sv, newsAsk: 0 })); setTab("news"); }
+      if (forced) { setSt((sv) => ({ ...sv, newsAsk: 0 })); setTab("share"); }
       if (!opened) {
         if (forced) say("이달의 소식은 유료에서 열려요");
         return;
@@ -6623,10 +6623,10 @@ function Share() {
   return (
     <>
       <div style={{ marginTop: 18, paddingLeft: 2 }}>
-        <div className="disp" style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-.03em" }}>알아두면 좋은 것</div>
+        <div className="disp" style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-.03em" }}>정보</div>
         <p style={{ fontSize: 13.5, color: C.ink2, marginTop: 9, lineHeight: 1.7 }}>
-          몰라서 못 받는 게 많습니다. <b style={{ color: C.ink }}>읽어두기만 하면 되는 화면</b>이에요 —
-          할 일은 늘지 않습니다.
+          몰라서 못 받는 것들이 여기 다 있어요. <b style={{ color: C.ink }}>읽어두기만 하면 됩니다</b> —
+          할 일은 늘지 않아요.
         </p>
       </div>
 
@@ -7301,10 +7301,8 @@ function Settings() {
         {/* 처음 화면은 한 번 지나가면 다시 못 봅니다. 남에게 보내기 전에 확인해야 합니다 */}
         <Btn kind="ghost" onClick={() => { setSt((s2) => ({ ...s2, previewOnboarding: true })); setTab("home"); }}>처음 화면 미리보기</Btn>
         <div style={{ height: 8 }} />
-        {/* 홈을 거쳐 가는 건 소식을 찾아오는 자리가 거기라서입니다.
-            누른 사람은 바로 소식 화면으로 넘어갑니다. 안내는 거기서 합니다 */}
-        <Btn kind="ghost" onClick={() => { setSt((s2) => ({ ...s2, newsAsk: Date.now() })); setTab("home"); }}>이달의 소식 보기</Btn>
-        <div style={{ height: 8 }} />
+        {/* 이달의 소식은 정보 탭에 있습니다. 설정에도 두면 자리가 둘이 되고,
+            둘이 되면 어디로 가야 하는지를 또 외워야 합니다. */}
         {/* 복지를 할 일로 담던 때에 쌓인 것들입니다. 이제는 안 담기지만
             이미 들어간 건 남아 있습니다. 조용히 지우지 않고 눌러서 지우게 합니다 —
             남의 할 일을 앱이 마음대로 지우면 안 됩니다. */}
