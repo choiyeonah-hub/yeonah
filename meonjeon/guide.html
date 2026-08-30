@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>먼저ON 시작하기</title>
+<meta name="description" content="먼저ON 베타 시작 안내 — 5분이면 끝납니다." />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@600;700&family=IBM+Plex+Sans+KR:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" />
+<style>
+  :root{
+    --bg:#F2F8F6; --card:#fff; --sunk:#EDF5F2;
+    --ink:#17302C; --ink2:#4E6B66; --ink3:#7A968F;
+    --line:#DCEAE6; --line-soft:#EAF2F0;
+    --mint:#0D7368; --mint-soft:#DDF2EE;
+    --plum:#6B4E9E; --plum-soft:#EFE9F8;
+    --lemon:#7D6A15; --lemon-soft:#FCF4D9;
+    --warn:#A84362; --warn-soft:#F9E9EE;
+    --shadow:0 1px 1.5px rgba(23,48,44,.05), 0 12px 30px -20px rgba(23,48,44,.22);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#101E1B; --card:#172A26; --sunk:#13231F;
+      --ink:#E9F2EF; --ink2:#A8C2BB; --ink3:#7E9C94;
+      --line:#25403A; --line-soft:#1E332E;
+      --mint:#5CC6B2; --mint-soft:#153833;
+      --plum:#B49CE4; --plum-soft:#241C3A;
+      --lemon:#E4D391; --lemon-soft:#302A12;
+      --warn:#E894AC; --warn-soft:#33161F;
+      --shadow:0 1px 1.5px rgba(0,0,0,.3), 0 12px 30px -20px rgba(0,0,0,.7);
+    }
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:'IBM Plex Sans KR',system-ui,-apple-system,sans-serif;
+    font-size:16px; line-height:1.75; letter-spacing:-.01em;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:520px; margin:0 auto; padding:40px 20px 80px}
+  .disp{font-family:'Noto Serif KR',serif; letter-spacing:-.035em}
+  .mono{font-family:'IBM Plex Mono',monospace}
+
+  header{text-align:center; margin-bottom:34px}
+  .logo{width:72px; height:72px; border-radius:18px; display:block; margin:0 auto 16px}
+  h1{font-family:'Noto Serif KR',serif; font-size:27px; font-weight:700; margin:0; letter-spacing:-.04em; line-height:1.4}
+  .tag{color:var(--ink2); font-size:14.5px; margin-top:11px; line-height:1.7}
+
+  .intro{
+    background:var(--card); border:1px solid var(--line); border-radius:18px;
+    padding:19px 20px; box-shadow:var(--shadow); margin-bottom:30px;
+  }
+  .intro p{margin:0; font-size:14.5px; color:var(--ink2); line-height:1.8}
+  .intro b{color:var(--ink); font-weight:600}
+  .intro .facts{
+    margin-top:14px; padding-top:13px; border-top:1px solid var(--line-soft);
+    display:grid; gap:6px; font-size:13px; color:var(--ink3);
+  }
+
+  /* 기기 고르기 */
+  .pick{display:grid; grid-template-columns:1fr 1fr; gap:9px; margin-bottom:26px}
+  .pick button{
+    font-family:inherit; font-size:14.5px; font-weight:600; cursor:pointer;
+    padding:14px 0; border-radius:14px; border:1px solid var(--line);
+    background:var(--card); color:var(--ink2); transition:.15s;
+  }
+  .pick button[aria-selected="true"]{background:var(--mint); border-color:var(--mint); color:#fff}
+  .pick button:focus-visible{outline:2px solid var(--plum); outline-offset:2px}
+
+  h2{
+    font-family:'Noto Serif KR',serif; font-size:19px; font-weight:600;
+    margin:0 0 4px; letter-spacing:-.03em;
+  }
+  .mins{font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--mint); letter-spacing:.1em; text-transform:uppercase}
+
+  ol.steps{list-style:none; margin:18px 0 0; padding:0; counter-reset:s}
+  ol.steps > li{
+    counter-increment:s; position:relative; padding:0 0 22px 46px;
+  }
+  ol.steps > li::before{
+    counter-increment:none; content:counter(s);
+    position:absolute; left:0; top:0; width:30px; height:30px; border-radius:99px;
+    background:var(--mint); color:#fff; font-family:'IBM Plex Mono',monospace;
+    font-size:14px; display:flex; align-items:center; justify-content:center;
+  }
+  ol.steps > li::after{
+    content:""; position:absolute; left:14.5px; top:34px; bottom:2px; width:1.5px; background:var(--line);
+  }
+  ol.steps > li:last-child::after{display:none}
+  ol.steps h3{margin:2px 0 0; font-size:16px; font-weight:600; letter-spacing:-.02em}
+  ol.steps p{margin:6px 0 0; font-size:14px; color:var(--ink2); line-height:1.75}
+  ol.steps b{font-weight:600; color:var(--ink)}
+
+  .flag{
+    margin-top:10px; padding:12px 14px; border-radius:13px;
+    font-size:13.5px; line-height:1.75;
+    background:var(--lemon-soft); color:var(--lemon);
+  }
+  .flag.warn{background:var(--warn-soft); color:var(--warn)}
+  .flag.mint{background:var(--mint-soft); color:var(--mint)}
+  .flag b{font-weight:600; color:inherit}
+
+  .icons{display:inline-flex; align-items:center; gap:5px; white-space:nowrap}
+  .key{
+    display:inline-block; padding:1px 7px; border-radius:7px; background:var(--sunk);
+    border:1px solid var(--line); font-size:13px; color:var(--ink);
+  }
+
+  .go{
+    display:block; text-align:center; text-decoration:none;
+    background:var(--mint); color:#fff; font-weight:600; font-size:16px;
+    padding:17px 0; border-radius:16px; margin:8px 0 4px; box-shadow:var(--shadow);
+  }
+  .go small{display:block; font-weight:400; font-size:12.5px; opacity:.85; margin-top:3px}
+
+  details{
+    background:var(--card); border:1px solid var(--line); border-radius:16px;
+    padding:0 18px; margin-top:9px;
+  }
+  details summary{
+    cursor:pointer; padding:15px 0; font-size:14.5px; font-weight:600; list-style:none;
+    display:flex; justify-content:space-between; align-items:center; gap:12px;
+  }
+  details summary::-webkit-details-marker{display:none}
+  details summary::after{content:"＋"; color:var(--ink3); font-weight:400}
+  details[open] summary::after{content:"－"}
+  details .body{padding:0 0 16px; font-size:14px; color:var(--ink2); line-height:1.8; border-top:1px solid var(--line-soft); padding-top:13px}
+  details .body b{color:var(--ink)}
+
+  hr{border:none; border-top:1px solid var(--line); margin:38px 0 30px}
+  footer{font-size:13px; color:var(--ink3); line-height:1.85; text-align:center}
+  footer b{color:var(--ink2)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <img class="logo" src="/icon-192.png" alt="먼저ON" />
+    <h1>먼저ON 시작하기</h1>
+    <p class="tag">가족이 기억해야 할 일을,<br />가족보다 먼저 기억하는 앱</p>
+  </header>
+
+  <div class="intro">
+    <p>
+      아이 나이, 차, 반려동물 같은 <b>우리 집 사정</b>을 알려주면
+      챙길 일을 알아서 짜둡니다. 그리고 때가 되면 <b>먼저 알려줍니다.</b><br />
+      목록을 직접 만들지 않으셔도 됩니다.
+    </p>
+    <div class="facts">
+      <span>· 베타 기간 <b>완전 무료</b>예요</span>
+      <span>· 설치할 앱이 없습니다. 웹으로 바로 씁니다</span>
+      <span>· 알림은 <b>하루 한 번, 아침 8시</b>만 갑니다</span>
+    </div>
+  </div>
+
+  <div class="pick" role="tablist" aria-label="기기 고르기">
+    <button id="tab-ios" role="tab" aria-selected="true" aria-controls="ios">아이폰</button>
+    <button id="tab-and" role="tab" aria-selected="false" aria-controls="and">안드로이드</button>
+  </div>
+
+  <!-- ── 아이폰 ─────────────────────────── -->
+  <section id="ios" role="tabpanel" aria-labelledby="tab-ios">
+    <div class="mins">5분이면 끝납니다</div>
+    <h2>아이폰에서 시작하기</h2>
+
+    <ol class="steps">
+      <li>
+        <h3>사파리로 열기</h3>
+        <p>카톡에서 링크를 <b>바로 누르면 안 됩니다.</b> 카톡 안에서 열린 창은 알림을 못 켭니다.</p>
+        <div class="flag warn">
+          링크를 <b>손가락으로 꾹 눌러</b> → <b>복사</b> →
+          홈 화면의 <b>사파리</b> <span class="icons">🧭</span> 를 열고 주소창에 <b>붙여넣기</b>
+        </div>
+      </li>
+
+      <li>
+        <h3>로그인 전에 홈 화면에 추가</h3>
+        <p>순서가 중요합니다. 먼저 추가해야 <b>로그인을 한 번만</b> 하고, 알림도 받을 수 있어요.</p>
+        <p>
+          화면 <b>아래 가운데 공유 버튼</b> <span class="key">□↑</span> →
+          아래로 내려 <b>“홈 화면에 추가”</b> → 오른쪽 위 <b>추가</b>
+        </p>
+        <div class="flag">
+          홈 화면에 <b>먼저ON</b> 아이콘이 생깁니다. 앞으로는 이 아이콘으로 들어오세요.
+        </div>
+      </li>
+
+      <li>
+        <h3>홈 화면 아이콘으로 들어가서 로그인</h3>
+        <p>이메일 주소를 넣고 <b>로그인 링크 받기</b>를 누르세요.</p>
+      </li>
+
+      <li>
+        <h3>메일의 <u>숫자</u>를 입력</h3>
+        <p>메일이 오면 <b>링크는 누르지 마세요.</b> 링크를 누르면 그 숫자가 못 쓰게 됩니다.</p>
+        <div class="flag warn">
+          메일에 적힌 <b>숫자만</b> 보고, 앱으로 돌아와서 입력하세요.
+          <br />메일이 안 보이면 <b>스팸함</b>도 봐주세요.
+        </div>
+      </li>
+
+      <li>
+        <h3>알림 켜기</h3>
+        <p>
+          오른쪽 위 <b>톱니바퀴</b> <span class="key">⚙</span> →
+          아래로 내려 <b>알림</b> → <b>알림 켜기</b><br />
+          아이폰이 물어보면 <b>“허용”</b>을 눌러주세요.
+        </p>
+        <div class="flag mint">
+          <b>“지금 이 기기 · 등록됨”</b> 이라고 나오면 성공입니다.<br />
+          바로 아래 <b>“지금 테스트 알림 받아보기”</b>로 확인해 보세요.
+        </div>
+      </li>
+    </ol>
+  </section>
+
+  <!-- ── 안드로이드 ────────────────────── -->
+  <section id="and" role="tabpanel" aria-labelledby="tab-and" hidden>
+    <div class="mins">3분이면 끝납니다</div>
+    <h2>안드로이드에서 시작하기</h2>
+
+    <ol class="steps">
+      <li>
+        <h3>크롬으로 열기</h3>
+        <p>카톡 안에서 열린 창은 알림을 못 켭니다.</p>
+        <div class="flag warn">
+          카톡에서 열렸다면 오른쪽 위 <span class="key">⋮</span> →
+          <b>“다른 브라우저로 열기”</b> 또는 <b>“Chrome으로 열기”</b>
+        </div>
+      </li>
+
+      <li>
+        <h3>로그인</h3>
+        <p>이메일을 넣고, 메일에 온 <b>링크를 누르거나 숫자를 입력</b>하세요. 둘 다 됩니다.</p>
+        <p>메일이 안 보이면 <b>스팸함</b>도 봐주세요.</p>
+      </li>
+
+      <li>
+        <h3>알림 켜기</h3>
+        <p>
+          오른쪽 위 <b>톱니바퀴</b> <span class="key">⚙</span> →
+          아래로 내려 <b>알림</b> → <b>알림 켜기</b> → <b>허용</b>
+        </p>
+        <div class="flag mint">
+          <b>“지금 이 기기 · 등록됨”</b> 이 나오면 성공입니다.
+        </div>
+      </li>
+
+      <li>
+        <h3>홈 화면에 추가 <span style="font-weight:400;color:var(--ink3)">(선택)</span></h3>
+        <p>
+          오른쪽 위 <span class="key">⋮</span> → <b>“홈 화면에 추가”</b><br />
+          안 하셔도 알림은 옵니다. 매번 주소를 치기 번거로우실 때만요.
+        </p>
+      </li>
+    </ol>
+  </section>
+
+  <a class="go" href="https://meonjeon.vercel.app">
+    먼저ON 열기
+    <small>아이폰은 위 순서대로 사파리에서 열어주세요</small>
+  </a>
+
+  <hr />
+
+  <h2 style="margin-bottom:12px">막히면 여기를 보세요</h2>
+
+  <details>
+    <summary>메일이 안 와요</summary>
+    <div class="body">
+      <b>스팸함</b>을 먼저 봐주세요. 그래도 없으면 앱에서 <b>“숫자 다시 받기”</b>를 눌러주세요.<br />
+      메일이 여러 번 왔다면 <b>가장 마지막에 온 것</b>의 숫자를 쓰셔야 합니다.
+    </div>
+  </details>
+
+  <details>
+    <summary>숫자를 넣었는데 안 맞대요</summary>
+    <div class="body">
+      <b>메일의 링크를 이미 누르셨을</b> 가능성이 큽니다. 링크를 한 번 누르면 그 숫자는 못 쓰게 됩니다.<br />
+      <b>“숫자 다시 받기”</b>를 누르고, 새로 온 메일의 숫자를 <b>링크는 건드리지 말고</b> 넣어주세요.
+    </div>
+  </details>
+
+  <details>
+    <summary>“알림을 켤 수 없다”고 나와요</summary>
+    <div class="body">
+      <b>카톡·네이버 앱 안</b>에서 보고 계신 겁니다. 화면 아래에 카톡이나 네이버 표시가 있는지 봐주세요.<br />
+      주소를 복사해서 <b>사파리(아이폰)</b> 또는 <b>크롬(안드로이드)</b>으로 다시 열어주세요.
+    </div>
+  </details>
+
+  <details>
+    <summary>아이폰인데 “홈 화면에 추가” 안내가 계속 떠요</summary>
+    <div class="body">
+      아직 <b>사파리</b>에서 보고 계신 겁니다. 애플이 홈 화면에 추가한 앱에만 알림을 허용합니다.<br />
+      공유 버튼 <span class="key">□↑</span> → <b>홈 화면에 추가</b> → 생긴 <b>먼저ON 아이콘</b>으로 다시 들어와 주세요.
+    </div>
+  </details>
+
+  <details>
+    <summary>알림을 켰는데 안 와요</summary>
+    <div class="body">
+      앱에서 <b>“지금 테스트 알림 받아보기”</b>를 누른 뒤,
+      <b>화면을 벗어나</b>(옆면 버튼으로 화면 끄기) 잠금화면을 봐주세요.
+      앱을 보고 있으면 알림이 안 뜹니다.<br /><br />
+      그래도 안 오면 <b>집중 모드</b>가 켜져 있는지, 그리고
+      아이폰 <b>설정 → 알림</b> 목록에서 <b>먼저ON</b>의 <b>“잠금 화면”</b>이 체크돼 있는지 봐주세요.
+      <span style="opacity:.8">(설정 검색으로는 안 나옵니다. 목록을 내려서 찾으셔야 해요)</span>
+    </div>
+  </details>
+
+  <details>
+    <summary>가족도 같이 쓰려면요?</summary>
+    <div class="body">
+      가족도 <b>각자 본인 이메일</b>로 로그인해야 합니다. 누가 무엇을 맡았는지 구분해야 하니까요.<br />
+      먼저 들어오신 분이 화면 위 <b>“가족 초대 링크 복사”</b>를 눌러 보내주시면, 그 링크로 들어온 가족은 같은 집이 됩니다.
+    </div>
+  </details>
+
+  <details>
+    <summary>제 정보는 어떻게 되나요?</summary>
+    <div class="body">
+      말씀하신 <b>원문</b>과 올리신 <b>사진</b>은 저장하지 않습니다.
+      사진은 크기를 줄여 AI에 보내고 바로 버립니다.<br />
+      서비스 개선을 위해 <b>정리된 할 일의 제목만</b> 익명으로 남습니다. 누가 말했는지는 함께 남기지 않습니다.
+      광고에 쓰거나 밖으로 팔지 않습니다.<br /><br />
+      앱 안 <b>설정 → 무엇이 남나요</b>에서 다시 보실 수 있습니다.
+    </div>
+  </details>
+
+  <hr />
+
+  <footer>
+    베타에 함께해 주셔서 고맙습니다.<br />
+    안 되는 것, 이상한 것, 짜증 났던 것 <b>무엇이든</b> 알려주세요.<br />
+    그게 이 베타의 전부입니다.<br /><br />
+    <span style="opacity:.75">아직 특허 출원 중이라, 화면이나 기능을 밖에 공유하지 말아주세요 🙏</span>
+  </footer>
+
+</div>
+
+<script>
+  /* 기기 탭 — 자바스크립트가 막혀도 아이폰 안내는 보이게 기본값을 열어둡니다 */
+  var tabs = [
+    { b: document.getElementById('tab-ios'), p: document.getElementById('ios') },
+    { b: document.getElementById('tab-and'), p: document.getElementById('and') }
+  ];
+  function show(i) {
+    tabs.forEach(function (t, n) {
+      t.b.setAttribute('aria-selected', n === i ? 'true' : 'false');
+      t.p.hidden = n !== i;
+    });
+    try { localStorage.setItem('meonjeon:guide', String(i)); } catch (e) {}
+  }
+  tabs.forEach(function (t, i) { t.b.onclick = function () { show(i); }; });
+
+  /* 안드로이드로 들어오면 안드로이드 안내를 먼저 보여줍니다 */
+  try {
+    var saved = localStorage.getItem('meonjeon:guide');
+    if (saved !== null) show(Number(saved));
+    else if (/Android/i.test(navigator.userAgent)) show(1);
+  } catch (e) {}
+</script>
+</body>
+</html>
