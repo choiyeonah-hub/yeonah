@@ -124,7 +124,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0831-a';
+const GATE_BUILD = '0831-b';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1561,7 +1561,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0831-a";
+const BUILD = "0831-b";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -4186,7 +4186,10 @@ function Home() {
        베타 동안에는 모두에게 엽니다 — 30가구는 값어치를 재는 사람들입니다. */
     const opened = PHASE === "beta" || st.plan === "paid";
     (async () => {
-      if (forced) setSt((sv) => ({ ...sv, newsAsk: 0 }));
+      /* 누른 사람은 소식 화면으로 먼저 보냅니다. 결과가 있든 없든
+         거기서 상황이 보여야 합니다 — 소식이 있어야만 들어갈 수 있는
+         화면이면, 소식이 없을 때 영영 못 들어갑니다 */
+      if (forced) { setSt((sv) => ({ ...sv, newsAsk: 0 })); setTab("news"); }
       if (!opened) {
         if (forced) say("이달의 소식은 유료에서 열려요");
         return;
@@ -4197,6 +4200,7 @@ function Home() {
         if (forced) say(`이번 달 ${AI_LABEL.find}를 다 쓰셨어요`);
         return;
       }
+      setSt((sv) => ({ ...sv, newsBusy: true }));
       try {
         const r = await askClaude(`당신은 한국 가정의 살림을 대신 기억해주는 AI 비서 '${BRAND}'입니다.
 이 집이 이번 달에 알아두면 좋을 행정·지원 정보를 3~4개 찾아주세요.
@@ -4236,11 +4240,12 @@ function Home() {
         const list = Array.isArray(r) ? r.filter((x) => x && x.title).slice(0, 4) : [];
         setSt((sv) => ({ ...sv, news: { month: mon, items: list, at: Date.now() } }));
         log("news_fetch", { n: list.length });
-        if (forced) { setTab("news"); say(list.length ? `${list.length}건 찾았어요` : "이번 달엔 찾은 게 없어요"); }
+        if (forced) say(list.length ? `${list.length}건 찾았어요` : "이번 달엔 찾은 게 없어요");
       } catch {
         refundAI("find", 1);
         if (forced) say("못 가져왔어요. 잠시 뒤에 다시 눌러주세요");
       }
+      setSt((sv) => ({ ...sv, newsBusy: false }));
     })();
   }, [st.onboarded, st.newsAsk]);
 
@@ -6007,7 +6012,16 @@ function NewsScreen() {
         </p>
       </div>
 
-      {items.length === 0 && (
+      {items.length === 0 && st.newsBusy && (
+        <Card style={{ marginTop: 16 }}>
+          <div style={{ padding: "34px 20px", textAlign: "center", fontSize: 13.5, color: C.ink2, lineHeight: 1.8 }}>
+            찾는 중이에요…<br />
+            <span style={{ fontSize: 11.5, color: C.ink3 }}>웹을 뒤져보느라 20초쯤 걸려요</span>
+          </div>
+        </Card>
+      )}
+
+      {items.length === 0 && !st.newsBusy && (
         <Card style={{ marginTop: 16 }}>
           <div style={{ padding: "26px 20px", textAlign: "center" }}>
             <div style={{ fontSize: 13.5, color: C.ink3, lineHeight: 1.8 }}>
@@ -7156,7 +7170,9 @@ function Settings() {
         {/* 처음 화면은 한 번 지나가면 다시 못 봅니다. 남에게 보내기 전에 확인해야 합니다 */}
         <Btn kind="ghost" onClick={() => { setSt((s2) => ({ ...s2, previewOnboarding: true })); setTab("home"); }}>처음 화면 미리보기</Btn>
         <div style={{ height: 8 }} />
-        <Btn kind="ghost" onClick={() => { setSt((s2) => ({ ...s2, newsAsk: Date.now() })); setTab("home"); say("이번 달 소식을 찾는 중이에요"); }}>이달의 소식 지금 받아보기</Btn>
+        {/* 홈을 거쳐 가는 건 소식을 찾아오는 자리가 거기라서입니다.
+            누른 사람은 바로 소식 화면으로 넘어갑니다. 안내는 거기서 합니다 */}
+        <Btn kind="ghost" onClick={() => { setSt((s2) => ({ ...s2, newsAsk: Date.now() })); setTab("home"); }}>이달의 소식 보기</Btn>
         <Btn kind="quiet" onClick={() => { if (confirm("모든 데이터를 지우고 처음부터 시작할까요?")) { window.storage.delete("meonjeon").catch(() => {}); setSt(DEFAULT_STATE); } }}>데이터 전체 삭제</Btn>
       </div>
 
