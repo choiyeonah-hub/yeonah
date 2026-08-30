@@ -19,6 +19,14 @@ const SEARCH_DOMAINS = [
   "ssis.or.kr", "nps.or.kr",
   /* 아이 쪽도 신청해야 받는 것들입니다 */
   "idolbom.go.kr", "mogef.go.kr", "moel.go.kr", "kcomwel.or.kr",
+  /* 전시·프로그램은 여기서 열립니다 */
+  "museum.go.kr", "science.go.kr", "nl.go.kr", "culture.go.kr", "kcisa.kr",
+  /* "이번 달 아이랑 뭐 하지"는 사는 동네를 봐야 답이 나옵니다.
+     광역 17곳을 넣습니다. seoul.kr은 서울 자치구(강서구 등)까지 덮습니다. */
+  "seoul.kr", "gg.go.kr", "incheon.go.kr", "busan.go.kr", "daegu.go.kr",
+  "gwangju.go.kr", "daejeon.go.kr", "ulsan.go.kr", "sejong.go.kr",
+  "gangwon.kr", "chungbuk.go.kr", "chungnam.go.kr", "jeonbuk.go.kr",
+  "jeonnam.go.kr", "gb.go.kr", "gyeongnam.go.kr", "jeju.go.kr",
 ];
 const MAX_SEARCHES = 2;      /* 한 번의 발굴에서 검색 2회까지.
                                 검색은 한 번마다 따로 과금됩니다. 3회에서 2회로 줄였습니다 —

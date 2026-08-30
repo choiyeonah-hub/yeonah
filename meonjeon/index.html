@@ -124,7 +124,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0831-h';
+const GATE_BUILD = '0831-i';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1574,7 +1574,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0831-h";
+const BUILD = "0831-i";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -1638,6 +1638,12 @@ async function authHeaders() {
 
 /* search를 켜면 서버가 웹 검색 도구를 붙입니다.
    검색은 한 번마다 따로 과금되므로 주 2회 "미리 찾아보기"에서만 켭니다. */
+/* "찾아줘"라고 했는데 "찾아보세요" 목록을 돌려주면 안 됩니다.
+   실제로 지금 열려 있는 것을 알아야 답이 되는 말은 웹을 뒤집니다.
+   검색은 한 번에 25원쯤 듭니다. 그래서 전부가 아니라 이런 말에만 켭니다. */
+const NEEDS_WEB = /찾아|추천|알아봐|알아보|뭐가 있|어디서|어디에|프로그램|모집|공고|신청|접수|행사|전시|축제|캠프|체험|지원금|보조금|할인|무료|혜택|바뀐|달라진|올해|이번 ?달|요즘/;
+const wantsWeb = (t) => NEEDS_WEB.test(String(t || ""));
+
 async function askClaude(prompt, images, search) {
   const res = await fetch("/api/classify", {
     method: "POST",
@@ -4649,7 +4655,10 @@ function Speak() {
       ...st.tasks.filter((t) => !t.done).map((t) => t.title),
       ...dueRoutines(st).map((r) => r.seed.t),
     ].slice(0, 40).join(", ");
+    /* 웹을 뒤져야 답이 되는 말인지 먼저 봅니다 */
+    const web = wantsWeb(speech) && !shots.length;
     const prompt = `당신은 한국 가정의 인지부하를 대신 기억해주는 AI 비서 '${BRAND}'입니다.
+${web ? `사는 곳: ${String(st.region || "").trim() || (st.place && st.place.label) || "한국"}\n` : ""}
 사용자가 두서없이 말한 내용을 실행 가능한 할 일로 분해·분류하세요.
 
 이 가구: ${householdLine(st)}
@@ -4690,6 +4699,19 @@ function Speak() {
   ④ 질문에 범위가 있으면(예: "아이 관련") 그 범위의 카테고리로만 items를 만드세요.
   ⑤ 정말 빠진 게 없으면 answer에 "지금은 빠진 게 없어 보여요"라고 쓰고 items는 비우세요.
 - 그냥 할 일을 쏟아낸 것이면 answer 없이 items만.
+${web ? `
+- **이번에는 웹을 검색할 수 있습니다. 검색은 2번까지.**
+  "찾아줘"라고 한 사람에게 "찾아보세요" 목록을 돌려주면 안 됩니다. 그건 답이 아니라 숙제입니다.
+  · answer에는 **실제로 찾은 것의 이름과 날짜**를 적으세요.
+    ("박물관 특별전" 아님 → "국립중앙과학관 «○○» 특별전, 9월 14일까지")
+  · items의 title에도 **찾은 것의 이름**을 넣으세요.
+    ("박물관·과학관 전시 확인" 아님 → "«○○» 특별전 예매")
+  · 신청 마감이 있으면 event에 그 날짜를 넣으세요. 그게 이 앱이 하는 일입니다.
+  · 사는 곳이 있으면 그 지역 것을 먼저 찾으세요.
+  · **못 찾았으면 지어내지 말고** answer에 "지금 열려 있는 걸 못 찾았어요"라고 쓰고
+    items는 스스로 알아볼 수 있는 것으로만 두세요. 가짜 이름·가짜 날짜는 절대 안 됩니다.
+  · status가 전부 "알아보기"로 나오면 검색을 안 한 것입니다. 다시 보세요.
+` : ""}
 
 - 연말정산·교육비 이야기가 나오면 이것만은 틀리지 마세요. 틀리면 사용자가 헛수고를 합니다.
   · 학원·체육시설 수강료는 **초등학교 취학 전 아동**만 공제됩니다.
@@ -4735,7 +4757,7 @@ function Speak() {
     let lastErr = "";
     for (let i = 0; i < 2 && !items.length && !gotAnswer; i++) {
       try {
-        const raw = await askClaude((i === 0 ? prompt : prompt + "\n\n(직전 응답이 비어 있었습니다. 반드시 2개 이상 추출하세요.)") + shotPrompt, shots.length ? shots : null);
+        const raw = await askClaude((i === 0 ? prompt : prompt + "\n\n(직전 응답이 비어 있었습니다. 반드시 2개 이상 추출하세요.)") + shotPrompt, shots.length ? shots : null, web);
         if (raw && !Array.isArray(raw)) {
           if (raw.answer) gotAnswer = String(raw.answer).slice(0, 400);
         }
