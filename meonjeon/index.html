@@ -127,7 +127,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0901-v';
+const GATE_BUILD = '0901-w';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -803,8 +803,8 @@ const SEED = [
   { id: "L048", cat: "food", f: null, lead: 1, st: "repeat", t: "주간 밀키트 준비", tg: "평일 저녁", ask: "바쁜 요일 기준 2~3개만 준비할까요?", cy: "주 1회", g: "냉장고", src: "" },
   { id: "L049", cat: "event", f: null, lead: 2, st: "conditional", t: "손님상 메뉴·장보기 역산", tg: "방문일", ask: "인원과 재료로 메뉴를 짤까요?", cy: "행사별", g: "손님", src: "" },
   { id: "L050", cat: "appliance", f: null, lead: 0, st: "repeat", t: "에어프라이어 청소", tg: "주기", ask: "마지막 청소일이 언제였나요?", cy: "주 1회", g: "집청소", src: "" },
-  { id: "L051", cat: "appliance", f: null, lead: 0, st: "repeat", t: "후드 필터·기름때 청소", tg: "주기", ask: "", cy: "2~4주", g: "집청소", src: "" },
-  { id: "L052", cat: "appliance", f: null, lead: 0, st: "repeat", t: "세탁조 청소", tg: "주기", ask: "", cy: "월 1회", g: "집청소", src: "" },
+  { id: "L051", tp: 1, cat: "appliance", f: null, lead: 0, st: "repeat", t: "후드 필터·기름때 청소", tg: "주기", ask: "", cy: "2~4주", g: "집청소", src: "" },
+  { id: "L052", tp: 1, cat: "appliance", f: null, lead: 0, st: "repeat", t: "세탁조 청소", tg: "주기", ask: "", cy: "월 1회", g: "집청소", src: "" },
   { id: "L053", cat: "home", f: null, lead: 7, st: "repeat", t: "휴지·세제·봉투 재고", tg: "소진 전", ask: "남은 정도를 대략 입력할까요?", cy: "주 1회", g: "소모품", src: "" },
   { id: "L054", cat: "home", f: null, lead: 14, st: "decide", t: "세제 교체 후보 비교", tg: "기존 소진 전", ask: "향·세정력·가격 중 우선순위가 뭔가요?", cy: "필요시", g: "소모품", src: "" },
   { id: "L055", cat: "home", f: null, lead: 0, st: "decide", t: "기부·중고·폐기 분류", tg: "정리일", ask: "팔 것·기부할 것·버릴 것을 나눌까요?", cy: "월 1회", g: "정리", src: "" },
@@ -849,14 +849,14 @@ const SEED = [
   { id: "W17", cat: "transport", f: "car", nkid: 2, wf: 1, lc: 1, lead: 0, st: "check", t: "공영주차장 요금 감면 알아보기", tg: "사시는 곳마다 달라요", ask: "다자녀 주차 감면을 아셨나요?", cy: "1회", g: "다자녀", src: "S05" },
   { id: "W18", cat: "transport", f: "car", nkid: 2, wf: 1, lc: 1, lead: 0, st: "check", t: "전기차 보조금 다자녀 우선순위 알아보기", tg: "차 바꿀 때 한 번", ask: "다음 차를 전기차로 생각하고 계신가요?", cy: "1회", g: "다자녀", src: "S05" },
   { id: "L072", cat: "pet", f: "pet", pt: "dog|cat|bird|small", lead: 30, st: "remember", t: "예방접종·검진 일정", tg: "예정일", ask: "마지막 접종·검진일을 등록할까요?", cy: "연/병원권고", g: "반려동물", src: "" },
-  { id: "L073", cat: "pet", f: "pet", pt: "dog|cat", lead: 7, st: "repeat", t: "사료·모래·약 재고", tg: "소진 전", ask: "", cy: "주 1회", g: "반려동물", src: "" },
+  { id: "L073", tp: 1, cat: "pet", f: "pet", pt: "dog|cat", lead: 7, st: "repeat", t: "사료·모래·약 재고", tg: "소진 전", ask: "", cy: "주 1회", g: "반려동물", src: "" },
   { id: "L074", cat: "pet", f: "pet", pt: "dog", lead: 0, st: "repeat", t: "산책 일정 챙기기", tg: "매일/사용자 설정", ask: "평소 산책 횟수와 시간을 정해둘까요?", cy: "사용자 설정", g: "반려동물", src: "" },
   { id: "N001", cat: "home", f: null, lead: 0, st: "repeat", t: "쓰레기봉투 비우기", tg: "가득 차기 전", ask: "봉투가 가득 찼나요?", cy: "2~3일", g: "청소", src: "" },
   { id: "N002", cat: "home", f: null, lead: 0, st: "repeat", t: "음식물쓰레기 처리", tg: "냄새 나기 전", ask: "", cy: "2~3일", g: "청소", src: "" },
   { id: "N003", cat: "home", f: null, lead: 0, st: "repeat", t: "화장실 청소", tg: "주간", ask: "", cy: "주 1회", g: "청소", src: "" },
-  { id: "N004", cat: "home", f: null, lead: 0, st: "repeat", t: "화장실 환풍기 청소", tg: "먼지 쌓이기 전", ask: "환풍기를 마지막으로 연 게 언제인가요?", cy: "3개월", g: "청소", src: "" },
-  { id: "N005", cat: "home", f: null, lead: 0, st: "repeat", t: "화장실 곰팡이 제거", tg: "장마·환절기", ask: "실리콘 이음새에 곰팡이가 보이나요?", cy: "월 1회", g: "청소", src: "" },
-  { id: "N006", cat: "home", f: null, lead: 0, st: "repeat", t: "창틀·방충망 닦기", tg: "환절기", ask: "", cy: "2~3개월", g: "청소", src: "" },
+  { id: "N004", tp: 1, cat: "home", f: null, lead: 0, st: "repeat", t: "화장실 환풍기 청소", tg: "먼지 쌓이기 전", ask: "환풍기를 마지막으로 연 게 언제인가요?", cy: "3개월", g: "청소", src: "" },
+  { id: "N005", tp: 1, cat: "home", f: null, lead: 0, st: "repeat", t: "화장실 곰팡이 제거", tg: "장마·환절기", ask: "실리콘 이음새에 곰팡이가 보이나요?", cy: "월 1회", g: "청소", src: "" },
+  { id: "N006", tp: 1, cat: "home", f: null, lead: 0, st: "repeat", t: "창틀·방충망 닦기", tg: "환절기", ask: "", cy: "2~3개월", g: "청소", src: "" },
   { id: "N007", cat: "home", f: null, lead: 0, st: "repeat", t: "행주 삶기", tg: "주간", ask: "", cy: "주 1회", g: "청소", src: "" },
   /* 요리와 옷 개기가 통째로 빠져 있었습니다. 둘 다 "안 잊는 일"이라 접기 후보이지만,
      넣어두어야 넘기거나 담당을 정할 수 있습니다. 빠져 있으면 아예 나눌 수가 없습니다. */
@@ -871,16 +871,16 @@ const SEED = [
   { id: "N064", cat: "food", f: null, lead: 0, st: "repeat", t: "커피 원두·캡슐 채우기", tg: "떨어지기 전", ask: "며칠 분량 남았나요?", cy: "주 1회", g: "소모품", src: "" },
   { id: "N008", cat: "appliance", f: null, lead: 0, st: "repeat", t: "인덕션 청소", tg: "주간", ask: "", cy: "주 1회", g: "가전관리", src: "" },
   { id: "N009", cat: "appliance", f: null, lead: 0, st: "repeat", t: "전자레인지 청소", tg: "냄새 배기 전", ask: "", cy: "2주", g: "가전관리", src: "" },
-  { id: "N010", cat: "appliance", f: null, lead: 0, st: "repeat", t: "건조기 콘덴서 케어", tg: "건조력 떨어지기 전", ask: "건조 시간이 길어지지 않았나요?", cy: "월 1회", g: "가전관리", src: "" },
+  { id: "N010", tp: 1, cat: "appliance", f: null, lead: 0, st: "repeat", t: "건조기 콘덴서 케어", tg: "건조력 떨어지기 전", ask: "건조 시간이 길어지지 않았나요?", cy: "월 1회", g: "가전관리", src: "" },
   { id: "N011", cat: "appliance", f: null, lead: 0, st: "repeat", t: "건조기 먼지통 비우기", tg: "사용 후", ask: "", cy: "사용 시마다", g: "가전관리", src: "" },
   { id: "N012", cat: "appliance", f: null, lead: 0, st: "repeat", t: "소파 밑·가구 밑 청소", tg: "월간", ask: "", cy: "월 1회", g: "가전관리", src: "" },
   { id: "N013", cat: "appliance", f: null, lead: 0, st: "repeat", t: "밥솥·물그릇 세척", tg: "주간", ask: "밥솥 내솥 패킹도 같이 볼까요?", cy: "주 1회", g: "가전관리", src: "" },
-  { id: "N014", cat: "laundry", f: null, lead: 7, st: "repeat", t: "제습제 교체", tg: "다 찼을 때", ask: "옷장 제습제가 가득 찼나요?", cy: "2~3개월", g: "옷관리", src: "" },
-  { id: "N015", cat: "laundry", f: null, lead: 14, st: "repeat", t: "계절옷 정리", tg: "환절기", ask: "이번 환절기에 꺼낼 옷과 넣을 옷을 나눌까요?", cy: "연 2회", g: "옷관리", src: "", lk: "계절옷 보관" },
-  { id: "N016", cat: "laundry", f: null, lead: 21, st: "repeat", t: "겨울옷 드라이 맡기기", tg: "보관 전", ask: "세탁소 맡길 옷을 모아둘까요?", cy: "연 1회", g: "옷관리", src: "", lk: "옷 보관" },
+  { id: "N014", tp: 1, cat: "laundry", f: null, lead: 7, st: "repeat", t: "제습제 교체", tg: "다 찼을 때", ask: "옷장 제습제가 가득 찼나요?", cy: "2~3개월", g: "옷관리", src: "" },
+  { id: "N015", tp: 1, cat: "laundry", f: null, lead: 14, st: "repeat", t: "계절옷 정리", tg: "환절기", ask: "이번 환절기에 꺼낼 옷과 넣을 옷을 나눌까요?", cy: "연 2회", g: "옷관리", src: "", lk: "계절옷 보관" },
+  { id: "N016", tp: 1, cat: "laundry", f: null, lead: 21, st: "repeat", t: "겨울옷 드라이 맡기기", tg: "보관 전", ask: "세탁소 맡길 옷을 모아둘까요?", cy: "연 1회", g: "옷관리", src: "", lk: "옷 보관" },
   { id: "N017", cat: "laundry", f: null, lead: 14, st: "repeat", t: "겨울옷 보풀 제거", tg: "꺼내 입기 전", ask: "", cy: "연 1회", g: "옷관리", src: "" },
   { id: "N018", cat: "laundry", f: null, lead: 0, st: "repeat", t: "수선할 옷 맡기기", tg: "필요할 때", ask: "수선 맡길 옷이 쌓여 있나요?", cy: "3개월", g: "옷관리", src: "" },
-  { id: "N019", cat: "laundry", kid: 1, w: [0, 144], lead: 0, st: "repeat", t: "작아진 옷 정리·기부", tg: "성장 시점", ask: "기부할 것·팔 것·물려줄 것을 나눌까요?", cy: "6개월", g: "옷관리", src: "" },
+  { id: "N019", tp: 1, cat: "laundry", kid: 1, w: [0, 144], lead: 0, st: "repeat", t: "작아진 옷 정리·기부", tg: "성장 시점", ask: "기부할 것·팔 것·물려줄 것을 나눌까요?", cy: "6개월", g: "옷관리", src: "" },
   { id: "N020", cat: "laundry", f: null, lead: 0, st: "repeat", t: "새 옷 택 제거·세탁", tg: "구매 직후", ask: "", cy: "월 1회", g: "옷관리", src: "" },
   { id: "N021", cat: "laundry", kid: 1, w: [12, 96], lead: 21, an: "03-02", st: "repeat", t: "아이옷 이름표 붙이기", tg: "새 학기 전 (2월)", ask: "새로 산 옷에 이름표를 붙였나요?", cy: "연 1회", g: "옷관리", src: "" },
   { id: "N022", cat: "laundry", kid: 1, w: [12, 144], lead: 21, st: "repeat", t: "수영복·물놀이 준비", tg: "물놀이 시작 전", ask: "작년 수영복이 아직 맞나요?", cy: "연 1회", g: "옷관리", src: "" },
@@ -902,19 +902,19 @@ const SEED = [
   { id: "N036", cat: "kid", kid: 1, w: [36, 156], lead: 30, st: "repeat", t: "눈 검진", tg: "연 1회", ask: "눈을 자주 찡그리지 않나요?", cy: "연 1회", g: "유아생활", src: "" },
   { id: "N037", cat: "kid", kid: 1, w: [36, 216], lead: 30, st: "repeat", t: "치과 정기검진", tg: "6개월마다", ask: "마지막 치과 방문이 언제였나요?", cy: "6개월", g: "유아생활", src: "" },
   { id: "R001", cat: "food", f: null, lead: 0, st: "repeat", t: "반찬 사기·만들기", tg: "떨어지기 전", ask: "이번 주 반찬은 사실 건가요, 만드실 건가요?", cy: "주 1회", g: "식단정기", src: "" },
-  { id: "R002", cat: "food", f: null, lead: 0, st: "repeat", t: "냉장고 청소·정리", tg: "정리 주기", ask: "안쪽에 오래된 게 있나요?", cy: "2주", g: "식단정기", src: "" },
+  { id: "R002", tp: 1, cat: "food", f: null, lead: 0, st: "repeat", t: "냉장고 청소·정리", tg: "정리 주기", ask: "안쪽에 오래된 게 있나요?", cy: "2주", g: "식단정기", src: "" },
   { id: "R003", cat: "food", f: null, lead: 0, st: "repeat", t: "생수 주문", tg: "소진 전", ask: "몇 병 남았나요?", cy: "2주", g: "식단정기", src: "" },
   { id: "R004", cat: "food", f: null, lead: 0, st: "repeat", t: "장보기", tg: "주간", ask: "장보기 목록을 먼저 정리할까요?", cy: "주 1회", g: "식단정기", src: "" },
-  { id: "R005", cat: "appliance", f: null, lead: 0, st: "repeat", t: "정수기 필터 교체", tg: "교체 주기", ask: "방문 관리와 별개로 확인이 필요해요", cy: "6개월", g: "가전정기", src: "" },
+  { id: "R005", tp: 1, cat: "appliance", f: null, lead: 0, st: "repeat", t: "정수기 필터 교체", tg: "교체 주기", ask: "방문 관리와 별개로 확인이 필요해요", cy: "6개월", g: "가전정기", src: "" },
   { id: "R006", cat: "appliance", f: null, lead: 0, st: "repeat", t: "비데 필터 점검", tg: "교체 주기", ask: "", cy: "6개월", g: "가전정기", src: "" },
-  { id: "R007", cat: "appliance", f: null, lead: 0, st: "repeat", t: "공기청정기 필터", tg: "교체 주기", ask: "필터 표시등이 켜졌나요?", cy: "3개월", g: "가전정기", src: "" },
+  { id: "R007", tp: 1, cat: "appliance", f: null, lead: 0, st: "repeat", t: "공기청정기 필터", tg: "교체 주기", ask: "필터 표시등이 켜졌나요?", cy: "3개월", g: "가전정기", src: "" },
   { id: "R008", cat: "appliance", f: null, lead: 0, st: "repeat", t: "청소기 먼지통·필터", tg: "흡입력 떨어지기 전", ask: "", cy: "월 1회", g: "가전정기", src: "" },
   { id: "R009", cat: "pet", f: "pet", pt: "dog|cat|bird|small", lead: 0, st: "repeat", t: "사료·물 챙기기", tg: "매일", ask: "", cy: "매일", g: "반려정기", src: "" },
   { id: "R010", cat: "pet", f: "pet", pt: "dog|cat|small|bird|reptile", lead: 0, st: "repeat", t: "배변 정리", tg: "매일", ask: "", cy: "매일", g: "반려정기", src: "" },
   { id: "R011", cat: "pet", f: "pet", pt: "dog|cat", lead: 0, st: "repeat", t: "양치·귀 청소", tg: "주기", ask: "", cy: "2~3일", g: "반려정기", src: "" },
-  { id: "R012", cat: "pet", f: "pet", pt: "dog|cat", lead: 0, st: "repeat", t: "심장사상충·구충제", tg: "매월 같은 날", ask: "지난달에 먹였는지 기억나세요?", cy: "월 1회", g: "반려정기", src: "" },
+  { id: "R012", tp: 1, cat: "pet", f: "pet", pt: "dog|cat", lead: 0, st: "repeat", t: "심장사상충·구충제", tg: "매월 같은 날", ask: "지난달에 먹였는지 기억나세요?", cy: "월 1회", g: "반려정기", src: "" },
   { id: "R013", cat: "pet", f: "pet", pt: "dog|cat|bird|small", lead: 0, st: "repeat", t: "발톱·미용 관리", tg: "주기", ask: "", cy: "월 1회", g: "반려정기", src: "" },
-  { id: "R014", cat: "pet", f: "pet", pt: "dog|cat|bird|small", lead: 30, st: "repeat", t: "예방접종 확인", tg: "접종 주기", ask: "지난 접종일을 등록해둘까요?", cy: "연 1회", g: "반려정기", src: "" },
+  { id: "R014", tp: 1, cat: "pet", f: "pet", pt: "dog|cat|bird|small", lead: 30, st: "repeat", t: "예방접종 확인", tg: "접종 주기", ask: "지난 접종일을 등록해둘까요?", cy: "연 1회", g: "반려정기", src: "" },
   { id: "R015", cat: "finance", f: null, lead: 0, st: "repeat", t: "가계부 정리", tg: "주간", ask: "카드 내역만 훑어볼까요?", cy: "주 1회", g: "금융정기", src: "" },
   { id: "R016", cat: "finance", f: null, lead: 0, st: "repeat", t: "용돈 주기", tg: "정한 날", ask: "누구에게, 얼마씩 주시나요?", cy: "월 1회", g: "금융정기", src: "" },
   { id: "R017", cat: "finance", f: null, lead: 0, st: "repeat", t: "고정지출·카드값 점검", tg: "결제일 전", ask: "안 쓰는 구독이 있나요?", cy: "월 1회", g: "금융정기", src: "" },
@@ -931,8 +931,8 @@ const SEED = [
   { id: "R028", cat: "parents", f: "parents", lead: 0, st: "repeat", t: "병원 동행 일정 확인", tg: "진료 주기", ask: "다음 진료일을 알고 계신가요?", cy: "월 1회", g: "부모님정기", src: "" },
   { id: "R029", cat: "parents", f: "parents", lead: 0, st: "repeat", t: "생활비·용돈 송금", tg: "정한 날", ask: "", cy: "월 1회", g: "부모님정기", src: "" },
   /* 떨어져 살면 약통을 못 봅니다. 대신 처방받은 날을 알면 언제 떨어지는지 셀 수 있습니다 */
-  { id: "R030", cat: "parents", f: "parents", lead: 3, st: "repeat", t: "다음 진료일 물어보기", tg: "월 1회", ask: "", cy: "월 1회", g: "부모정기", src: "" },
-  { id: "R031", cat: "parents", f: "parents", lead: 7, st: "repeat", t: "생신·기념일 확인", tg: "연 1회", ask: "", cy: "연 1회", g: "부모정기", src: "" },
+  { id: "R030", tp: 1, cat: "parents", f: "parents", lead: 3, st: "repeat", t: "다음 진료일 물어보기", tg: "월 1회", ask: "", cy: "월 1회", g: "부모정기", src: "" },
+  { id: "R031", tp: 1, cat: "parents", f: "parents", lead: 7, st: "repeat", t: "생신·기념일 확인", tg: "연 1회", ask: "", cy: "연 1회", g: "부모정기", src: "" },
   { id: "R030", cat: "kid", kid: 1, w: [12, 84], lead: 0, st: "repeat", t: "알림장·앱 공지 확인", tg: "등원일", ask: "", cy: "매일", g: "보육정기", src: "" },
   { id: "R031", cat: "kid", kid: 1, w: [12, 84], lead: 0, st: "repeat", t: "가방·수건·여벌옷 세탁", tg: "주간", ask: "", cy: "주 1회", g: "보육정기", src: "" },
   { id: "R032", cat: "kid", kid: 1, w: [12, 84], lead: 0, st: "repeat", t: "낮잠이불 세탁", tg: "격주", ask: "", cy: "2주", g: "보육정기", src: "" },
@@ -942,7 +942,7 @@ const SEED = [
   { id: "R036", cat: "edu", kid: 1, w: [73, 216], lead: 0, st: "repeat", t: "학원비 납부 확인", tg: "납부일", ask: "자동이체가 걸려 있나요?", cy: "월 1회", g: "교육정기", src: "" },
   { id: "R037", cat: "edu", kid: 1, w: [73, 216], lead: 0, st: "repeat", t: "학교 공지·알림장 확인", tg: "주간", ask: "", cy: "주 1회", g: "교육정기", src: "" },
   { id: "R038", cat: "edu", kid: 1, w: [60, 180], lead: 0, st: "repeat", t: "독서·학습 기록", tg: "주간", ask: "", cy: "주 1회", g: "교육정기", src: "" },
-  { id: "R039", cat: "home", f: null, lead: 0, st: "repeat", t: "분리수거", tg: "배출일", ask: "우리 동 배출 요일이 언제인가요?", cy: "주 1회", g: "집안일정기", src: "" },
+  { id: "R039", tp: 1, cat: "home", f: null, lead: 0, st: "repeat", t: "분리수거", tg: "배출일", ask: "우리 동 배출 요일이 언제인가요?", cy: "주 1회", g: "집안일정기", src: "" },
   { id: "R040", cat: "home", f: null, lead: 0, st: "repeat", t: "바닥 청소·물걸레", tg: "주간", ask: "", cy: "주 1회", g: "집안일정기", src: "" },
   { id: "R041", cat: "home", f: null, lead: 0, st: "repeat", t: "침구 교체·세탁", tg: "격주", ask: "", cy: "2주", g: "집안일정기", src: "" },
   { id: "R042", cat: "home", f: null, lead: 0, st: "repeat", t: "화분 물주기", tg: "주기", ask: "", cy: "주 1회", g: "집안일정기", src: "" },
@@ -955,24 +955,24 @@ const SEED = [
   { id: "T004", cat: "edu", kid: 1, w: [72, 216], lead: 0, st: "repeat", t: "성교육 대화 나누기", tg: "연령대별", ask: "지금 나이에 맞는 주제로 자연스럽게 이야기 나눠볼까요?", cy: "6개월", g: "청소년정기", src: "" },
   { id: "T005", cat: "edu", kid: 1, w: [120, 216], lead: 0, st: "repeat", t: "스마트폰·SNS 사용 점검", tg: "사춘기", ask: "사용 시간과 규칙을 같이 정해볼까요?", cy: "3개월", g: "청소년정기", src: "" },
   { id: "S001", cat: "appliance", f: null, season: "summer", lead: 0, st: "repeat", t: "제습기 물 버리기", tg: "장마·여름", ask: "요즘 하루에 한 번은 비우시죠?", cy: "매일", g: "계절정기", src: "" },
-  { id: "S002", cat: "appliance", f: null, season: "summer", lead: 0, st: "repeat", t: "에어컨 필터 청소", tg: "냉방 사용기", ask: "냄새 나기 전에 볼까요?", cy: "월 1회", g: "계절정기", src: "" },
+  { id: "S002", tp: 1, cat: "appliance", f: null, season: "summer", lead: 0, st: "repeat", t: "에어컨 필터 청소", tg: "냉방 사용기", ask: "냄새 나기 전에 볼까요?", cy: "월 1회", g: "계절정기", src: "" },
   { id: "S003", cat: "appliance", f: null, season: "summer", lead: 0, st: "repeat", t: "선풍기 청소·보관", tg: "시즌 시작·종료", ask: "", cy: "연 2회", g: "계절정기", src: "" },
   { id: "S004", cat: "appliance", f: null, season: "winter", lead: 0, st: "repeat", t: "가습기 세척", tg: "난방기", ask: "물통은 매일, 세척은 며칠에 한 번 하시나요?", cy: "2~3일", g: "계절정기", src: "" },
   { id: "S005", cat: "appliance", f: null, season: "winter", lead: 0, st: "repeat", t: "보일러·난방 점검", tg: "첫 추위 전", ask: "지난 겨울 이후 점검하셨나요?", cy: "연 1회", g: "계절정기", src: "" },
   { id: "S006", cat: "home", f: null, season: "summer", lead: 0, st: "repeat", t: "방충망·모기장 점검", tg: "여름 시작 전", ask: "", cy: "연 1회", g: "계절정기", src: "" },
   { id: "S007", cat: "home", f: null, season: "summer", lead: 0, st: "repeat", t: "우산·우비 점검", tg: "장마 전", ask: "", cy: "연 1회", g: "계절정기", src: "" },
-  { id: "S008", cat: "home", f: null, season: "winter", lead: 0, st: "repeat", t: "결로·곰팡이 확인", tg: "난방기", ask: "창가·베란다 벽면을 살펴볼까요?", cy: "월 1회", g: "계절정기", src: "" },
+  { id: "S008", tp: 1, cat: "home", f: null, season: "winter", lead: 0, st: "repeat", t: "결로·곰팡이 확인", tg: "난방기", ask: "창가·베란다 벽면을 살펴볼까요?", cy: "월 1회", g: "계절정기", src: "" },
   { id: "S009", cat: "laundry", f: null, season: "summer", lead: 0, st: "repeat", t: "이불 햇볕에 널기", tg: "맑은 날", ask: "", cy: "2주", g: "계절정기", src: "" },
   { id: "S010", cat: "laundry", f: null, lead: 0, st: "repeat", t: "신발 정리·세탁", tg: "주기", ask: "", cy: "월 1회", g: "빨래정기", src: "" },
   { id: "S011", cat: "appliance", f: null, lead: 0, st: "repeat", t: "건조기 필터·먼지망 청소", tg: "사용 후", ask: "건조 시간이 길어졌다면 신호예요", cy: "사용 시마다", g: "가전정기", src: "" },
 
   /* ── 보강한 기본 항목 ──────────────────────────────
      청소·식물·자동차·행사에서 실제로 자주 빠지던 것들 */
-  { id: "N057", cat: "food", f: null, lead: 0, st: "repeat", t: "냉장고 훑고 식단 짜기", tg: "주 1회", ask: "장 보고 영수증을 찍으면 남은 재료로 식단을 짭니다", cy: "주 1회", g: "냉장고", src: "" },
+  { id: "N057", tp: 1, cat: "food", f: null, lead: 0, st: "repeat", t: "냉장고 훑고 식단 짜기", tg: "주 1회", ask: "장 보고 영수증을 찍으면 남은 재료로 식단을 짭니다", cy: "주 1회", g: "냉장고", src: "" },
   { id: "N040", cat: "home", f: null, lead: 0, st: "repeat", t: "택배 상자 정리·배출", tg: "현관에 쌓이기 전", ask: "뜯은 상자가 쌓여 있나요?", cy: "주 1회", g: "청소", src: "" },
   { id: "N041", cat: "home", f: null, lead: 0, st: "repeat", t: "택배 반품·교환 보내기", tg: "반품 기한 전", ask: "기한이 지나면 돌려받지 못해요", cy: "주 1회", g: "청소", src: "" },
   { id: "N042", cat: "home", f: null, lead: 0, st: "repeat", t: "베란다 청소", tg: "물때·먼지 쌓이기 전", ask: "바닥과 창틀을 같이 볼까요?", cy: "월 1회", g: "청소", src: "" },
-  { id: "N043", cat: "home", f: null, lead: 0, st: "repeat", t: "베란다 배수구 뚫기", tg: "장마 전", ask: "물이 천천히 빠지지 않나요?", cy: "3개월", g: "청소", src: "" },
+  { id: "N043", tp: 1, cat: "home", f: null, lead: 0, st: "repeat", t: "베란다 배수구 뚫기", tg: "장마 전", ask: "물이 천천히 빠지지 않나요?", cy: "3개월", g: "청소", src: "" },
   { id: "N044", cat: "home", f: null, lead: 0, st: "repeat", t: "베란다 창문·난간 닦기", tg: "환절기", ask: "", cy: "6개월", g: "청소", src: "" },
   { id: "N045", cat: "home", f: "plant", lead: 0, st: "repeat", t: "화분 영양제 주기", tg: "영양제 주기", ask: "물주기와 헷갈리기 쉬워서 따로 챙깁니다", cy: "월 1회", g: "식물", src: "" },
   { id: "N046", cat: "home", f: "plant", lead: 0, st: "repeat", t: "화분 분갈이", tg: "봄·가을", ask: "배수구로 뿌리가 나왔다면 때가 됐어요", cy: "1년", g: "식물", src: "" },
@@ -987,7 +987,7 @@ const SEED = [
   { id: "EV04", cat: "transport", f: "car", ct: "ev", lead: 0, st: "repeat", t: "감속기 오일·냉각수 점검", tg: "정기점검", ask: "엔진오일은 없지만 이건 있어요", cy: "1년", g: "자동차정기", src: "" },
   { id: "EV05", cat: "transport", f: "car", ct: "ev", lead: 0, st: "repeat", t: "타이어 마모 확인", tg: "전기차는 마모가 빨라요", ask: "", cy: "3개월", g: "자동차정기", src: "" },
   { id: "N052", cat: "appliance", f: null, lead: 3, st: "repeat", t: "렌탈 기사님 방문 준비", tg: "방문 예정일 전", ask: "정수기·비데·매트리스 방문 주기를 등록해둘까요?", cy: "3개월", g: "가전정기", src: "" },
-  { id: "N053", cat: "pet", f: "pet", pt: "dog|cat", lead: 14, st: "repeat", t: "동물병원 정기검진 예약", tg: "검진 주기", ask: "마지막 진료가 언제였나요?", cy: "6개월", g: "반려정기", src: "" },
+  { id: "N053", tp: 1, cat: "pet", f: "pet", pt: "dog|cat", lead: 14, st: "repeat", t: "동물병원 정기검진 예약", tg: "검진 주기", ask: "마지막 진료가 언제였나요?", cy: "6개월", g: "반려정기", src: "" },
   { id: "N054", cat: "event", f: null, lead: 7, st: "repeat", t: "행사 전 장보기", tg: "행사 3~7일 전", ask: "필요한 목록을 장바구니에 미리 담아둘까요?", cy: "3개월", g: "행사정기", src: "" },
   { id: "N055", cat: "event", f: null, lead: 14, st: "repeat", t: "행사 때 입을 옷 준비", tg: "행사 2주 전", ask: "작년 옷이 아직 맞나요? 아이 옷은 특히요", cy: "6개월", g: "행사정기", src: "" },
   { id: "N056", cat: "event", f: null, lead: 10, st: "repeat", t: "선물·답례품 준비", tg: "행사 열흘 전", ask: "예산부터 정할까요?", cy: "3개월", g: "행사정기", src: "" },
@@ -1016,9 +1016,9 @@ const SEED = [
   /* 먹이 재고 — 예전에는 L073(사료·모래·약 재고)이 개·고양이에만 붙어 있었습니다.
      도마뱀 밥이 떨어져도 알려주는 데가 없었습니다. 종류마다 사는 곳도, 걸리는 날도 달라서
      한 줄로 못 씁니다. 파충류 먹이는 살아 있는 것이라 특히 미리 봐야 합니다. */
-  { id: "P013", cat: "pet", f: "pet", pt: "reptile", lead: 3, st: "repeat", t: "먹이 남은 양 확인", tg: "떨어지기 전", ask: "귀뚜라미·밀웜은 주문하면 2~3일 걸리고, 오는 동안 죽기도 합니다", cy: "주 1회", g: "반려동물", src: "" },
-  { id: "P014", cat: "pet", f: "pet", pt: "fish", lead: 7, st: "repeat", t: "사료·수질제 남은 양", tg: "떨어지기 전", ask: "", cy: "월 1회", g: "반려동물", src: "" },
-  { id: "P015", cat: "pet", f: "pet", pt: "bird|small", lead: 5, st: "repeat", t: "모이·베딩 남은 양", tg: "떨어지기 전", ask: "", cy: "주 1회", g: "반려동물", src: "" },
+  { id: "P013", tp: 1, cat: "pet", f: "pet", pt: "reptile", lead: 3, st: "repeat", t: "먹이 남은 양 확인", tg: "떨어지기 전", ask: "귀뚜라미·밀웜은 주문하면 2~3일 걸리고, 오는 동안 죽기도 합니다", cy: "주 1회", g: "반려동물", src: "" },
+  { id: "P014", tp: 1, cat: "pet", f: "pet", pt: "fish", lead: 7, st: "repeat", t: "사료·수질제 남은 양", tg: "떨어지기 전", ask: "", cy: "월 1회", g: "반려동물", src: "" },
+  { id: "P015", tp: 1, cat: "pet", f: "pet", pt: "bird|small", lead: 5, st: "repeat", t: "모이·베딩 남은 양", tg: "떨어지기 전", ask: "", cy: "주 1회", g: "반려동물", src: "" },
 
   /* 이사 — 켜두면 날짜를 역산해 하나씩 올립니다 */
   { id: "MV01", cat: "home", f: "moving", lead: 45, st: "decide", t: "이사업체 견적 비교", tg: "이사 6주 전", ask: "이사 날짜가 정해졌나요?", cy: "1회", g: "이사", src: "" },
@@ -1456,6 +1456,12 @@ const WEEKDAY = ["일", "월", "화", "수", "목", "금", "토"];
 /* ── ① 반복 업무 ──────────────────────────────── */
 const ROUTINE_SEEDS = SEED.filter((s) => s.st === "repeat");
 const LIFE_SEEDS = SEED.filter((s) => s.st !== "repeat");
+/* 안 하면 그날 바로 티가 나는 일입니다. 싱크대에 그릇이 쌓이면 보이니까요.
+   지워도 되지만, 있어야 담당을 정하거나 배우자에게 넘길 수 있습니다.
+   그래서 지우지 않고 목록 아래로 내립니다 — 목록 맨 위에 설거지가 있으면
+   "이 앱은 이런 것까지 시키나" 하고 그날로 닫습니다. */
+const NEVER_FORGET = { N058: 1, R043: 1, R040: 1, N001: 1, N002: 1, R004: 1, R001: 1,
+  N061: 1, N011: 1, R009: 1, R010: 1, P012: 1, N069: 1, N070: 1 };
 
 /* 계절 항목은 그 계절에만 올라옵니다 */
 const SEASON = { summer: [5, 6, 7, 8, 9], winter: [11, 12, 1, 2, 3] };
@@ -1623,7 +1629,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-v";
+const BUILD = "0901-w";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -3127,6 +3133,8 @@ function Onboarding({ preview }) {
   const [pick, setPick] = useState(null);
   const [page, setPage] = useState(0);
   const [newItem, setNewItem] = useState("");
+  /* 영역마다 "더 보기"를 폈는지 */
+  const [moreOpen, setMoreOpen] = useState({});
   const inp = { border: `1px solid ${C.line}`, borderRadius: 12, padding: "12px 13px", fontSize: 14.5, background: C.bg, color: C.ink, width: "100%" };
   /* 미리보기라는 걸 계속 보이게 합니다. 안 그러면 진짜 다시 설정하는 줄 압니다 */
   const PreviewBar = () => !preview ? null : (
@@ -3437,6 +3445,12 @@ function Onboarding({ preview }) {
           const cid = cids[Math.min(page, cids.length - 1)];
           const grp = byCat[cid];
           const onHere = grp.items.filter((r) => (routines[r.key] || {}).on).length;
+          /* 순서: ① 놓치면 손해인 것 ② 보통 것 ③ 안 잊는 일(설거지·빨래 같은 것) */
+          const rank = (r) => (r.seed.tp ? 0 : (NEVER_FORGET[r.seed.id] ? 2 : 1));
+          const sorted = [...grp.items].sort((a, b) => rank(a) - rank(b));
+          const openCount = Math.max(6, sorted.filter((r) => r.seed.tp).length);
+          const shownItems = moreOpen[cid] ? sorted : sorted.slice(0, openCount);
+          const hidden = sorted.length - shownItems.length;
           return (
             <>
               <div className="flex items-center justify-between" style={{ marginBottom: 12 }}>
@@ -3450,8 +3464,12 @@ function Onboarding({ preview }) {
                 <b style={{ color: C.ink2 }}>이미 챙기고 계신 것만</b> 골라주세요. 지금은 {onHere}개 켜져 있어요.<br />
                 하나도 안 고르셔도 됩니다. 나머지는 때가 되면 저희가 하나씩 꺼냅니다.
               </div>
+              {/* 한 영역에 스물여덟 개가 한꺼번에 나오면 정작 챙겨야 할 게 묻힙니다.
+                  실제로 "분리수거는 꼭 챙겨야 하는데 처음에 설정할 게 너무 많아서 눈에 안 들어왔다"는
+                  말을 들었습니다. 놓치면 손해로 돌아오는 것(tp)을 위로 올리고,
+                  안 잊는 일(설거지·빨래 같은 것)은 아래로 내린 뒤, 나머지는 접어둡니다. */}
               <Card>
-                {grp.items.map((r, i, arr) => {
+                {shownItems.map((r, i, arr) => {
                   const cfg = routines[r.key] || { on: false, ...seedCfg(r.seed) };
                   return (
                     <div key={r.key} className="flex items-center gap-3" style={{ padding: "13px 15px", borderBottom: i === arr.length - 1 ? "none" : `1px solid ${C.line}`, opacity: cfg.on ? 1 : .4 }}>
@@ -3483,6 +3501,13 @@ function Onboarding({ preview }) {
                   }} style={{ background: C.moss, color: "#fff", border: "none", borderRadius: 10, padding: "9px 14px", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>추가</button>
                 </div>
               </Card>
+              {hidden > 0 && (
+                <button className="press" onClick={() => setMoreOpen((m) => ({ ...m, [cid]: 1 }))}
+                  style={{ width: "100%", marginTop: 8, background: "transparent", border: `1px dashed ${C.line}`,
+                           borderRadius: 12, padding: "11px 0", fontSize: 12.5, color: C.ink2 }}>
+                  {hidden}개 더 보기 <span style={{ color: C.ink3 }}>· 안 보셔도 됩니다</span>
+                </button>
+              )}
               <div className="flex gap-2" style={{ marginTop: 10 }}>
                 <button className="press" onClick={() => setRoutines((pv) => { const n = { ...pv }; grp.items.forEach((r) => { n[r.key] = { ...(n[r.key] || seedCfg(r.seed)), on: true }; }); return n; })}
                   style={{ flex: 1, background: "transparent", border: `1px solid ${C.line}`, borderRadius: 12, padding: "10px 0", fontSize: 12.5, color: C.ink2 }}>전부 켜기</button>
