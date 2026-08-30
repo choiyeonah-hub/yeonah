@@ -127,7 +127,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0901-n';
+const GATE_BUILD = '0901-o';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1599,7 +1599,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-n";
+const BUILD = "0901-o";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -5680,6 +5680,16 @@ function Categories() {
    지금은 자리만 잡아두고 아무것도 안 그립니다 —
    베타에 광고를 넣으면 유지율 숫자가 오염됩니다.
    켤 때 지킬 것: 복지 안내 옆에는 절대 붙이지 않습니다. */
+/* 광고를 붙일 때 지킬 것 (2027년 6월, live로 바꿀 때 설정합니다)
+
+   ① 이 자리(영역 탭)에만 붙입니다. 유용정보 카드 안에는 안 붙입니다 —
+      거기는 앱이 "이거 챙기세요"라고 말한 자리라, 바로 아래 광고가 붙으면
+      앱이 한 말까지 광고로 읽힙니다. 지금은 noAd로 막아뒀습니다.
+   ② 배너에 "광고" 표시가 있어야 합니다. 앱이 하는 말과 구분되어야 합니다.
+   ③ 그날 유용정보에 뜬 물건과 같은 품목은 광고에서 뺍니다.
+      한복 카드를 띄운 날 한복 광고가 뜨면, 바로 위의
+      "집에 있는지 먼저 보세요"가 우스워집니다.
+      AdMob 카테고리 차단으로 막습니다. */
 function AdSlot({ where }) {
   const { st } = use();
   if (!CHARGING()) return null;
