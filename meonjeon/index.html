@@ -124,7 +124,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0831-y';
+const GATE_BUILD = '0831-z';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1584,7 +1584,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0831-y";
+const BUILD = "0831-z";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -7097,7 +7097,25 @@ function Settings() {
           );
         })()}
         <div style={{ height: 8 }} />
-        <Btn kind="quiet" onClick={() => { if (confirm("모든 데이터를 지우고 처음부터 시작할까요?")) { window.storage.delete("meonjeon").catch(() => {}); setSt(DEFAULT_STATE); } }}>데이터 전체 삭제</Btn>
+        {/* 지우기 전에 내려받을 길이 있어야 합니다. 되돌릴 수 없는 버튼 옆에
+            백업이 없으면, 그건 버튼이 아니라 함정입니다. */}
+        <Btn kind="ghost" onClick={() => {
+          try {
+            const blob = new Blob([JSON.stringify(st, null, 2)], { type: "application/json" });
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = `먼저ON-백업-${todayStr().replace(/[^0-9]/g, "")}.json`;
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+            say("백업 파일을 내려받았어요");
+          } catch { say("이 브라우저에선 내려받기가 안 돼요"); }
+        }}>지금 상태 백업 내려받기</Btn>
+        <div style={{ height: 8 }} />
+        <Btn kind="quiet" onClick={() => {
+          if (!confirm("모든 데이터를 지우고 처음부터 시작할까요?\n\n가족 전체의 데이터가 지워지고 되돌릴 수 없습니다.\n먼저 위에서 백업을 내려받으세요.")) return;
+          if (!confirm("정말 지울까요? 남편분 화면의 내용도 함께 사라집니다.")) return;
+          window.storage.delete("meonjeon").catch(() => {}); setSt(DEFAULT_STATE);
+        }}>데이터 전체 삭제</Btn>
       </div>
 
       <EnvCheck />
