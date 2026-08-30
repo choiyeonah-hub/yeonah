@@ -1470,7 +1470,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-r";
+const BUILD = "0901-s";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -7023,15 +7023,17 @@ function Settings() {
 /* ── 하단 탭 ──────────────────────────────────── */
 function TabBar() {
   const { st, tab, setTab } = use();
-  /* 혼자 쓰면 나눌 것이 없습니다. 나눔 탭은 가족이 둘 이상일 때만 */
-  const solo = (st.members || []).length < 2;
+  /* 예전에 이 자리는 "나눔" 탭이었고, 혼자 쓰면 나눌 게 없어서 감췄습니다.
+     지금은 같은 자리가 유용정보(복지 + 미리 사두기)입니다.
+     그런데 감추는 조건만 남아 있어서, 혼자 등록한 집은 이 탭을 아예 못 봤습니다.
+     복지는 오히려 혼자 사는 집에 더 필요하고, 미리 사두기도 여기에만 있습니다. */
   const items = [
     { id: "home", label: "오늘", icon: "◉" },
     { id: "cat", label: "영역", icon: "▦" },
     { id: "speak", label: "말하기", icon: "✦", primary: true },
     { id: "meal", label: "식단", icon: "❖" },
     { id: "share", label: "유용정보", icon: "◑" },
-  ].filter((it) => !(solo && it.id === "share"));
+  ];
   return (
     <nav style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 440,
                   background: "rgba(255,255,255,.9)", backdropFilter: "saturate(1.6) blur(16px)", WebkitBackdropFilter: "saturate(1.6) blur(16px)",
