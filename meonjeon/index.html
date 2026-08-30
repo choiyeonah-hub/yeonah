@@ -124,7 +124,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0830-f';
+const GATE_BUILD = '0830-g';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1421,7 +1421,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0830-f";
+const BUILD = "0830-g";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -2701,6 +2701,9 @@ function Onboarding({ preview }) {
   /* 차가 없는 집에는 차 단계를 보여주지 않습니다 */
   const LAST = 5;
   const skipCar = !d.flags.car;
+  /* 실제로 지나가는 단계만 셉니다 */
+  const stepList = [0, 1, 2, 3, ...(skipCar ? [] : [4]), 5];
+  const stepIdx = Math.max(stepList.indexOf(step), 0);
   const nextStep = (n) => (n === 4 && skipCar ? 5 : n);
   const prevStep = (n) => (n === 4 && skipCar ? 3 : n);
   /* 경조사 후보 — 이름을 이미 받았으니 물어볼 것만 남깁니다.
@@ -2730,10 +2733,12 @@ function Onboarding({ preview }) {
         <button className="press" onClick={() => { if (step === LAST && page > 0) return setPage(page - 1); if (step > 0) setStep(prevStep(step - 1)); }}
           disabled={step === 0} aria-label="이전 단계"
           style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 999, width: 34, height: 34, fontSize: 14, color: step === 0 ? C.ink3 : C.ink2, opacity: step === 0 ? .35 : 1, flexShrink: 0 }}>←</button>
+        {/* 실제 단계 수와 맞춰야 합니다. 6단계인데 "n/4"로 보이면
+             끝난 줄 알았다가 또 나와서 지칩니다. 차가 없으면 한 단계 줄어듭니다. */}
         <div className="flex gap-1.5 flex-1">
-          {[0, 1, 2, 3].map((i) => <div key={i} style={{ flex: 1, height: 3, borderRadius: 99, background: i <= step ? C.moss : C.line, transition: "background .3s" }} />)}
+          {stepList.map((n, i) => <div key={n} style={{ flex: 1, height: 3, borderRadius: 99, background: i <= stepIdx ? C.moss : C.line, transition: "background .3s" }} />)}
         </div>
-        <span className="mono" style={{ fontSize: 10.5, color: C.ink3, flexShrink: 0 }}>{step + 1}/4</span>
+        <span className="mono" style={{ fontSize: 10.5, color: C.ink3, flexShrink: 0 }}>{stepIdx + 1}/{stepList.length}</span>
       </div>
       <h1 className="disp" style={{ fontSize: 26, fontWeight: 600, lineHeight: 1.45, whiteSpace: "pre-line" }}>{steps[step].q}</h1>
       <p style={{ fontSize: 13.5, color: C.ink2, marginTop: 12, lineHeight: 1.7 }}>{steps[step].s}</p>
@@ -2973,6 +2978,16 @@ function Onboarding({ preview }) {
               <div className="flex gap-1.5" style={{ marginTop: 16, justifyContent: "center" }}>
                 {cids.map((_, i) => <span key={i} onClick={() => setPage(i)} style={{ width: i === page ? 16 : 6, height: 6, borderRadius: 99, background: i === page ? C.moss : C.line, cursor: "pointer", transition: "width .2s" }} />)}
               </div>
+              {/* 영역이 열 개입니다. 끝까지 넘기다 지치면 아무거나 눌러버립니다.
+                  기본값이 이미 들어 있으니 여기서 바로 끝낼 수 있게 둡니다. */}
+              <button className="press" onClick={finish}
+                style={{ width: "100%", marginTop: 16, background: "transparent", border: `1px solid ${C.line}`,
+                         borderRadius: 14, padding: "13px 0", fontSize: 13, color: C.ink2 }}>
+                나머지는 기본값으로 두고 <b style={{ color: C.moss }}>바로 시작하기</b>
+              </button>
+              <p style={{ fontSize: 11.5, color: C.ink3, textAlign: "center", marginTop: 7, lineHeight: 1.7 }}>
+                주기는 나중에 설정에서 언제든 바꿀 수 있어요.<br />지금 다 정하지 않으셔도 됩니다.
+              </p>
               {pick && (
                 <CyclePicker current={(routines[pick] || {}).cycle} title="얼마마다 할까요?" pattern={routines[pick] || {}}
                   onPick={(dd) => { setRoutines((pv) => { const c = { ...pv[pick], cycle: dd, on: true }; return { ...pv, [pick]: { ...c, nextAt: nextByPattern(c) } }; }); setPick(null); }}
@@ -2989,6 +3004,15 @@ function Onboarding({ preview }) {
         <Btn onClick={() => {
           if (step < LAST) return setStep(nextStep(step + 1));
           if (page < cids.length - 1) { setPage(page + 1); window.scrollTo({ top: 0, behavior: "smooth" }); return; }
+          finish();
+        }}>{step < LAST ? "다음" : (page < cids.length - 1 ? "다음 영역" : "시작하기")}</Btn>
+        {step > 0 && <Btn kind="quiet" onClick={() => { if (step === LAST && page > 0) return setPage(page - 1); setStep(prevStep(step - 1)); }}>이전</Btn>}
+        {preview && <Btn kind="quiet" onClick={() => setSt((sv) => ({ ...sv, previewOnboarding: false }))}>미리보기 끝내기</Btn>}
+      </div>
+    </div>
+  );
+
+  function finish() {
           /* 첫 회차를 언제로 잡을지는 firstRunAt이 정합니다.
              설정하다 지쳐서 "6개월"을 눌렀다고 그 일이 오늘 뜨면 안 됩니다.
              음력·기준일(제사, 명절 예매, 보험 만기)은 이미 날짜가 정해져 있으니
@@ -3039,13 +3063,7 @@ function Onboarding({ preview }) {
           if (preview) { setSt((sv) => ({ ...sv, previewOnboarding: false })); say("미리보기였어요. 아무것도 안 바뀌었습니다"); return; }
           setSt({ ...d, members: d.members.filter((m) => m.name.trim()),
                   cars, customRoutines: cr, routines: init, onboarded: true });
-        }}>{step < LAST ? "다음" : (page < cids.length - 1 ? "다음 영역" : "시작하기")}</Btn>
-        {step > 0 && <Btn kind="quiet" onClick={() => { if (step === LAST && page > 0) return setPage(page - 1); setStep(prevStep(step - 1)); }}>이전</Btn>}
-        {preview && <Btn kind="quiet" onClick={() => setSt((sv) => ({ ...sv, previewOnboarding: false }))}>미리보기 끝내기</Btn>}
-        {step === LAST && <p style={{ fontSize: 12, color: C.ink3, textAlign: "center", marginTop: 4, lineHeight: 1.7 }}>지금 다 정하지 않아도 괜찮아요. 나중에 설정에서 바꿀 수 있어요.<br />평소엔 오늘 필요한 것만 보여드립니다.</p>}
-      </div>
-    </div>
-  );
+        }
 }
 
 /* ── 헤더 ─────────────────────────────────────── */
