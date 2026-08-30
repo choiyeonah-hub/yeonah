@@ -124,7 +124,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0830-v';
+const GATE_BUILD = '0830-w';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1499,7 +1499,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0830-v";
+const BUILD = "0830-w";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -6239,7 +6239,10 @@ function WelfareWeek() {
      조례가 바뀌는 걸 따라가지 못해서 결국 틀린 답을 자신 있게 보여주게 됩니다.
      틀린 답은 모르는 것보다 나쁩니다. 그래서 표 대신 길을 놓습니다 —
      사시는 곳 한 줄만 받아서, 그 동네 조례로 바로 데려다줍니다. */
-  const region = String(st.region || "").trim();
+  /* 시·군·구를 안 적었어도 날씨용으로 고른 광역(서울 등)은 이미 압니다.
+     광역만으로도 조례는 찾아집니다 — 아무것도 못 보여주는 것보다 낫습니다. */
+  const fine = String(st.region || "").trim();
+  const region = fine || ((st.place && st.place.label) || "");
   const hide = (why) => setSt((s) => ({ ...s, welfareOff: { ...(s.welfareOff || {}), [sd.id]: Date.now() } }));
   return (
     <Section eyebrow="WELFARE" title="이번 주 알아둘 것">
@@ -6274,6 +6277,7 @@ function WelfareWeek() {
                     <>
                       <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 5, lineHeight: 1.7 }}>
                         <b style={{ color: C.ink }}>{region}</b>의 조례를 바로 열어드릴게요.
+                        {!fine && <span style={{ color: C.ink3 }}> 설정에 구·군까지 적으시면 더 좁혀서 찾아드려요.</span>}
                       </div>
                       <div className="flex flex-wrap gap-2" style={{ marginTop: 9 }}>
                         <a className="press" target="_blank" rel="noopener noreferrer"
@@ -6987,7 +6991,7 @@ function Settings() {
           안 적어도 앱은 다 돌아가고, 처음에 묻는 게 이미 많습니다. */}
       <Section eyebrow="선택" title="사시는 곳">
         <input className="hae" value={d.region || ""} onChange={(e) => setD((s) => ({ ...s, region: e.target.value }))}
-          placeholder="예: 서울 강서구"
+          placeholder={`예: ${(d.place && d.place.label) || "서울"} 강서구`}
           style={{ width: "100%", border: `1px solid ${C.line}`, borderRadius: 14, padding: 13, fontSize: 14.5, background: C.card, color: C.ink }} />
         <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 9, lineHeight: 1.75 }}>
           주차 감면·전기차 보조금처럼 동네마다 다른 건 앱이 답을 말하지 않습니다.
