@@ -124,7 +124,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0901-d';
+const GATE_BUILD = '0901-e';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1584,7 +1584,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-d";
+const BUILD = "0901-e";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -2035,14 +2035,17 @@ function PageHead({ title, onBack, backLabel, right }) {
   );
 }
 
-/* 기준 날짜(MM-DD)로 다음 차례 계산 — 생일·기념일용 */
+/* 기준 날짜(MM-DD)로 다음 차례 계산 — 생일·기념일용
+   leadDays를 안 주면 일주일 전으로 잡습니다.
+   0을 주면 그날 그대로입니다 — 예전에는 `leadDays || 7`이라 0이 7로 바뀌었고,
+   그래서 "캘린더에 넣기"가 생일을 일주일 일찍 넣고 있었습니다. */
 function nextFromAnchor(anchor, leadDays) {
   if (!anchor) return null;
   const [mm, dd] = anchor.split("-").map(Number);
   const now = new Date(); const y = now.getFullYear();
   let d = new Date(y, mm - 1, dd);
   if (d.getTime() < startOfDay(Date.now())) d = new Date(y + 1, mm - 1, dd);
-  return d.getTime() - (leadDays || 7) * DAY;
+  return d.getTime() - (leadDays == null ? 7 : leadDays) * DAY;
 }
 const anchorLabel = (a) => (a ? `${Number(a.split("-")[0])}월 ${Number(a.split("-")[1])}일` : "");
 /* ── 음력 → 양력 변환 ──────────────────────────────
@@ -5358,7 +5361,9 @@ function AnnScreen() {
       <div style={{ marginTop: 14, paddingLeft: 2 }}>
         <div className="disp" style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-.03em" }}>경조사</div>
         <p style={{ fontSize: 13.5, color: C.ink2, marginTop: 9, lineHeight: 1.7 }}>
-          생신·기일·결혼기념일을 넣어두면 정한 만큼 미리 올려드려요.<br />한 번 넣으면 매년 챙깁니다.
+          넣어두면 <b style={{ color: C.moss }}>선물·준비물을 싸게 살 때</b> 미리 알려드려요.<br />
+          날짜를 기억해드리려는 게 아니에요 — 그건 안 까먹으시니까요.
+          답례품이 제일 싼 때, 돌잔치 자리가 남아 있는 때를 대신 봐드립니다.
         </p>
       </div>
 
@@ -6305,6 +6310,26 @@ const AHEAD = [
     use: "일 년 내내",
     tip: "새로 사라는 목록이 아닙니다. 집에 이미 있는 걸 한 곳에 모으는 게 먼저입니다.", buy: 1 },
 ];
+/* ── 날짜를 아는 것에서 역산 ─────────────────────────
+   AHEAD는 행사 날짜를 모르는 경우입니다(달력 월로만 띄웁니다).
+   생일·기념일은 반대로 날짜가 확정된 몇 안 되는 것이라, 역산이 정확히 됩니다.
+
+   그래서 경조사에 날짜를 넣는 이유가 "안 까먹으려고"가 아닙니다.
+   생일은 안 까먹습니다. 까먹는 건 그 준비를 언제 시작해야 싼가입니다. */
+const DATED = [
+  { id: "D01", cat: "event", days: 60, match: /생일|생신/,
+    t: "답례품·선물 지금이 쌉니다",
+    why: "한 달 안으로 들어오면 급하게 사게 됩니다. 두 달 전이면 고르고 비교할 시간이 있습니다.",
+    tip: "답례품은 여러 개를 사야 해서 값 차이가 크게 벌어집니다.", buy: 1 },
+  { id: "D02", cat: "event", days: 180, match: /생일/, kidOnly: 1,
+    t: "잔치를 하실 거면 장소 예약이 지금입니다",
+    why: "좋은 날짜와 시간대가 여섯 달 전에 나갑니다.",
+    tip: "안 하실 거면 이 알림은 꺼두세요. 다시 안 뜹니다.", buy: 0 },
+  { id: "D03", cat: "event", days: 30, match: /결혼기념일/,
+    t: "기념일 준비 — 예약이 필요한 곳이면 지금입니다",
+    why: "주말 자리는 한 달 전에 빠집니다.", buy: 0 },
+];
+
 /* 사이즈 위험이 붙은 것에는 "한 사이즈 크게"를 빠뜨릴 수 없게 여기서 붙입니다.
    문구를 손으로 적다 보면 언젠가 한 줄을 빠뜨립니다. */
 const RISK_LINE = {
@@ -6428,6 +6453,31 @@ function usefulItems(st) {
     key: sd.id, cat: sd.cat, title: sd.t, g: sd.g, chg: sd.chg,
     ...(WELFARE_DETAIL[sd.id] || {}),
   }));
+  /* 날짜를 아는 것에서 역산 — 경조사에 넣어둔 생일·기념일이 재료입니다.
+     여기서 뜨는 이유는 날짜를 알려드리려는 게 아니라,
+     그 준비를 언제 시작해야 싼지를 알려드리려는 것입니다. */
+  const names = kids.map((c) => String(c.name || "").trim()).filter(Boolean);
+  (st.customRoutines || []).forEach((cr) => {
+    if (!cr || cr.category !== "event") return;
+    const cfg = (st.routines || {})[`c:${cr.id}`] || {};
+    if (!cfg.anchor) return;
+    const at = nextFromAnchor(cfg.anchor, 0);
+    if (!at) return;
+    const left = Math.round((at - todayKey()) / DAY);
+    DATED.forEach((d) => {
+      if (!d.match.test(cr.title || "")) return;
+      /* 돌잔치를 남편 생일에 권하면 안 됩니다 */
+      if (d.kidOnly && !names.some((n) => (cr.title || "").indexOf(n) >= 0)) return;
+      /* 창을 두지 않으면 반년 내내 같은 카드가 붙어 있습니다 */
+      if (left > d.days || left <= d.days - 30) return;
+      out.push({
+        key: `${d.id}:${cr.id}`, cat: d.cat, dated: 1,
+        title: `${cr.title} — ${d.t}`, what: d.why,
+        use: `${anchorLabel(cfg.anchor)}까지 ${left}일 남았어요`,
+        tip: d.tip, buy: d.buy,
+      });
+    });
+  });
   /* 미리 사두기 — 달력 월로 뜹니다.
      아이가 없으면 원 행사도 없어서 하나도 안 뜹니다. */
   const mon = new Date().getMonth() + 1;
@@ -6515,9 +6565,9 @@ function Useful() {
     /* 바뀐 것이 먼저입니다. 한 번 "안 된다"고 들은 사람은 다시 안 알아봅니다 —
        그 사이에 기준이 바뀐 걸 아무도 알려주지 않습니다.
        "이제 된대요"를 알려주는 것만으로 이 화면은 값을 합니다. */
-    const rank = (x) => (x.chg ? 0 : x.ahead ? 1 : x.fresh ? 2 : 3);
+    const rank = (x) => (x.chg ? 0 : x.dated ? 1 : x.ahead ? 2 : x.fresh ? 3 : 4);
     Object.keys(by).forEach((id) => by[id].sort((a, b) => rank(a) - rank(b)));
-    const hasChg = (g) => (g.some((x) => x.chg) ? 0 : g.some((x) => x.ahead) ? 1 : 2);
+    const hasChg = (g) => (g.some((x) => x.chg) ? 0 : g.some((x) => x.ahead || x.dated) ? 1 : 2);
     return Object.keys(by).map((id) => ({
       cat: (cats || []).find((c) => c.id === id) || { id, emoji: "🗂", label: "기타" },
       list: by[id],
@@ -6571,7 +6621,7 @@ function Useful() {
                     <div className="flex items-baseline gap-2">
                       <span style={{ flex: 1, minWidth: 0, fontSize: 14.5, fontWeight: 500 }}>{it.title}</span>
                       {it.chg ? <span className="mono" style={{ fontSize: 9, color: C.persim, background: C.persimSoft, borderRadius: 999, padding: "2px 7px" }}>바뀐 것</span>
-                        : it.ahead ? <span className="mono" style={{ fontSize: 9, color: C.moss, background: C.mossSoft, borderRadius: 999, padding: "2px 7px" }}>지금이 싸요</span>
+                        : it.ahead || it.dated ? <span className="mono" style={{ fontSize: 9, color: C.moss, background: C.mossSoft, borderRadius: 999, padding: "2px 7px" }}>지금이 싸요</span>
                         : it.fresh ? <span className="mono" style={{ fontSize: 9, color: C.moss }}>이번 달</span> : null}
                       <span style={{ fontSize: 11, color: C.ink3 }}>
                         {!opened && it.key !== freeKey ? "잠김" : on ? "접기" : "보기"}
