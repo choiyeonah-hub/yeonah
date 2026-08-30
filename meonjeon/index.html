@@ -124,7 +124,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0831-b';
+const GATE_BUILD = '0831-c';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1195,9 +1195,9 @@ const LINKS = [
     kw: ["이유식", "미음", "유아식", "알레르기"], g: ["이유식"] },
   { name: "코레일", desc: "명절 승차권 예매는 보통 한 달 전부터", url: "https://www.letskorail.com/", tag: "정보",
     kw: ["기차", "KTX", "승차권", "명절 교통", "귀성"], g: ["행사정기"] },
-  { name: "복지로", desc: "받을 수 있는 복지를 한 곳에서 찾아봐요", url: "https://www.bokjiro.go.kr", tag: "추천",
+  { name: "복지로", gov: 1, desc: "받을 수 있는 복지를 한 곳에서 찾아봐요", url: "https://www.bokjiro.go.kr", tag: "추천",
     kw: ["복지", "돌봄", "지원금", "수당", "기초연금", "안심", "말벗", "다자녀", "감면", "우대"], g: ["독거", "부모님", "부모님정기", "다자녀"] },
-  { name: "보건복지상담센터 129", desc: "어디에 신청하는지 전화로 물어보는 게 제일 빨라요", url: "tel:129", tag: "추천",
+  { name: "보건복지상담센터 129", gov: 1, desc: "어디에 신청하는지 전화로 물어보는 게 제일 빨라요", url: "tel:129", tag: "추천",
     flag: "parentsAlone", kw: ["응급안전", "노인맞춤돌봄", "안부전화", "반려로봇", "독거"], g: ["독거"] },
 ];
 
@@ -1561,7 +1561,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0831-b";
+const BUILD = "0831-c";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -1872,7 +1872,7 @@ function LinkClaims({ children }) {
   return <ClaimCtx.Provider value={ref}>{children}</ClaimCtx.Provider>;
 }
 
-function LinkCards({ group, text, compact, exclude }) {
+function LinkCards({ group, text, compact, exclude, govOnly }) {
   const { st, setSt, log } = use();
   /* 눌렀다고 깐 것도, 예매한 것도 아닙니다. 앱은 알 수가 없습니다.
      그래서 클릭으로 숨기지 않고 90일간 그대로 둡니다.
@@ -1887,6 +1887,10 @@ function LinkCards({ group, text, compact, exclude }) {
   const uid = useId();
   const skip = exclude || [];
   const hits = linksFor({ group, text, flags: st.flags }).filter((l) => {
+    /* 복지 안내 밑에는 관공서만 붙입니다. 안마기 광고가 그 자리에 붙으면
+       바로 위의 "장기요양등급 신청" 까지 광고로 읽힙니다.
+       이 앱이 파는 건 "먼저ON이 말하면 진짜다" 하나뿐입니다. */
+    if (govOnly && !l.gov) return false;
     if (skip.indexOf(l.name) >= 0) return false;
     /* 이 화면 위쪽에서 이미 뜬 링크는 건너뜁니다 */
     if (claims && claims.current) {
@@ -6481,7 +6485,7 @@ function WelfareWeek() {
           </div>
         </div>
         <div style={{ padding: "0 18px 16px" }}>
-          <LinkCards group={sd.g} text={sd.t} compact />
+          <LinkCards group={sd.g} text={sd.t} compact govOnly />
         </div>
       </Card>
     </Section>
