@@ -127,7 +127,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0901-j';
+const GATE_BUILD = '0901-k';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1587,7 +1587,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-j";
+const BUILD = "0901-k";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -2836,6 +2836,57 @@ function InAppNotice() {
 }
 
 /* ══════════ 앱 ══════════ */
+/* ── 새 버전이 나왔는지 스스로 봅니다 ──────────────
+   홈 화면에 추가한 앱은 시작 화면을 아주 오래 들고 있습니다.
+   실제로 폰이 0831-y에 굳어 있는 동안 서버는 0901-g였습니다.
+   그러면 이미 고친 것을 다시 신고하게 되고, 베타에서 그건 시간 낭비입니다.
+
+   그래서 화면을 다시 볼 때마다 version.json을 캐시 없이 읽어
+   지금 돌고 있는 판과 다르면 위에 한 줄을 띄웁니다.
+   새로고침은 사용자가 누릅니다 — 쓰던 걸 앱이 마음대로 끊지 않습니다. */
+function useNewBuild() {
+  const [newer, setNewer] = useState("");
+  const last = useRef(0);
+  useEffect(() => {
+    const look = async () => {
+      if (document.hidden) return;
+      if (Date.now() - last.current < 60000) return;   /* 1분에 한 번이면 충분합니다 */
+      last.current = Date.now();
+      try {
+        const r = await fetch(`/version.json?t=${Date.now()}`, { cache: "no-store" });
+        if (!r.ok) return;
+        const v = await r.json();
+        if (v && v.build && v.build !== BUILD) setNewer(v.build);
+      } catch {}
+    };
+    look();
+    document.addEventListener("visibilitychange", look);
+    window.addEventListener("focus", look);
+    return () => {
+      document.removeEventListener("visibilitychange", look);
+      window.removeEventListener("focus", look);
+    };
+  }, []);
+  return newer;
+}
+
+function NewBuildBar({ build }) {
+  if (!build) return null;
+  return (
+    <div style={{ position: "sticky", top: 0, zIndex: 60, background: C.moss, color: "#fff",
+      padding: "10px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+      <span style={{ flex: 1, minWidth: 0, fontSize: 13, lineHeight: 1.5 }}>
+        새 버전이 있습니다 <span className="mono" style={{ opacity: .8, fontSize: 11 }}>{build}</span>
+      </span>
+      <button className="press" onClick={() => location.reload(true)}
+        style={{ flex: "none", background: "#fff", color: C.moss, border: "none",
+          borderRadius: 999, padding: "7px 14px", fontSize: 12.5, fontWeight: 600 }}>
+        새로고침
+      </button>
+    </div>
+  );
+}
+
 function App() {
   const [st, setSt] = useState(DEFAULT_STATE);
   const [ready, setReady] = useState(false);
@@ -2843,6 +2894,7 @@ function App() {
   const [me, setMe] = useState(window.__ME || "m1");
   const [toast, setToast] = useState(null);
   const [openCat, setOpenCat] = useState(null);
+  const newBuild = useNewBuild();
   const first = useRef(true);
   /* 가족이 고친 걸 받아 화면에 넣을 때, 그걸 다시 저장하지 않도록 한 번 건너뜁니다 */
   const skipSave = useRef(false);
@@ -2994,6 +3046,7 @@ function App() {
       <div className="hae" style={{ background: tab === "meal" ? C.bgMeal : C.bg, minHeight: "100vh", color: C.ink,
                                      transition: "background .35s ease", WebkitFontSmoothing: "antialiased" }}>
         <style dangerouslySetInnerHTML={{ __html: FONTS }} />
+        <NewBuildBar build={newBuild} />
         <div style={{ maxWidth: 440, margin: "0 auto", paddingBottom: 100, position: "relative" }}>
           {(!st.onboarded || st.previewOnboarding) ? <Onboarding preview={!!st.onboarded} /> : (
             <>
