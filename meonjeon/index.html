@@ -124,7 +124,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0830-s';
+const GATE_BUILD = '0830-t';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -771,6 +771,15 @@ const SEED = [
   { id: "W03", cat: "parents", f: "parentsAlone", wf: 1, lead: 0, st: "check", t: "AI 안부전화 신청 알아보기", tg: "지자체마다 다름", ask: "안부 전화 서비스를 알고 계신가요?", cy: "1회", g: "독거", src: "S04" },
   { id: "W04", cat: "parents", f: "parentsAlone", wf: 1, lead: 0, st: "check", t: "반려로봇 보급사업 알아보기", tg: "지자체 사업", ask: "말동무 로봇 보급을 하는 지역인지 알아볼까요?", cy: "1회", g: "독거", src: "S04" },
   { id: "W05", cat: "parents", f: "parentsAlone", lead: 0, st: "repeat", t: "혼자 계신 날 안부 확인", tg: "주 2~3회", ask: "", cy: "2~3일", g: "부모님정기", src: "" },
+  /* 다자녀 — 나이가 아니라 아이 수로 열립니다.
+     기준이 셋에서 둘로 내려온 제도가 여럿인데, 그때 이미 애를 낳아 키우던 집은
+     "우리는 해당 안 된다"고 알고 지나갑니다. 그래서 한 번은 다시 말해줍니다. */
+  { id: "W10", cat: "finance", nkid: 2, wf: 1, lead: 0, st: "check", t: "다자녀 기준 다시 확인", tg: "셋에서 둘로 내려온 제도가 있어요", ask: "예전에 해당 안 된다고 들으셨나요?", cy: "1회", g: "다자녀", src: "S05" },
+  { id: "W11", cat: "finance", nkid: 2, wf: 1, lead: 0, st: "check", t: "다자녀 우대카드 알아보기", tg: "지자체마다 이름이 달라요", ask: "사시는 곳에 다자녀 카드가 있나요?", cy: "1회", g: "다자녀", src: "S05" },
+  { id: "W12", cat: "finance", nkid: 2, wf: 1, lead: 0, st: "check", t: "전기·도시가스 요금 할인 알아보기", tg: "신청한 달부터 적용", ask: "다자녀 요금 할인을 넣어두셨나요?", cy: "1회", g: "다자녀", src: "S05" },
+  { id: "W13", cat: "transport", f: "car", nkid: 2, wf: 1, lead: 0, st: "check", t: "자동차 취득세 감면 알아보기", tg: "차 살 때 한 번", ask: "다자녀 감면을 아셨나요?", cy: "1회", g: "다자녀", src: "S05" },
+  { id: "W14", cat: "travel", nkid: 2, wf: 1, lead: 0, st: "check", t: "기차 다자녀 할인 알아보기", tg: "미리 등록해두는 것", ask: "가족 등록을 해두셨나요?", cy: "1회", g: "다자녀", src: "S05" },
+  { id: "W15", cat: "edu", nkid: 2, wf: 1, lead: 0, st: "check", t: "아이돌봄서비스 우선순위 알아보기", tg: "다자녀는 순위가 앞", ask: "아이돌봄을 신청해보신 적 있나요?", cy: "1회", g: "다자녀", src: "S05" },
   { id: "L072", cat: "pet", f: "pet", lead: 30, st: "remember", t: "예방접종·검진 일정", tg: "예정일", ask: "마지막 접종·검진일을 등록할까요?", cy: "연/병원권고", g: "반려동물", src: "" },
   { id: "L073", cat: "pet", f: "pet", lead: 7, st: "repeat", t: "사료·모래·약 재고", tg: "소진 전", ask: "", cy: "주 1회", g: "반려동물", src: "" },
   { id: "L074", cat: "pet", f: "pet", lead: 0, st: "repeat", t: "산책 일정 챙기기", tg: "매일/사용자 설정", ask: "평소 산책 횟수와 시간을 정해둘까요?", cy: "사용자 설정", g: "반려동물", src: "" },
@@ -1122,7 +1131,7 @@ const LINKS = [
   { name: "코레일", desc: "명절 승차권 예매는 보통 한 달 전부터", url: "https://www.letskorail.com/", tag: "정보",
     kw: ["기차", "KTX", "승차권", "명절 교통", "귀성"], g: ["행사정기"] },
   { name: "복지로", desc: "받을 수 있는 복지를 한 곳에서 찾아봐요", url: "https://www.bokjiro.go.kr", tag: "추천",
-    flag: "parents", kw: ["복지", "돌봄", "지원금", "수당", "기초연금", "안심", "말벗"], g: ["독거", "부모님", "부모님정기"] },
+    kw: ["복지", "돌봄", "지원금", "수당", "기초연금", "안심", "말벗", "다자녀", "감면", "우대"], g: ["독거", "부모님", "부모님정기", "다자녀"] },
   { name: "보건복지상담센터 129", desc: "어디에 신청하는지 전화로 물어보는 게 제일 빨라요", url: "tel:129", tag: "추천",
     flag: "parentsAlone", kw: ["응급안전", "노인맞춤돌봄", "안부전화", "반려로봇", "독거"], g: ["독거"] },
 ];
@@ -1356,6 +1365,9 @@ function eligibleRoutines(st, ignoreSeason) {
         const m = childMonths(ch);
         if (m >= seed.w[0] && m <= seed.w[1]) out.push({ key: keyOf(seed, ch), seed, child: ch });
       });
+    } else if (seed.nkid) {
+      if ((st.children || []).length >= seed.nkid && (!seed.f || st.flags[seed.f]))
+        out.push({ key: seed.id, seed, child: null });
     } else if (!seed.f || st.flags[seed.f]) out.push({ key: seed.id, seed, child: null });
   });
   /* 직접 만든 정기 일정 */
@@ -1469,6 +1481,7 @@ function buildRecommendations(st) {
       });
     } else {
       if (seed.f && !st.flags[seed.f]) return;
+      if (seed.nkid && (st.children || []).length < seed.nkid) return;
       push(seed, null, null, false);
     }
   });
@@ -1479,7 +1492,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0830-s";
+const BUILD = "0830-t";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -5290,6 +5303,8 @@ function Categories() {
   }
 
   return (
+    <>
+    <WelfareWeek />
     <Section eyebrow="AREAS" title="우리 집 관리 영역" right="탭하면 놓친 것부터">
       <div className="grid grid-cols-2 gap-2.5">
         {allCats.map((c, i) => {
@@ -5327,6 +5342,7 @@ function Categories() {
         </div>
       </div>
     </Section>
+    </>
   );
 }
 
@@ -6098,7 +6114,9 @@ function welfarePick(st) {
   const off = st.welfareOff || {};
   const taken = new Set(st.tasks.map((t) => t.seedId).filter(Boolean));
   const pool = SEED.filter((sd) =>
-    sd.wf && (!sd.f || st.flags[sd.f]) && !off[sd.id] && !taken.has(sd.id));
+    sd.wf && (!sd.f || st.flags[sd.f])
+    && (!sd.nkid || (st.children || []).length >= sd.nkid)
+    && !off[sd.id] && !taken.has(sd.id));
   if (!pool.length) return null;
   /* 주가 바뀌면 다음 것으로 넘어갑니다 — 같은 주에는 화면을 다시 열어도 같은 것 */
   const wk = weekKey();
@@ -6108,20 +6126,28 @@ function welfarePick(st) {
 }
 
 function WelfareWeek() {
-  const { st, setSt, addTasks, say } = use();
-  const sd = useMemo(() => welfarePick(st), [st.tasks, st.flags, st.welfareOff]);
+  const { st, setSt, addTasks, say, cats } = use();
+  const sd = useMemo(() => welfarePick(st), [st.tasks, st.flags, st.children, st.welfareOff]);
   if (!sd) return null;
+  /* 어느 영역의 이야기인지 먼저 보여줍니다 — 복지는 따로 노는 게 아니라
+     부모님·금융·교육 안에 이미 들어 있는 것입니다 */
+  const cat = (cats || []).find((c) => c.id === sd.cat) || {};
   const hide = (why) => setSt((s) => ({ ...s, welfareOff: { ...(s.welfareOff || {}), [sd.id]: Date.now() } }));
   return (
     <Section eyebrow="WELFARE" title="이번 주 알아둘 것">
       <Card>
         <div style={{ padding: 18 }}>
-          <div style={{ fontSize: 11.5, color: C.ink3 }}>신청해야 받는 것들이에요</div>
+          <div className="flex items-center gap-1.5" style={{ fontSize: 11.5, color: C.ink3 }}>
+            {cat.emoji && <span style={{ fontSize: 13 }}>{cat.emoji}</span>}
+            <span>{cat.label || "우리 집"}</span>
+            <span style={{ color: C.line }}>·</span>
+            <span>신청해야 받는 것들이에요</span>
+          </div>
           <div className="disp" style={{ fontSize: 17.5, fontWeight: 600, marginTop: 8, lineHeight: 1.45 }}>{sd.t}</div>
           {sd.tg && <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 7 }}>{sd.tg}</div>}
 
           <div className="flex items-center gap-2 flex-wrap" style={{ marginTop: 14 }}>
-            <Btn onClick={() => { addTasks([{ title: sd.t, category: sd.cat, status: sd.st, note: sd.tg || "", coverage: "system", seedId: sd.id }], "ai"); say("할 일에 담았어요"); }}>할 일로 담기</Btn>
+            <Btn onClick={() => { addTasks([{ title: sd.t, category: sd.cat, status: sd.st, note: sd.tg || "", coverage: "system", seedId: sd.id }], "ai"); say(`${cat.label || "할 일"}에 담았어요`); }}>할 일로 담기</Btn>
             <button className="press" onClick={() => { hide(); say("다음 주에 다른 걸 보여드릴게요"); }}
               style={{ background: "transparent", border: `1px solid ${C.line}`, borderRadius: 999, padding: "9px 14px", fontSize: 12.5, color: C.ink2 }}>
               이미 알아요
@@ -6159,8 +6185,6 @@ function Share() {
       </div>
 
       <WeekCard />
-
-      <WelfareWeek />
 
       <Section eyebrow="OPEN" title="아직 주인이 없는 일" right={`${unassigned.length}건`}>
         <Card>
