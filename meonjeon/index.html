@@ -124,7 +124,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0830-u';
+const GATE_BUILD = '0830-v';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -780,6 +780,12 @@ const SEED = [
   { id: "W13", cat: "transport", f: "car", nkid: 2, wf: 1, lead: 0, st: "check", t: "자동차 취득세 감면 알아보기", tg: "차 살 때 한 번", ask: "다자녀 감면을 아셨나요?", cy: "1회", g: "다자녀", src: "S05" },
   { id: "W14", cat: "travel", nkid: 2, wf: 1, lead: 0, st: "check", t: "기차 다자녀 할인 알아보기", tg: "미리 등록해두는 것", ask: "가족 등록을 해두셨나요?", cy: "1회", g: "다자녀", src: "S05" },
   { id: "W15", cat: "edu", nkid: 2, wf: 1, lead: 0, st: "check", t: "아이돌봄서비스 우선순위 알아보기", tg: "다자녀는 순위가 앞", ask: "아이돌봄을 신청해보신 적 있나요?", cy: "1회", g: "다자녀", src: "S05" },
+  /* 통행료는 2026년 7~8월에 막 시작한 제도입니다. 3자녀는 7월 28일,
+     2자녀는 8월 22일부터. 시작한 지 얼마 안 돼서 아무도 모릅니다.
+     local: 1 은 지자체마다 다른 것 — 앱이 답을 말하지 않고 어디서 보는지만 알려줍니다. */
+  { id: "W16", cat: "transport", f: "car", nkid: 2, wf: 1, lead: 0, st: "check", t: "고속도로 통행료 할인 신청", tg: "2026년에 새로 생겼어요", ask: "하이패스 다자녀 할인을 넣어두셨나요?", cy: "1회", g: "다자녀", src: "S05" },
+  { id: "W17", cat: "transport", f: "car", nkid: 2, wf: 1, lc: 1, lead: 0, st: "check", t: "공영주차장 요금 감면 알아보기", tg: "사시는 곳마다 달라요", ask: "다자녀 주차 감면을 아셨나요?", cy: "1회", g: "다자녀", src: "S05" },
+  { id: "W18", cat: "transport", f: "car", nkid: 2, wf: 1, lc: 1, lead: 0, st: "check", t: "전기차 보조금 다자녀 우선순위 알아보기", tg: "차 바꿀 때 한 번", ask: "다음 차를 전기차로 생각하고 계신가요?", cy: "1회", g: "다자녀", src: "S05" },
   { id: "L072", cat: "pet", f: "pet", lead: 30, st: "remember", t: "예방접종·검진 일정", tg: "예정일", ask: "마지막 접종·검진일을 등록할까요?", cy: "연/병원권고", g: "반려동물", src: "" },
   { id: "L073", cat: "pet", f: "pet", lead: 7, st: "repeat", t: "사료·모래·약 재고", tg: "소진 전", ask: "", cy: "주 1회", g: "반려동물", src: "" },
   { id: "L074", cat: "pet", f: "pet", lead: 0, st: "repeat", t: "산책 일정 챙기기", tg: "매일/사용자 설정", ask: "평소 산책 횟수와 시간을 정해둘까요?", cy: "사용자 설정", g: "반려동물", src: "" },
@@ -1243,6 +1249,7 @@ const DEFAULT_STATE = {
   cars: [],
   carType: "ice",   /* 옛 판에서 넘어온 값. carsOf()가 알아서 옮깁니다 */
   extra: "",
+  region: "",   /* 시·군·구까지만. 지자체마다 다른 제도를 찾아갈 때만 씁니다 */
   tasks: [], routines: {}, customRoutines: [], prefs: {}, groupsOff: {}, customCats: [],
   /* 루틴 key → 제목. 알림 서버가 읽습니다 (서버는 씨앗 목록을 모릅니다) */
   routineTitles: {},
@@ -1492,7 +1499,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0830-u";
+const BUILD = "0830-v";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -6137,6 +6144,24 @@ const WELFARE_DETAIL = {
     where: "건강보험공단 1577-1000 또는 가까운 지사",
     miss: "가족이 신청해야 심사가 시작됩니다. 병원에서 먼저 권해주지 않고, 등급이 나오기까지도 한 달쯤 걸립니다. 필요해진 다음에 넣으면 그 한 달은 온전히 가족이 감당하게 됩니다.",
   },
+  W16: {
+    what: "주말과 공휴일에 한국도로공사가 관리하는 고속도로를 지날 때 통행료를 깎아줍니다. 두 자녀는 10퍼센트, 세 자녀 이상은 20퍼센트입니다.",
+    who: "만 19세 미만 자녀 둘 이상이 부모와 같은 주민등록등본에 올라 있는 집.",
+    where: "하이패스 홈페이지(hipass.co.kr) 또는 도로공사 영업소. 통행료플러스 앱에서도 됩니다.",
+    miss: "세 자녀는 2026년 7월 28일, 두 자녀는 8월 22일에 막 시작했습니다. 시작한 지 얼마 안 돼 아무도 모릅니다. 등록한 하이패스카드를 꽂고 하이패스 차로로 가야 하고, 부모가 탔는지를 휴대폰 위치로 확인합니다.",
+  },
+  W17: {
+    what: "시·군·구가 운영하는 공영주차장 요금을 깎아줍니다. 서울은 절반까지 자동으로 빠집니다.",
+    who: "지역마다 자녀 수와 나이 요건이 다릅니다. 대체로 부모 차 한 대만 등록됩니다.",
+    where: "사시는 시·군·구청 주차 담당 부서",
+    miss: "조례로 정해서 지역마다 다르고, 옆 동네에 있다고 우리 동네에 있는 게 아닙니다. 그래서 아예 안 찾아보게 됩니다.",
+  },
+  W18: {
+    what: "전기차 보조금을 받을 때 다자녀 가구가 먼저 배정됩니다. 지역에 따라 금액을 더 얹어주기도 합니다.",
+    who: "지자체마다 두 자녀부터인 곳과 세 자녀부터인 곳이 갈립니다.",
+    where: "사시는 시·군·구청 환경 담당 부서 또는 무공해차 통합누리집",
+    miss: "보조금은 예산이 떨어지면 그해는 끝입니다. 차를 계약한 다음에 알아보면 순위를 못 씁니다.",
+  },
   W10: {
     what: "다자녀 기준이 세 자녀에서 두 자녀로 내려온 제도가 여럿 있습니다. 요금 할인, 우대카드, 돌봄 순위 같은 것들입니다.",
     who: "예전에 '세 명부터'라는 말을 들으셨던 집.",
@@ -6202,13 +6227,19 @@ function welfarePick(st) {
 }
 
 function WelfareWeek() {
-  const { st, setSt, addTasks, say, cats } = use();
+  const { st, setSt, addTasks, say, cats, setTab } = use();
   const sd = useMemo(() => welfarePick(st), [st.tasks, st.flags, st.children, st.welfareOff]);
   if (!sd) return null;
   /* 어느 영역의 이야기인지 먼저 보여줍니다 — 복지는 따로 노는 게 아니라
      부모님·금융·교육 안에 이미 들어 있는 것입니다 */
   const cat = (cats || []).find((c) => c.id === sd.cat) || {};
   const wd = WELFARE_DETAIL[sd.id];
+  /* 지자체마다 다른 것은 답을 말하지 않습니다.
+     229개 시·군·구의 조례를 표로 담으면 만드는 데도 오래 걸리지만,
+     조례가 바뀌는 걸 따라가지 못해서 결국 틀린 답을 자신 있게 보여주게 됩니다.
+     틀린 답은 모르는 것보다 나쁩니다. 그래서 표 대신 길을 놓습니다 —
+     사시는 곳 한 줄만 받아서, 그 동네 조례로 바로 데려다줍니다. */
+  const region = String(st.region || "").trim();
   const hide = (why) => setSt((s) => ({ ...s, welfareOff: { ...(s.welfareOff || {}), [sd.id]: Date.now() } }));
   return (
     <Section eyebrow="WELFARE" title="이번 주 알아둘 것">
@@ -6236,6 +6267,38 @@ function WelfareWeek() {
                   <span style={{ fontSize: 12.5, color: C.ink2, lineHeight: 1.7, flex: 1 }}>{wd.where}</span>
                 </div>
               </div>
+              {sd.lc === 1 && (
+                <div style={{ marginTop: 12, border: `1px solid ${C.line}`, borderRadius: 12, padding: "11px 13px" }}>
+                  <div className="mono" style={{ fontSize: 9.5, color: C.moss }}>사시는 곳마다 다릅니다</div>
+                  {region ? (
+                    <>
+                      <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 5, lineHeight: 1.7 }}>
+                        <b style={{ color: C.ink }}>{region}</b>의 조례를 바로 열어드릴게요.
+                      </div>
+                      <div className="flex flex-wrap gap-2" style={{ marginTop: 9 }}>
+                        <a className="press" target="_blank" rel="noopener noreferrer"
+                          href={`https://www.law.go.kr/LSW/ordinSc.do?menuId=3&query=${encodeURIComponent(region + " " + (sd.id === "W17" ? "주차장" : "자동차"))}`}
+                          style={{ background: C.bg, border: `1px solid ${C.line}`, borderRadius: 999, padding: "7px 12px", fontSize: 12, color: C.ink2, textDecoration: "none" }}>
+                          {region} 조례 보기
+                        </a>
+                        <a className="press" target="_blank" rel="noopener noreferrer"
+                          href={`https://www.google.com/search?q=${encodeURIComponent(region + " 다자녀 " + (sd.id === "W17" ? "공영주차장 감면" : "전기차 보조금"))}`}
+                          style={{ background: C.bg, border: `1px solid ${C.line}`, borderRadius: 999, padding: "7px 12px", fontSize: 12, color: C.ink2, textDecoration: "none" }}>
+                          우리 동네 안내 찾기
+                        </a>
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 5, lineHeight: 1.7 }}>
+                      설정에 사시는 시·군·구를 적어두시면, 여기서 그 동네 조례로 바로 보내드려요.
+                      <button className="press" onClick={() => setTab("set")}
+                        style={{ display: "block", marginTop: 7, background: "transparent", border: "none", padding: 0, fontSize: 12.5, color: C.moss, fontWeight: 600 }}>
+                        설정에서 적어두기 ›
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
               {/* 이 앱이 있는 이유가 이 한 줄입니다 — 자격이 없어서가 아니라 이래서 놓칩니다 */}
               <div style={{ marginTop: 13, background: C.persimSoft, borderRadius: 12, padding: "11px 13px" }}>
                 <div className="mono" style={{ fontSize: 9.5, color: C.persim }}>놓치는 이유</div>
@@ -6919,6 +6982,19 @@ function Settings() {
         })()}
       </Section>
 
+      {/* 주소가 아니라 시·군·구까지만입니다. 조례를 찾아가는 데는 그거면 되고,
+          그 이상은 받아둘 이유가 없습니다. 온보딩에는 안 넣었습니다 —
+          안 적어도 앱은 다 돌아가고, 처음에 묻는 게 이미 많습니다. */}
+      <Section eyebrow="선택" title="사시는 곳">
+        <input className="hae" value={d.region || ""} onChange={(e) => setD((s) => ({ ...s, region: e.target.value }))}
+          placeholder="예: 서울 강서구"
+          style={{ width: "100%", border: `1px solid ${C.line}`, borderRadius: 14, padding: 13, fontSize: 14.5, background: C.card, color: C.ink }} />
+        <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 9, lineHeight: 1.75 }}>
+          주차 감면·전기차 보조금처럼 동네마다 다른 건 앱이 답을 말하지 않습니다.
+          대신 여기 적어두시면 그 동네 조례로 바로 보내드려요. 시·군·구까지만 받고, 상세 주소는 안 받습니다.
+        </div>
+      </Section>
+
       <Section eyebrow="선택" title="더 알려주실 것">
         <textarea className="hae" value={d.extra} onChange={(e) => setD((s) => ({ ...s, extra: e.target.value }))} rows={3}
           placeholder="예: 전세 계약이 내년 봄에 끝나요."
@@ -6926,7 +7002,7 @@ function Settings() {
       </Section>
 
       <div style={{ marginTop: 20 }}>
-        <Btn onClick={() => { setSt((s) => ({ ...s, members: d.members.filter((m) => m.name.trim()), children: d.children, flags: d.flags, petTypes: d.petTypes, cars: carsOf(d), carType: d.carType || "ice", extra: d.extra })); say("추천을 다시 계산했어요"); setTab("home"); }}>저장하고 추천 다시 계산</Btn>
+        <Btn onClick={() => { setSt((s) => ({ ...s, members: d.members.filter((m) => m.name.trim()), children: d.children, flags: d.flags, petTypes: d.petTypes, cars: carsOf(d), carType: d.carType || "ice", extra: d.extra, region: String(d.region || "").trim() })); say("추천을 다시 계산했어요"); setTab("home"); }}>저장하고 추천 다시 계산</Btn>
         <div style={{ height: 8 }} />
         <Btn kind="ghost" onClick={() => setDash(true)}>베타 지표 보기</Btn>
         <div style={{ height: 8 }} />
