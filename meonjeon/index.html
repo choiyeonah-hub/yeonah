@@ -124,7 +124,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0830-t';
+const GATE_BUILD = '0830-u';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -763,7 +763,7 @@ const SEED = [
   { id: "L068", cat: "parents", f: "parents", lead: 7, st: "remember", t: "정기진료 일정 공유", tg: "진료일", ask: "다음 진료와 동행 담당자를 정할까요?", cy: "진료별", g: "부모님", src: "" },
   { id: "L069", cat: "parents", f: "parents", lead: 7, st: "repeat", t: "약 처방일·잔량 확인", tg: "약 소진 전", ask: "약이 며칠 남았나요?", cy: "주/월", g: "부모님", src: "" },
   { id: "L070", cat: "parents", f: "parents", lead: 45, st: "remember", t: "건강검진 예약", tg: "연간 검진", ask: "연말 전에 예약할까요?", cy: "연 1회", g: "부모님", src: "" },
-  { id: "L071", cat: "parents", f: "parents", lead: 14, st: "conditional", t: "복지·돌봄 서비스 확인", tg: "상태 변화 시", ask: "최근 돌봄 필요가 커졌나요?", cy: "상태변화시", g: "부모님", src: "S04" },
+  { id: "L071", cat: "parents", f: "parents", wf: 1, lead: 14, st: "conditional", t: "장기요양등급 신청 알아보기", tg: "거동이 예전 같지 않으실 때", ask: "최근 돌봄 필요가 커졌나요?", cy: "상태변화시", g: "부모님", src: "S04" },
   /* 혼자 계신 부모님 — 몰라서 못 받는 것이 많은 자리입니다.
      "대상입니다"라고 말하지 않습니다. 조건은 지자체마다 다르고, 판단은 기관이 합니다. */
   { id: "W01", cat: "parents", f: "parentsAlone", wf: 1, lead: 0, st: "check", t: "응급안전안심서비스 알아보기", tg: "한 번 신청하면 끝", ask: "댁에 응급 감지 장비가 있나요?", cy: "1회", g: "독거", src: "S04" },
@@ -1001,7 +1001,7 @@ const BLIND = {
   parents: [
     { t: "진료·약 잔량", cy: "주/월", why: "말씀을 안 하셔서 놓쳐요" },
     { t: "건강검진 예약", cy: "연 1회", why: "연말로 갈수록 예약 불가" },
-    { t: "복지·돌봄 서비스", cy: "상태 변화 시", why: "신청 조건을 모르고 지나요" },
+    { t: "장기요양등급 신청", cy: "상태 변화 시", why: "신청해야 심사가 시작돼요" },
   ],
   travel: [
     { t: "여권 잔여기간", cy: "출국 6개월 전", why: "가장 흔한 출국 사고" },
@@ -1492,7 +1492,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0830-t";
+const BUILD = "0830-u";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -6099,6 +6099,82 @@ function WeekCard({ onClose }) {
   );
 }
 
+/* 제도 이름만 알려주는 건 소용이 없습니다. "응급안전안심서비스"라고 적어두면
+   그게 뭔지 몰라서 그냥 지나갑니다. 무엇을 해주고, 어디에 말하면 되고,
+   무엇 때문에 놓치는지 — 세 줄이 있어야 움직입니다.
+
+   금액과 나이는 적지 않습니다. 지자체마다 다르고 해마다 바뀌는데,
+   앱이 숫자를 말해버리면 그게 틀렸을 때 사용자가 손해를 봅니다.
+   "어디에 물어보면 되는지"까지가 앱이 책임질 수 있는 범위입니다. */
+const WELFARE_DETAIL = {
+  W01: {
+    what: "집 안에 화재·활동량 감지기와 응급버튼을 달아주고, 이상이 생기면 119와 지역센터로 자동 연결됩니다.",
+    who: "혼자 지내시는 어르신. 장비값·이용료는 받지 않습니다.",
+    where: "주민센터 또는 지역 노인복지관",
+    miss: "본인이 신청해야 답니다. 병원에서도, 구청에서도 먼저 알려주지 않습니다.",
+  },
+  W02: {
+    what: "생활지원사가 정기적으로 방문하거나 전화해서 안부를 확인하고, 병원 동행·가사도 도와줍니다.",
+    who: "돌봄이 필요한 어르신. 소득 요건이 있는 유형과 없는 유형이 나뉩니다.",
+    where: "주민센터",
+    miss: "요양등급이 있으면 장기요양으로, 없으면 이쪽으로 갑니다. 등급이 안 나왔다고 아무것도 없는 게 아닙니다.",
+  },
+  W03: {
+    what: "AI가 주기적으로 전화를 걸어 안부를 묻고, 안 받으시거나 대화에 이상이 있으면 담당자에게 알립니다.",
+    who: "지자체마다 대상 범위가 다릅니다. 혼자 지내시는 어르신을 먼저 봅니다.",
+    where: "주민센터 복지 담당 또는 129",
+    miss: "하는 지역과 안 하는 지역이 갈립니다. 없다고 하면 아래 노인맞춤돌봄의 전화 안부로 갈음됩니다.",
+  },
+  W04: {
+    what: "말을 걸고, 약 드실 시간과 일정을 소리로 알려주는 인형 모양 로봇을 빌려줍니다.",
+    who: "지자체 사업이라 지역마다 다르고, 대체로 무상 대여입니다.",
+    where: "주민센터 또는 지역 노인복지관",
+    miss: "물량이 정해져 있어서 신청 기간을 놓치면 다음 해로 넘어갑니다. 대기를 걸어둘 수 있는지 물어보세요.",
+  },
+  L071: {
+    what: "요양보호사 방문, 목욕·간호 방문, 주야간보호, 복지용구 대여가 여기서 열립니다. 등급이 나오면 비용의 대부분을 건강보험에서 냅니다.",
+    who: "만 65세 이상, 또는 그 아래라도 노인성 질병이 있으면 신청할 수 있습니다.",
+    where: "건강보험공단 1577-1000 또는 가까운 지사",
+    miss: "가족이 신청해야 심사가 시작됩니다. 병원에서 먼저 권해주지 않고, 등급이 나오기까지도 한 달쯤 걸립니다. 필요해진 다음에 넣으면 그 한 달은 온전히 가족이 감당하게 됩니다.",
+  },
+  W10: {
+    what: "다자녀 기준이 세 자녀에서 두 자녀로 내려온 제도가 여럿 있습니다. 요금 할인, 우대카드, 돌봄 순위 같은 것들입니다.",
+    who: "예전에 '세 명부터'라는 말을 들으셨던 집.",
+    where: "복지로에서 '다자녀'로 검색",
+    miss: "한 번 안 된다는 말을 들으면 그 뒤로 다시 안 알아봅니다. 그 사이에 기준이 바뀐 걸 아무도 알려주지 않습니다.",
+  },
+  W11: {
+    what: "지자체가 발급하는 카드로, 가맹점 할인과 공공시설 이용료 감면을 받습니다.",
+    who: "이름이 지역마다 다릅니다. 다둥이행복카드처럼 부르는 곳도 있습니다.",
+    where: "주민센터 또는 사시는 시·군·구 홈페이지",
+    miss: "이름이 제각각이라 검색으로는 잘 안 나옵니다. 주민센터에 '다자녀 카드 있나요'라고 물어보는 게 빠릅니다.",
+  },
+  W12: {
+    what: "자녀 수 요건을 채우면 전기요금과 도시가스 요금을 매달 깎아줍니다.",
+    who: "자녀 수와 나이 요건이 있습니다. 전기와 가스가 따로입니다.",
+    where: "전기는 한전 123, 가스는 지역 도시가스사. 복지로에서 한 번에도 됩니다.",
+    miss: "소급이 안 됩니다. 신청한 달부터라서, 늦게 알수록 그만큼 그냥 날아갑니다.",
+  },
+  W13: {
+    what: "자녀 요건을 채우면 승용차 한 대의 취득세를 감면받습니다.",
+    who: "일정 나이 미만의 자녀 수로 봅니다.",
+    where: "차를 등록할 때 구청·시청 세무과",
+    miss: "차 살 때 그 자리에서 신청해야 합니다. 등록이 끝난 뒤에 알면 되돌리기 어렵습니다.",
+  },
+  W14: {
+    what: "가족을 미리 등록해두면 기차 어른 운임을 할인받습니다.",
+    who: "자녀 수와 나이 요건이 있습니다. 코레일과 SRT가 각각입니다.",
+    where: "코레일 앱·멤버십에서 가족 등록, SRT는 따로",
+    miss: "표를 살 때 등록하는 게 아니라 미리 해둬야 합니다. 명절에 알면 이미 늦습니다.",
+  },
+  W15: {
+    what: "아이돌보미가 집에 와서 아이를 봐줍니다. 다자녀는 신청 순위가 앞으로 갑니다.",
+    who: "소득에 따라 정부가 내주는 비율이 달라집니다.",
+    where: "아이돌봄서비스 홈페이지 또는 주민센터",
+    miss: "대기가 깁니다. 필요해진 다음에 신청하면 그때는 이미 못 씁니다.",
+  },
+};
+
 /* ── 이번 주 알아둘 것 ─────────────────────────────
    복지는 몰라서 못 받습니다. 자격이 안 돼서가 아니라,
    그런 게 있는 줄을 몰라서입니다. 그런데 지금까지 이 앱은
@@ -6132,6 +6208,7 @@ function WelfareWeek() {
   /* 어느 영역의 이야기인지 먼저 보여줍니다 — 복지는 따로 노는 게 아니라
      부모님·금융·교육 안에 이미 들어 있는 것입니다 */
   const cat = (cats || []).find((c) => c.id === sd.cat) || {};
+  const wd = WELFARE_DETAIL[sd.id];
   const hide = (why) => setSt((s) => ({ ...s, welfareOff: { ...(s.welfareOff || {}), [sd.id]: Date.now() } }));
   return (
     <Section eyebrow="WELFARE" title="이번 주 알아둘 것">
@@ -6144,7 +6221,28 @@ function WelfareWeek() {
             <span>신청해야 받는 것들이에요</span>
           </div>
           <div className="disp" style={{ fontSize: 17.5, fontWeight: 600, marginTop: 8, lineHeight: 1.45 }}>{sd.t}</div>
-          {sd.tg && <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 7 }}>{sd.tg}</div>}
+          {wd ? (
+            <>
+              <div className="hae" style={{ fontSize: 13.5, color: C.ink, marginTop: 10, lineHeight: 1.8 }}>{wd.what}</div>
+              <div style={{ marginTop: 13, display: "grid", gap: 9 }}>
+                {wd.who && (
+                  <div className="flex items-start gap-2.5">
+                    <span className="mono" style={{ fontSize: 9.5, color: C.moss, minWidth: 30, paddingTop: 3 }}>누가</span>
+                    <span style={{ fontSize: 12.5, color: C.ink2, lineHeight: 1.7, flex: 1 }}>{wd.who}</span>
+                  </div>
+                )}
+                <div className="flex items-start gap-2.5">
+                  <span className="mono" style={{ fontSize: 9.5, color: C.moss, minWidth: 30, paddingTop: 3 }}>어디에</span>
+                  <span style={{ fontSize: 12.5, color: C.ink2, lineHeight: 1.7, flex: 1 }}>{wd.where}</span>
+                </div>
+              </div>
+              {/* 이 앱이 있는 이유가 이 한 줄입니다 — 자격이 없어서가 아니라 이래서 놓칩니다 */}
+              <div style={{ marginTop: 13, background: C.persimSoft, borderRadius: 12, padding: "11px 13px" }}>
+                <div className="mono" style={{ fontSize: 9.5, color: C.persim }}>놓치는 이유</div>
+                <div style={{ fontSize: 12.5, color: C.ink, marginTop: 5, lineHeight: 1.75 }}>{wd.miss}</div>
+              </div>
+            </>
+          ) : sd.tg ? <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 7 }}>{sd.tg}</div> : null}
 
           <div className="flex items-center gap-2 flex-wrap" style={{ marginTop: 14 }}>
             <Btn onClick={() => { addTasks([{ title: sd.t, category: sd.cat, status: sd.st, note: sd.tg || "", coverage: "system", seedId: sd.id }], "ai"); say(`${cat.label || "할 일"}에 담았어요`); }}>할 일로 담기</Btn>
