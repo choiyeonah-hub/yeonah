@@ -124,7 +124,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0831-d';
+const GATE_BUILD = '0831-e';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1561,7 +1561,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0831-d";
+const BUILD = "0831-e";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -6494,6 +6494,20 @@ function WelfareWeek() {
   );
 }
 
+function WelfareHint() {
+  const { st, setTab } = use();
+  const sd = useMemo(() => welfarePick(st), [st.tasks, st.flags, st.children, st.welfareOff]);
+  if (!sd) return null;
+  return (
+    <button className="press w-full text-left" onClick={() => setTab("cat")}
+      style={{ marginTop: 10, background: C.sunSoft, border: "none", borderRadius: 16, padding: "14px 16px" }}>
+      <div className="mono" style={{ fontSize: 9.5, color: C.moss }}>이번 주 알아둘 것</div>
+      <div style={{ fontSize: 13.5, color: C.ink, fontWeight: 600, marginTop: 5 }}>{sd.t}</div>
+      <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 5 }}>영역 화면 맨 위에 있어요 ›</div>
+    </button>
+  );
+}
+
 /* ── 나눔 (UX-10) ─────────────────────────────── */
 function Share() {
   const { st, assign, say, setTab } = use();
@@ -6513,6 +6527,11 @@ function Share() {
       </div>
 
       <WeekCard />
+
+      {/* 복지 카드는 영역 탭에 있습니다. 그런데 "주간카드"라는 이름 때문에
+          이 화면에서 찾게 됩니다 — 만든 사람이 두 번 다 여기서 찾았습니다.
+          이름이 자리를 이깁니다. 그러면 자리로 데려다주는 줄을 둡니다. */}
+      <WelfareHint />
 
       <Section eyebrow="OPEN" title="아직 주인이 없는 일" right={`${unassigned.length}건`}>
         <Card>
