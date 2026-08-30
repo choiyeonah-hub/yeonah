@@ -124,7 +124,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0831-j';
+const GATE_BUILD = '0831-k';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1574,7 +1574,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0831-j";
+const BUILD = "0831-k";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -6248,8 +6248,11 @@ function WeekCard({ onClose }) {
         </div>
 
         <div className="disp" style={{ fontSize: 19, fontWeight: 600, marginTop: 10, lineHeight: 1.45 }}>
+          {/* 앱 이름을 주어로 쓰면 자랑이 됩니다. 사용자가 볼 값어치는
+              앱이 일했다는 게 아니라, 이 집이 안 놓쳤다는 것입니다.
+              주어에서 앱을 빼고, 누가 했는지도 안 씁니다. */}
           {w.saved.length
-            ? <>아무도 안 적은 일 {w.saved.length}개를<br />먼저ON이 꺼냈어요</>
+            ? <>놓쳤으면 아까웠을 일 {w.saved.length}개,<br />이번 주에 챙겼어요</>
             : <>이번 주에 우리 집에서<br />{w.n}개가 끝났어요</>}
         </div>
 
@@ -6281,8 +6284,8 @@ function WeekCard({ onClose }) {
             지난주를 재는 대신 이번 주를 나눕니다. */}
 
         <div style={{ marginTop: 14, fontSize: 11.5, color: C.ink3, lineHeight: 1.75 }}>
-          누가 더 했는지는 세지 않습니다. 집안일은 잘 해내면 아무 일도 일어나지 않아서,
-          일주일에 한 번 있었던 일만 적어둡니다.
+          받을 수 있었던 복지, 기한이 있던 신청, 미리 안 하면 손해였던 것들이에요.
+          누가 더 했는지는 세지 않습니다.
         </div>
       </div>
     </Card>
