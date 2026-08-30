@@ -124,7 +124,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0831-x';
+const GATE_BUILD = '0831-y';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1584,7 +1584,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0831-x";
+const BUILD = "0831-y";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -4514,8 +4514,11 @@ function Home() {
             <button className="press flex items-center justify-between w-full" onClick={() => setOpenRoutine((v) => !v)}
               style={{ background: "transparent", border: "none", padding: "14px 16px", borderBottom: openRoutine ? `1px solid ${C.line}` : "none" }}>
               <span style={{ fontSize: 14, color: C.ink2, textAlign: "left", minWidth: 0 }}>
-                <b style={{ color: dailyLeft.length ? C.ink : C.moss, fontWeight: 600 }}>
-                  {dailyLeft.length ? `${dailyLeft.length}개 남음` : "오늘 건 다 했어요"}
+                {/* "N개 남음"은 빚처럼 읽히고 "다 했어요"는 평가입니다.
+                    매일 하는 일을 매일 못 하는 사람에게 둘 다 상처가 됩니다.
+                    오늘 무엇이 도는지, 사실만 적습니다. */}
+                <b style={{ color: C.ink, fontWeight: 600 }}>
+                  {dailyLeft.length ? `오늘 도는 것 ${dailyLeft.length}개` : `오늘 도는 것 ${daily.length}개`}
                 </b>
                 {st.members.length > 1 && mineRoutines.length ? ` · ${meName} 님 몫 ${mineRoutines.length}개` : ""}
                 {!openRoutine && dailyLeft.length > 0 && (
@@ -4527,6 +4530,20 @@ function Home() {
               </span>
               <span style={{ fontSize: 12.5, color: C.moss, flexShrink: 0 }}>{openRoutine ? "접기" : "펼치기"}</span>
             </button>
+            {openRoutine && dailyLeft.length > 1 && (
+              <div style={{ padding: "11px 16px", borderBottom: `1px solid ${C.line}` }}>
+                {/* 하나씩 누르는 것도 일입니다. 다 했으면 한 번에 긋습니다.
+                    안 한 것을 캐묻지 않습니다 — 그냥 내일 또 돕니다. */}
+                <button className="press" onClick={() => {
+                    dailyLeft.forEach((r) => routineAction(r.key, st.routines[r.key] || {}, "done"));
+                    say(`${dailyLeft.length}개에 줄 그었어요`);
+                  }}
+                  style={{ background: C.bg, border: `1px solid ${C.line}`, borderRadius: 999,
+                    padding: "8px 14px", fontSize: 12.5, color: C.ink2, fontWeight: 600 }}>
+                  오늘 건 한꺼번에 줄 긋기
+                </button>
+              </div>
+            )}
             {openRoutine && daily.map((r, i, a) => <RoutineRow key={r.key} r={r} delay={i * 30} last={i === a.length - 1} />)}
           </Card>
           {openRoutine && <div className="flex gap-2" style={{ marginTop: 8 }}>
