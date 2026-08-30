@@ -124,7 +124,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0831-u';
+const GATE_BUILD = '0831-v';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1340,7 +1340,6 @@ const DEFAULT_STATE = {
   /* 최근에 낸 식단 메뉴 — 다음에 짤 때 겹치지 않게 씁니다 */
   mealPast: [],
   /* 주간 카드를 본 주 (일요일 날짜) */
-  weekCard: {},
   /* 앱 안 브라우저 안내를 닫은 시각 */
   inAppOff: 0,
   /* 기본 분담: 카테고리 → 담당자. 여기 있는 건 매번 정하지 않아도 됩니다 */
@@ -1580,7 +1579,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0831-u";
+const BUILD = "0831-v";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -4338,15 +4337,6 @@ function Home() {
     say("오늘 루틴은 내일로 미뤘어요");
   };
 
-  /* 주간 카드 — 일요일 저녁에만 한 번. 매일 뜨면 성적표가 됩니다.
-     닫으면 그 주는 다시 안 뜨고, 월요일까지는 남겨둡니다(일요일 밤에 폰을 안 볼 수도 있으니). */
-  const wkNow = (() => {
-    const d = new Date(), day = d.getDay();
-    if (!((day === 0 && d.getHours() >= 17) || day === 1)) return null;
-    const key = weekKey();
-    return (st.weekCard || {}).seen === key ? null : key;
-  })();
-
   return (
     <>
       <div className="rise" style={{ marginTop: 12, borderRadius: R.xl, overflow: "hidden", position: "relative",
@@ -4389,7 +4379,6 @@ function Home() {
 
       <InAppNotice />
 
-      {wkNow && <WeekCard onClose={() => setSt((sv) => ({ ...sv, weekCard: { seen: wkNow } }))} />}
 
       <HolidayBrief />
       <MovePlan />
@@ -6162,93 +6151,6 @@ function NewsScreen() {
         5세는 유치원 신청, 초등은 늘봄학교 — 매달 다시 찾습니다.
       </div>
     </>
-  );
-}
-
-/* ── 이번 주 우리 집 ───────────────────────────────
-   집안일은 성공하면 투명해집니다. 화장실 휴지가 채워져 있는 걸
-   아무도 눈치채지 못하고, 없을 때만 압니다. 그래서 아무리 잘해도
-   칭찬이 안 옵니다 — 인색해서가 아니라 안 보이기 때문입니다.
-
-   그래서 앱이 할 일은 "칭찬하세요"라고 시키는 게 아니라
-   투명한 것을 잠깐 보이게 만드는 것입니다. 시켜서 하는 칭찬은
-   "내가 시켜야 하는구나"가 되어 오히려 상처가 됩니다.
-
-   지키는 선: 숫자는 나열하되 막대·퍼센트·순위·연속기록은 쓰지 않습니다.
-   "연아 12 · 남편 3"은 사실이고, 막대그래프로 그리면 판정이 됩니다. */
-const weekKey = (t) => {
-  const d = new Date(t || Date.now());
-  const sun = startOfDay(d.getTime() - d.getDay() * DAY);
-  const x = new Date(sun);
-  return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`;
-};
-
-function weekStats(st) {
-  const from = startOfDay(Date.now() - 6 * DAY);
-  const done = st.tasks.filter((t) => t.done && (t.doneAt || 0) >= from);
-  /* 아무도 안 적었는데 앱이 먼저 꺼낸 일 — 이 앱의 값어치가 여기 있습니다 */
-  const saved = done.filter((t) => t.raisedBy === "ai" || t.coverage === "system");
-  const dated = done.filter((t) => t.eventAt || (t.status !== "buy" && t.dueAt));
-  const by = {};
-  done.forEach((t) => { if (t.doneBy) by[t.doneBy] = (by[t.doneBy] || 0) + 1; });
-  return { done, saved, dated, by, n: done.length };
-}
-
-function WeekCard({ onClose }) {
-  const { st, setTab } = use();
-  const w = useMemo(() => weekStats(st), [st.tasks]);
-  if (!w.n) return null;
-  return (
-    <Card style={{ marginTop: 12, borderColor: C.sprout }}>
-      <div style={{ padding: 18 }}>
-        <div className="flex items-start justify-between gap-3">
-          <div className="mono" style={{ fontSize: 9.5, color: C.moss }}>이번 주 우리 집</div>
-          {onClose ? <button className="press" onClick={onClose} aria-label="닫기"
-            style={{ background: "transparent", border: "none", padding: 0, fontSize: 12, color: C.ink3, lineHeight: 1 }}>✕</button> : null}
-        </div>
-
-        <div className="disp" style={{ fontSize: 19, fontWeight: 600, marginTop: 10, lineHeight: 1.45 }}>
-          {/* 앱 이름을 주어로 쓰면 자랑이 됩니다. 사용자가 볼 값어치는
-              앱이 일했다는 게 아니라, 이 집이 안 놓쳤다는 것입니다.
-              주어에서 앱을 빼고, 누가 했는지도 안 씁니다. */}
-          {w.saved.length
-            ? <>놓쳤으면 아까웠을 일 {w.saved.length}개,<br />이번 주에 챙겼어요</>
-            : <>이번 주에 우리 집에서<br />{w.n}개가 끝났어요</>}
-        </div>
-
-        {w.dated.length > 0 && (
-          <div style={{ marginTop: 13 }}>
-            <div style={{ fontSize: 12.5, color: C.ink2 }}>그중 {w.dated.length}개는 날짜가 있었습니다</div>
-            <div style={{ marginTop: 7 }}>
-              {w.dated.slice(0, 3).map((t) => (
-                <div key={t.id} className="flex items-baseline gap-2" style={{ fontSize: 12.5, color: C.ink2, lineHeight: 1.9 }}>
-                  <span style={{ color: C.ink3 }}>·</span>
-                  <span style={{ flex: 1, minWidth: 0 }}>{t.title}</span>
-                  <span className="mono" style={{ fontSize: 10.5, color: C.moss, whiteSpace: "nowrap" }}>
-                    {dueLabel(t.eventAt || t.dueAt).date}
-                  </span>
-                </div>
-              ))}
-              {w.dated.length > 3 && <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 4 }}>외 {w.dated.length - 3}개</div>}
-            </div>
-          </div>
-        )}
-
-        {/* 사실만 나열합니다. 막대로 그리는 순간 판정이 됩니다 */}
-        {/* 사람별 개수는 뺐습니다.
-            "나 4개 · 남편 0개"는 아무리 부드럽게 써도 점수판이고,
-            0이 찍힌 사람이 보면 그 화면은 무기가 됩니다.
-            그리고 "누가 더 했다"까지만 말하고 끝나면 읽는 사람은
-            "그래서 어쩌라고"가 됩니다. 앱이 할 말이 아닙니다.
-            담당자를 정하는 화면 자체를 뺐습니다 — 누가 할지 정하는 것도 일입니다.
-            영역마다 담당자는 설정에 있고, 할 일 카드에서도 정할 수 있습니다. */}
-
-        <div style={{ marginTop: 14, fontSize: 11.5, color: C.ink3, lineHeight: 1.75 }}>
-          받을 수 있었던 복지, 기한이 있던 신청, 미리 안 하면 손해였던 것들이에요.
-          누가 더 했는지는 세지 않습니다.
-        </div>
-      </div>
-    </Card>
   );
 }
 
