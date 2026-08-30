@@ -124,7 +124,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0831-v';
+const GATE_BUILD = '0831-w';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1195,6 +1195,11 @@ const LINKS = [
     kw: ["이유식", "미음", "유아식", "알레르기"], g: ["이유식"] },
   { name: "코레일+", desc: "KTX·SRT를 한 앱에서 · 명절 예매는 보통 한 달 전부터", url: "https://www.letskorail.com/", tag: "정보",
     kw: ["기차", "KTX", "승차권", "명절 교통", "귀성"], g: ["행사정기"] },
+  /* 계획 짜기는 이 앱이 할 일이 아닙니다. 잘하는 곳으로 데려다줍니다. */
+  { name: "대한민국 구석구석", desc: "한국관광공사 · 지역별 여행지와 축제", url: "https://korean.visitkorea.or.kr/", tag: "정보",
+    kw: ["여행", "나들이", "휴가", "여행지", "축제", "당일치기", "국내여행"], g: ["놀이", "여행", "휴일"] },
+  { ad: 1, name: "트리플", desc: "가는 곳만 고르면 일정을 짜줘요", url: "https://apps.apple.com/kr/search?term=트리플 여행", tag: "추천",
+    kw: ["여행 계획", "여행 일정", "일정 짜", "코스"], g: ["여행", "휴일"] },
   { name: "복지로", desc: "받을 수 있는 복지를 한 곳에서 찾아봐요", url: "https://www.bokjiro.go.kr", tag: "추천",
     kw: ["복지", "돌봄", "지원금", "수당", "기초연금", "안심", "말벗", "다자녀", "감면", "우대"], g: ["독거", "부모님", "부모님정기", "다자녀"] },
   { name: "보건복지상담센터 129", desc: "어디에 신청하는지 전화로 물어보는 게 제일 빨라요", url: "tel:129", tag: "추천",
@@ -1579,7 +1584,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0831-v";
+const BUILD = "0831-w";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -3945,7 +3950,7 @@ function HolidayBrief() {
         <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 12, lineHeight: 1.65 }}>
           {wet ? "비 오는 날이 있어요. 실내 계획을 하나 잡아두면 덜 급합니다." : "나들이 가기 좋은 날씨예요. 예약이 필요한 곳은 지금이 마지막입니다."}
         </div>
-        <LinkCards group="놀이" text={wet ? "실내 체험 키즈카페" : "주말 나들이 체험"} />
+        <LinkCards group="놀이" text={wet ? "실내 체험 키즈카페" : "주말 나들이 여행지"} />
         <button className="press w-full" onClick={() => { addTasks([{ title: "휴일 계획 정하기", category: "event", status: "week", note: `${startLabel}부터 ${brk.days.length}일` }], "ai"); say("할 일에 담았어요"); }}
           style={{ marginTop: 12, background: C.bg, border: `1px solid ${C.line}`, borderRadius: R.sm, padding: "12px 0", fontSize: 13, color: C.ink2, width: "100%" }}>
           휴일 계획 할 일로 담기
@@ -4699,6 +4704,13 @@ ${web ? `사는 곳: ${String(st.region || "").trim() || (st.place && st.place.l
 - 말을 그대로 옮기지 말고 실행행동으로. 말한 내용은 하나도 빠뜨리지 말 것. 4~8개.
 - 다만 돌잔치·백일·결혼식·이사처럼 전문 앱/업체가 따로 있는 준비는 세부로 쪼개지 마세요.
   "돌잔치 기획하기" 같은 한 줄로만 만들고, 장소·답례품·의상 같은 하위 항목은 만들지 마세요.
+
+- **계획을 대신 짜주지 마세요.** 여행 일정, 코스, 몇 박 며칠 스케줄, 데이트 코스 같은 것은
+  전용 앱과 사이트가 훨씬 잘합니다. 이 앱은 할 일을 정리하고 찾아주는 곳입니다.
+  그런 요청이면 answer에 한 줄로 "일정 짜기는 여행 앱이 나아요"라고만 쓰고,
+  items에는 그 여행 때문에 **까먹으면 손해인 것**만 넣으세요 —
+  예: 숙소 예약 마감일, 여권 유효기간 확인, 렌터카 예약, 상비약 챙기기.
+  코스·맛집·볼거리는 넣지 마세요.
 
 - 사용자의 말이 질문이면 (물음표로 끝나거나 "있을까 / 어때 / 뭐가 / 어떻게 / 추천 / 짜줘 / 알려줘 / 봐줘 / 괜찮을까 / 놓친 / 빠진 / 챙길 게" 등이 들어가면)
   answer를 반드시 채우세요. 비워두면 안 됩니다.
