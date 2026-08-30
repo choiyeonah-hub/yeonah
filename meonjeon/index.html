@@ -127,7 +127,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0901-p';
+const GATE_BUILD = '0901-q';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1613,7 +1613,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-p";
+const BUILD = "0901-q";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -7125,7 +7125,11 @@ function CarOne({ car, idx, n }) {
   const years = []; for (let y = thisYear; y >= thisYear - 24; y--) years.push(y);
   const ry = (car.firstReg || "").split("-")[0] || "";
   const rm = (car.firstReg || "").split("-")[1] || "";
-  const setReg = (y, m) => { if (y && m) sync({ firstReg: `${y}-${m}` }); else sync({ firstReg: "" }); };
+  /* 예전에는 연도와 월이 둘 다 있어야만 저장했습니다.
+     그런데 사람은 하나씩 고릅니다 — 연도를 고른 순간 월이 비어 있어서
+     방금 고른 연도까지 지워졌고, 그래서 최초 등록일을 영영 못 넣었습니다.
+     이제 고른 쪽만 먼저 담아둡니다. 반쪽이면 계산만 안 할 뿐입니다. */
+  const setReg = (y, m) => sync({ firstReg: (y || m) ? `${y}-${m}` : "" });
 
   return (
     <Card style={{ marginTop: 10 }}>
@@ -7167,6 +7171,11 @@ function CarOne({ car, idx, n }) {
             {Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0")).map((m) => <option key={m} value={m}>{Number(m)}월</option>)}
           </select>
         </div>
+        {(ry || rm) && !(ry && rm) && (
+          <div style={{ fontSize: 11.5, color: C.sun, marginTop: 7, lineHeight: 1.6 }}>
+            {ry ? "월까지 골라야 정기검사 시점을 계산합니다." : "연도까지 골라야 정기검사 시점을 계산합니다."}
+          </div>
+        )}
 
         <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 18 }}>보험 만기일</div>
         <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 4, lineHeight: 1.6 }}>
