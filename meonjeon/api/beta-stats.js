@@ -37,9 +37,10 @@ export default async function handler(req, res) {
   };
 
   /* 가구의 마지막 활동 시각과, state 안의 숫자 하나(opens)만 가져옵니다.
-     집안 내용은 여전히 안 읽습니다 — state->opens 는 "몇 번 열었나" 정수 하나입니다.
+     집안 내용은 여전히 안 읽습니다 — 가져오는 건 정수 둘뿐입니다.
+     몇 번 열었나(opens), 복지를 몇 번 읽었나(wfRead).
      이 숫자가 있어야 광고를 붙일 값어치가 있는지 판단이 됩니다. */
-  const hh = await get("households?select=id,created_at,updated_at,state->opens");
+  const hh = await get("households?select=id,created_at,updated_at,state->opens,state->wfRead");
   const subs = await get("push_subs?select=household_id");
   if (!hh) return res.status(500).json({ error: "가구를 못 읽었어요" });
 
@@ -79,6 +80,16 @@ export default async function handler(req, res) {
       /* 만든 지 하루가 안 된 집은 1일로 봅니다 */
       const dayss = seen.reduce((a, h) => a + Math.max(days(h.created_at), 1), 0);
       return { n: seen.length, total, perDay: Math.round((total / dayss) * 10) / 10 };
+    })(),
+    /* 복지를 실제로 읽는지 — "꼭 필요한가"의 답은 여기서 나옵니다.
+       읽은 집이 거의 없으면 빼는 게 맞습니다. */
+    welfare: (() => {
+      const read = hh.filter((h) => Number(h.wfRead) > 0);
+      return {
+        n: read.length,
+        pct: pct(read.length, hh.length),
+        total: hh.reduce((a, h) => a + Number(h.wfRead || 0), 0),
+      };
     })(),
     retain4w: {
       n: old4.length,

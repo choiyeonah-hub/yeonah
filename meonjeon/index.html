@@ -124,7 +124,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0831-p';
+const GATE_BUILD = '0831-q';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1325,6 +1325,9 @@ const DEFAULT_STATE = {
   /* 몇 번 열었는지. 광고를 붙일 값어치가 있는지는 이 숫자가 정합니다 —
      집안 내용이 아니라 숫자 하나라서 베타 지표에서 이것만 읽습니다 */
   opens: 0,
+  /* 복지를 실제로 읽어보는지. "복지가 꼭 필요한가"는 말로 정할 게 아니라
+     30가구가 4주 동안 몇 번 여는지로 정합니다. 이것도 숫자 하나입니다. */
+  wfRead: 0,
   tasks: [], routines: {}, customRoutines: [], prefs: {}, groupsOff: {}, customCats: [],
   /* 루틴 key → 제목. 알림 서버가 읽습니다 (서버는 씨앗 목록을 모릅니다) */
   routineTitles: {},
@@ -1574,7 +1577,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0831-p";
+const BUILD = "0831-q";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -2389,6 +2392,19 @@ function BetaAll() {
               <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 10, lineHeight: 1.7 }}>
                 광고를 붙일 값어치가 있는지는 이 숫자가 정합니다.
                 하루 1회면 광고로는 안 되고, 3회 넘으면 무료 플랜 원가를 광고로 덮을 수 있어요.
+              </div>
+            </div></Card>
+          ) : null}
+
+          {d.welfare ? (
+            <Card style={{ marginTop: 10 }}><div style={{ padding: "15px 16px" }}>
+              <div style={{ fontSize: 12, color: C.ink3, marginBottom: 9 }}>복지를 읽어보는지</div>
+              <Row k="한 번이라도 읽은 집" v={`${d.welfare.pct}%`} sub={`${d.welfare.n}/${d.households}곳`}
+                tone={d.welfare.pct >= 30 ? C.moss : C.ink3} />
+              <Row k="펼쳐본 횟수" v={`${d.welfare.total}회`} sub="" tone={C.ink} />
+              <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 10, lineHeight: 1.7 }}>
+                4주 뒤에 이 줄이 낮으면 복지는 빼는 게 맞습니다.
+                "있으면 좋지 않을까"가 아니라 이 숫자로 정합니다.
               </div>
             </div></Card>
           ) : null}
@@ -6452,7 +6468,11 @@ function WelfareWeek() {
      광역만으로도 조례는 찾아집니다 — 아무것도 못 보여주는 것보다 낫습니다. */
   const fine = String(st.region || "").trim();
   const region = fine || ((st.place && st.place.label) || "");
-  const hide = (why) => setSt((s) => ({ ...s, welfareOff: { ...(s.welfareOff || {}), [sd.id]: Date.now() } }));
+  const hide = () => setSt((s) => ({
+    ...s,
+    welfareOff: { ...(s.welfareOff || {}), [sd.id]: Date.now() },
+    wfRead: (Number(s.wfRead) || 0) + 1,
+  }));
   return (
     <Section eyebrow="WELFARE" title="이번 주 알아둘 것">
       <Card>
@@ -6572,7 +6592,10 @@ function WelfareAll() {
           const on = open === sd.id;
           return (
             <div key={sd.id} style={{ borderBottom: i === rest.length - 1 ? "none" : `1px solid ${C.line}` }}>
-              <button className="press w-full text-left" onClick={() => setOpen(on ? null : sd.id)}
+              <button className="press w-full text-left" onClick={() => {
+                  if (!on) setSt((sv) => ({ ...sv, wfRead: (Number(sv.wfRead) || 0) + 1 }));
+                  setOpen(on ? null : sd.id);
+                }}
                 style={{ background: "transparent", border: "none", padding: "14px 16px", display: "block" }}>
                 <div className="flex items-baseline gap-2">
                   <span style={{ fontSize: 13 }}>{cat.emoji}</span>
