@@ -124,7 +124,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0831-m';
+const GATE_BUILD = '0831-n';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1574,7 +1574,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0831-m";
+const BUILD = "0831-n";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -2872,11 +2872,16 @@ function App() {
      대신 AI가 정리해낸 제목만 남깁니다 — "테니스 라켓 구매"는 개인정보가
      아니면서 "테니스 수요가 있다"를 알려줍니다. 시드를 어디로 넓힐지
      추측이 아니라 데이터로 정하기 위한 최소한의 기록입니다. */
+  /* 예전에는 AI가 만든 할 일의 제목을 그대로 기록에 남겼습니다.
+     그런데 사용자가 그 할 일을 지워도 기록에는 남아 있었습니다.
+     "약 떨어지기 전에 알림"처럼 말로 넣은 것에 약 이름이 섞이면
+     지웠는데도 남는 셈입니다. 지운 건 지워져야 합니다.
+     몇 개를 어느 영역에 만들었는지만 셉니다 — 그거면 충분합니다. */
   const logTitles = (rows, how) => {
-    const t = rows.map((r) => String(r.title || "").trim())
-      .filter((x) => x && x.length <= 20 && !/\d{3}/.test(x))   /* 숫자가 길게 붙은 건 뺍니다 (계좌·전화) */
-      .slice(0, 8);
-    if (t.length) log("ai_titles", { how, t });
+    if (!rows.length) return;
+    const byCat = {};
+    rows.forEach((r) => { const c = r.category || "etc"; byCat[c] = (byCat[c] || 0) + 1; });
+    log("ai_titles", { how, n: rows.length, cats: byCat });
   };
 
   const addTasks = (items, raisedBy) => {
@@ -5127,6 +5132,12 @@ ${web ? `
             placeholder="여기에 적어도 됩니다. 띄어쓰기 없어도 괜찮아요. 알림장·안내문자 캡처는 붙여넣기 해도 돼요."
             style={{ width: "100%", border: `1px solid ${C.line}`, borderRadius: R.md, padding: 14, fontSize: 14.5, lineHeight: 1.65, resize: "none", background: C.bg, color: C.ink }} />
           {note && <div style={{ fontSize: 12.5, color: C.persim, marginTop: 9 }}>{note}</div>}
+
+          {/* 앱에는 병명을 적는 칸을 안 만들었습니다. 그런데 말로는 들어옵니다.
+              막을 수는 없으니, 안 적어도 된다는 것만 알려드립니다. */}
+          <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 9, lineHeight: 1.7 }}>
+            약 이름·병명은 안 적으셔도 돼요. <b style={{ color: C.ink2 }}>"약 떨어지기 전에 알려줘"</b>면 충분합니다.
+          </div>
 
           {shots.length > 0 && (
             <div className="rail" style={{ marginTop: 11 }}>
