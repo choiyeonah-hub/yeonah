@@ -124,7 +124,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0829-am';
+const GATE_BUILD = '0830-a';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1421,7 +1421,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0829-am";
+const BUILD = "0830-a";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -2149,6 +2149,84 @@ const hourLabel = (h) => (h < 12 ? `오전 ${h}시` : h === 12 ? "낮 12시" : `
    Vercel은 넣은 값을 점(●●●)으로 가려서, 붙여넣을 때 딸려 들어간 공백 한 칸을
    눈으로 찾을 방법이 없습니다. 값은 절대 안 가져오고 "정상 / 공백 붙음 / 없음"만
    물어봅니다. 공백 한 칸 때문에 알림이 조용히 안 오는 일을 막는 자리입니다. */
+/* 15가구 전체 지표.
+   매주 Supabase에 SQL을 붙여넣는 대신 여기서 봅니다.
+   운영자(ADMIN_EMAIL)로 로그인했을 때만 서버가 답합니다. */
+function BetaAll() {
+  const [d, setD] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const look = async () => {
+    setBusy(true);
+    try {
+      const r = await fetch("/api/beta-stats?t=" + Date.now(), { headers: await authHeaders() }).then((x) => x.json());
+      setD(r);
+    } catch { setD({ error: "서버에 닿지 못했어요" }); }
+    setBusy(false);
+  };
+  const Row = ({ k, v, sub, tone }) => (
+    <div className="flex items-baseline justify-between" style={{ padding: "7px 0", borderBottom: `1px solid ${C.lineSoft}` }}>
+      <span style={{ fontSize: 13, color: C.ink2 }}>{k}</span>
+      <span style={{ textAlign: "right" }}>
+        <b className="disp" style={{ fontSize: 17, fontWeight: 600, color: tone || C.ink }}>{v}</b>
+        {sub && <span style={{ fontSize: 11, color: C.ink3, marginLeft: 6 }}>{sub}</span>}
+      </span>
+    </div>
+  );
+  return (
+    <Section eyebrow="BETA" title="15가구 전체" right={d && d.ok ? d.asOf : null}>
+      {!d && (
+        <button className="press" onClick={look} disabled={busy}
+          style={{ width: "100%", background: C.card, border: `1px solid ${C.line}`, borderRadius: 16, padding: "14px 0", fontSize: 13.5, color: C.ink2, boxShadow: SHADOW }}>
+          {busy ? "세는 중…" : "전체 지표 불러오기"}
+        </button>
+      )}
+      {d && !d.ok && (
+        <Card><div style={{ padding: "15px 16px", fontSize: 12.5, color: C.ink2, lineHeight: 1.75 }}>
+          {d.error}
+          <button className="press" onClick={look} style={{ display: "block", marginTop: 10, background: "transparent", border: `1px solid ${C.line}`, borderRadius: 999, padding: "7px 13px", fontSize: 12, color: C.ink2 }}>다시</button>
+        </div></Card>
+      )}
+      {d && d.ok && (
+        <>
+          <Card><div style={{ padding: "13px 16px 5px" }}>
+            <Row k="가구 수" v={d.households} />
+            <Row k="이번 주 쓴 집" v={`${d.active.d7}곳`} sub={`${d.active.pct7}%`} tone={C.moss} />
+            <Row k="2주 안" v={`${d.active.d14}곳`} />
+            <Row k="한 달 안" v={`${d.active.d30}곳`} />
+            <Row k="알림 켠 집" v={`${d.push.on}곳`} sub={`${d.push.pct}%`} tone={C.leaf} />
+          </div></Card>
+
+          {/* 이 앱이 왜 필요한지를 증명하는 한 줄 */}
+          <Card style={{ marginTop: 10 }}><div style={{ padding: "15px 16px" }}>
+            <div style={{ fontSize: 12, color: C.ink3, marginBottom: 9 }}>알림을 켠 집과 안 켠 집</div>
+            <Row k={`알림 켠 ${d.compare.on.n}곳`} v={`${d.compare.on.pct}%`} sub={`${d.compare.on.d7}곳 활동`} tone={C.moss} />
+            <Row k={`안 켠 ${d.compare.off.n}곳`} v={`${d.compare.off.pct}%`} sub={`${d.compare.off.d7}곳 활동`} tone={C.ink3} />
+            <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 10, lineHeight: 1.7 }}>
+              이 두 줄의 차이가 서류에서 가장 강한 숫자입니다. 표본이 작아도 차이가 크면 설득력이 있어요.
+            </div>
+          </div></Card>
+
+          {d.retain4w.n > 0 ? (
+            <Card style={{ marginTop: 10 }}><div style={{ padding: "15px 16px" }}>
+              <div style={{ fontSize: 12, color: C.ink3, marginBottom: 9 }}>4주 유지율 · 들어온 지 4주 넘은 {d.retain4w.n}곳만</div>
+              <Row k="전체" v={`${d.retain4w.pct}%`} sub={`${d.retain4w.kept}/${d.retain4w.n}`} tone={C.ink} />
+              <Row k="알림 켠 집" v={`${d.retain4w.on.pct}%`} sub={`${d.retain4w.on.kept}/${d.retain4w.on.n}`} tone={C.moss} />
+              <Row k="안 켠 집" v={`${d.retain4w.off.pct}%`} sub={`${d.retain4w.off.kept}/${d.retain4w.off.n}`} tone={C.ink3} />
+            </div></Card>
+          ) : (
+            <Card style={{ marginTop: 10 }}><div style={{ padding: "15px 16px", fontSize: 12.5, color: C.ink3, lineHeight: 1.75 }}>
+              4주 유지율은 <b style={{ color: C.ink2 }}>들어온 지 4주가 지난 집</b>이 생겨야 나옵니다.
+              어제 들어온 집을 이탈로 세면 안 되니까요. 배포 4주 뒤에 여기 채워집니다.
+            </div></Card>
+          )}
+
+          <button className="press" onClick={look} style={{ width: "100%", marginTop: 10, background: "transparent", border: `1px solid ${C.line}`, borderRadius: 999, padding: "9px 0", fontSize: 12, color: C.ink3 }}>다시 세기</button>
+        </>
+      )}
+    </Section>
+  );
+}
+
 function EnvCheck() {
   const [rows, setRows] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -5947,7 +6025,8 @@ function Settings() {
   if (dash) return (
     <>
       <PageHead onBack={() => setDash(false)} backLabel="설정으로" />
-      <Section eyebrow="ANA-01" title="베타 지표">
+      <BetaAll />
+      <Section eyebrow="ANA-01" title="이 집의 지표">
         <div className="grid grid-cols-2 gap-2.5">
           {[["총 할 일", st.tasks.length], ["완료", st.tasks.filter((t) => t.done).length], ["AI가 먼저 꺼낸 일", st.tasks.filter((t) => t.raisedBy === "ai").length], ["제휴 링크 클릭", st.events.filter((e) => e.name === "partner_click").length]].map(([k, v]) => (
             <div key={k} style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 16, padding: 15, boxShadow: SHADOW }}>

@@ -16,7 +16,7 @@ export default function handler(req, res) {
   };
   const keys = ["SUPABASE_URL", "SUPABASE_ANON_KEY", "ANTHROPIC_API_KEY",
                 "VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY", "VAPID_SUBJECT",
-                "CRON_SECRET", "SUPABASE_SERVICE_KEY"];
+                "CRON_SECRET", "SUPABASE_SERVICE_KEY", "ADMIN_EMAIL"];
 
   res.status(200).json({
     url: env("SUPABASE_URL"),
