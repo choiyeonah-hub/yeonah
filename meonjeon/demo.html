@@ -1480,7 +1480,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-w";
+const BUILD = "0901-x";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -2218,6 +2218,21 @@ function App() {
     });
     setSt((sv) => (JSON.stringify(sv.routineTitles || {}) === JSON.stringify(map) ? sv : { ...sv, routineTitles: map }));
   }, [ready, st.routines, st.children, st.flags, st.petTypes, st.cars, st.customRoutines]);
+
+  /* 유용정보(복지·미리 사두기)는 지금까지 앱을 열어야만 보였습니다.
+     그런데 이 앱은 "안 열어도 알려주는 것"이 값입니다 — 안 열면 0이 됩니다.
+     알림 서버는 씨앗을 모르므로, 앱이 열릴 때 아직 안 본 것들을 줄로 적어둡니다.
+     서버는 날짜로 그중 하나만 꺼내 하루 한 줄씩 붙입니다.
+     한꺼번에 스무 개를 보내면 그건 알림이 아니라 광고입니다. */
+  useEffect(() => {
+    if (!ready) return;
+    const q = usefulItems(st)
+      .filter((it) => !it.fresh)                 /* 이달의 소식은 이미 따로 뜹니다 */
+      .slice(0, 40)
+      .map((it) => ({ t: String(it.title || "").slice(0, 28), w: String(it.what || "").slice(0, 60) }))
+      .filter((x) => x.t);
+    setSt((sv) => (JSON.stringify(sv.dailyQueue || []) === JSON.stringify(q) ? sv : { ...sv, dailyQueue: q }));
+  }, [ready, st.wfOff, st.aheadDone, st.children, st.flags, st.petTypes, st.news]);
 
   /* 가족이 다른 기기에서 고치면 여기로 들어옵니다.
      "새로고침" 버튼을 누르게 하지 않고 화면에 바로 반영합니다 */

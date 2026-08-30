@@ -49,14 +49,29 @@ function todayLine(state, tzOffset, userId) {
     daily.push(name);
   }
 
+  /* 유용정보(복지·미리 사두기) 하루 한 줄.
+     앱이 적어둔 목록에서 날짜로 하나만 꺼냅니다 — 서버는 씨앗을 모릅니다.
+     날짜로 고르므로 서버가 아무것도 기억할 필요가 없고, 같은 날엔 같은 것이 나옵니다.
+     앱을 열면 이미 챙긴 것이 목록에서 빠지면서 다음 것으로 넘어갑니다. */
+  const q = Array.isArray(st.dailyQueue) ? st.dailyQueue.filter((x) => x && x.t) : [];
+  /* today는 UTC로 되돌린 값이라 날짜 경계에 딱 안 떨어집니다.
+     그 집 달력의 날짜 번호로 세야 하루에 하나씩 정확히 넘어갑니다. */
+  const dayNo = Math.round(startOfDay(local) / DAY);
+  const pick = q.length ? q[((dayNo % q.length) + q.length) % q.length] : null;
+
   /* 매일 까먹는 것을 먼저, 그다음이 그날 잡힌 일입니다 */
   const all = [...new Set([...daily, ...now])];
-  if (!all.length) return null;                       /* 없는 날은 안 보냅니다 */
+  /* 할 일이 없는 날에도 유용정보 한 줄은 보냅니다 — 그게 이 앱이 있는 이유입니다 */
+  if (!all.length && !pick) return null;
+  if (!all.length) {
+    return { title: pick.t, body: pick.w || "유용정보에 있습니다" };
+  }
   const shown = all.slice(0, 3).map((t) => t.slice(0, 24));
   const more = all.length - shown.length;
   return {
     title: `오늘 살펴둘 일 ${all.length}가지`,
-    body: shown.join(" · ") + (more > 0 ? ` 외 ${more}개` : ""),
+    body: shown.join(" · ") + (more > 0 ? ` 외 ${more}개` : "")
+        + (pick ? `\n· ${pick.t}` : ""),
   };
 }
 
