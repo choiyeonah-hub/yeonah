@@ -124,7 +124,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0901-b';
+const GATE_BUILD = '0901-c';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1584,18 +1584,33 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-b";
+const BUILD = "0901-c";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
    상한에 닿아도 직접 적는 길은 항상 열려 있습니다. */
 /* ── 단계 ──────────────────────────────────────
-   "beta"  30가구 폐쇄 테스트 — 무료·유료를 나누지 않고 다 열어둡니다.
+   "beta"  30가구 폐쇄 테스트 (2026년 9월) — 무료·유료를 나누지 않고 다 열어둡니다.
            조이면 사람들이 AI를 못 써보고, 그러면 뭐가 이상한지 안 드러납니다.
            베타의 목적은 돈이 아니라 배우는 것입니다.
-   "live"  정식 출시 — 무료는 맛보기, 유료는 넉넉하게.
-   출시할 때 이 한 글자만 바꾸면 됩니다. */
+
+   "open"  앱스토어 출시 (2026년 10월 ~ 2027년 5월) — 여전히 전부 무료입니다.
+           돈을 안 받는 이유는 인심이 아니라 자격입니다.
+           결제를 받으려면 사업자등록이 있어야 하는데, 사업자등록을 하는 순간
+           예비창업패키지의 "예비창업자" 자격이 없어집니다. 평균 5,000만원짜리
+           자격을 몇만원 때문에 버릴 수는 없습니다.
+           광고도 안 붙입니다 — 광고 수입이 사업 개시로 보일 위험이 있어서,
+           공고문에서 확인되기 전까지는 켜지 않습니다.
+
+   "live"  지원사업 결과가 나온 뒤 (2027년 6월 이후) — 사업자등록을 하고
+           그때 유료와 광고를 켭니다. 무료는 맛보기, 유료는 넉넉하게.
+
+   단계가 바뀌는 날 이 한 줄만 고칩니다. */
 const PHASE = "beta";
+/* 값을 받는 단계인지 한 곳에서만 판단합니다.
+   여러 군데에 PHASE === "beta"를 흩어놓으면 "open"을 추가할 때 하나를 빠뜨립니다.
+   실제로 한 번 빠뜨렸습니다 — 10월에 유료를 켜자고 했다가 자격 문제를 놓쳤습니다. */
+const CHARGING = () => PHASE === "live";
 
 /* 회당 대략의 원가(2026-08 기준, 재본 값)
      말하기 정리 9원 · 사진 인식 12원 · 웹검색 발굴 25원 (+ 검색 사용료 별도) */
@@ -1604,6 +1619,12 @@ const AI_LIMITS = {
      "필요 없더라"가 아니라 "못 써봤다"인데, 그 둘이 설문에서 구분이 안 됩니다.
      30가구 전부가 한도를 다 채워야 월 5만 5천원입니다. 실제로는 그 근처도 안 갑니다. */
   beta: { talk: 80, photo: 30, find: 30 },
+  /* 앱스토어 출시부터 지원사업 결과까지(2026년 10월 ~ 2027년 5월)는
+     전부 무료인데, 그 값을 낼 사람이 아무도 없습니다 — 전부 제 돈입니다.
+     그래서 베타 한도를 그대로 열어두면 안 됩니다.
+     1,000명이 전부 한도를 다 채워도 월 31만 5천원에서 멈추게 잡았습니다.
+     실제로는 3~4할만 쓰니 10만원 안팎일 겁니다. */
+  open: { talk: 20, photo: 5, find: 3 },
   /* 맛은 보되 아쉽게. 원가 약 119원 */
   free: { talk: 5, photo: 2, find: 2 },
   /* "무제한"이라도 최악은 계산돼야 합니다. 다 쓰면 약 2,770원 —
@@ -1619,8 +1640,11 @@ function usedThis(st, kind) {
   return u.month === usageMonth() ? (u[kind] || 0) : 0;
 }
 function limitOf(st, kind) {
-  /* 베타 동안에는 모두에게 베타 한도를 줍니다 */
+  /* 값을 안 받는 두 단계는 한도가 다릅니다.
+     베타는 30가구뿐이라 넉넉히 열어도 월 5만 5천원이 최대입니다.
+     출시 후 무료 기간은 몇 명이 올지 모르니 상한이 필요합니다. */
   if (PHASE === "beta") return AI_LIMITS.beta[kind];
+  if (!CHARGING()) return AI_LIMITS.open[kind];
   return (st.plan === "paid" ? AI_LIMITS.paid : AI_LIMITS.free)[kind];
 }
 function leftOf(st, kind) {
@@ -4241,7 +4265,7 @@ function Home() {
     /* 이달의 소식은 유료입니다. 매달 새로 찾아오는 것이 구독의 값어치이고,
        공공 지원부터 민간 서비스까지 여기로 들어옵니다.
        베타 동안에는 모두에게 엽니다 — 30가구는 값어치를 재는 사람들입니다. */
-    const opened = PHASE === "beta" || st.plan === "paid";
+    const opened = !CHARGING() || st.plan === "paid";
     (async () => {
       /* 누른 사람은 소식 화면으로 먼저 보냅니다. 결과가 있든 없든
          거기서 상황이 보여야 합니다 — 소식이 있어야만 들어갈 수 있는
@@ -5578,7 +5602,7 @@ function Categories() {
    켤 때 지킬 것: 복지 안내 옆에는 절대 붙이지 않습니다. */
 function AdSlot({ where }) {
   const { st } = use();
-  if (PHASE === "beta") return null;
+  if (!CHARGING()) return null;
   if (st.plan === "paid") return null;
   if (!st.adOn) return null;
   return null;   /* 아직 붙인 광고가 없습니다 */
@@ -6346,7 +6370,7 @@ function Useful() {
      그 값을 안 받으면 서버비도 AI값도 못 냅니다.
      다만 잠그기만 하면 무료 사용자는 여기에 뭐가 있는지도 모릅니다.
      그래서 제목은 다 보이고, 한 개는 열어둡니다 — 값어치를 보고 정하시게. */
-  const opened = PHASE === "beta" || st.plan === "paid";
+  const opened = !CHARGING() || st.plan === "paid";
   /* 열어두는 한 개는 "바뀐 것"을 먼저 고릅니다. 기준이 내려와서 이제 되는 것 —
      그게 이 화면이 하는 일을 가장 잘 보여줍니다. */
   const freeKey = useMemo(() => {
@@ -6389,9 +6413,9 @@ function Useful() {
           <b style={{ color: C.persim }}> 바뀐 것</b>은 기준이 내려와서 이제 되는 거예요 —
           예전에 안 된다고 들으셨어도 다시 보세요. 필요한 것만 골라서 쓰시면 됩니다.
         </p>
-        {PHASE === "beta" ? (
+        {!CHARGING() ? (
           <p style={{ fontSize: 12, color: C.ink3, marginTop: 7, lineHeight: 1.7 }}>
-            베타 동안에는 다 열려 있어요.
+            {PHASE === "beta" ? "베타 동안에는 다 열려 있어요." : "지금은 전부 무료로 열려 있어요."}
           </p>
         ) : st.plan !== "paid" ? (
           <p style={{ fontSize: 12, color: C.ink3, marginTop: 7, lineHeight: 1.7 }}>
@@ -6941,7 +6965,7 @@ function Settings() {
       )}
 
       {/* 이번 달 AI 사용량 — 얼마나 썼는지 스스로 보이게 */}
-      <Section eyebrow="AI" title="이번 달 AI 사용량" right={PHASE === "beta" ? "베타" : st.plan === "paid" ? "유료" : "무료"}>
+      <Section eyebrow="AI" title="이번 달 AI 사용량" right={!CHARGING() ? (PHASE === "beta" ? "베타" : "무료 기간") : st.plan === "paid" ? "유료" : "무료"}>
         <Card>
           <div style={{ padding: "13px 15px", fontSize: 12.5, color: C.ink2, lineHeight: 1.7, borderBottom: `1px solid ${C.lineSoft}` }}>
             무료로 쓰시는 동안은 한 달에 정해진 횟수만큼 AI가 도와드려요. {nextResetLabel()}에 다시 채워집니다.
