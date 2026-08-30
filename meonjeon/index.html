@@ -124,7 +124,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0831-c';
+const GATE_BUILD = '0831-d';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1561,7 +1561,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0831-c";
+const BUILD = "0831-d";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -1577,8 +1577,10 @@ const PHASE = "beta";
 /* 회당 대략의 원가(2026-08 기준, 재본 값)
      말하기 정리 9원 · 사진 인식 12원 · 웹검색 발굴 25원 (+ 검색 사용료 별도) */
 const AI_LIMITS = {
-  /* 30가구 × 약 840원 = 월 2만 5천원. 감당되는 선에서 최대한 열어둡니다 */
-  beta: { talk: 40, photo: 15, find: 12 },
+  /* 베타는 아껴 쓰라고 하는 기간이 아닙니다. 한도에 막혀서 안 써본 기능은
+     "필요 없더라"가 아니라 "못 써봤다"인데, 그 둘이 설문에서 구분이 안 됩니다.
+     30가구 전부가 한도를 다 채워야 월 5만 5천원입니다. 실제로는 그 근처도 안 갑니다. */
+  beta: { talk: 80, photo: 30, find: 30 },
   /* 맛은 보되 아쉽게. 원가 약 119원 */
   free: { talk: 5, photo: 2, find: 2 },
   /* "무제한"이라도 최악은 계산돼야 합니다. 다 쓰면 약 2,770원 —
@@ -7177,6 +7179,7 @@ function Settings() {
         {/* 홈을 거쳐 가는 건 소식을 찾아오는 자리가 거기라서입니다.
             누른 사람은 바로 소식 화면으로 넘어갑니다. 안내는 거기서 합니다 */}
         <Btn kind="ghost" onClick={() => { setSt((s2) => ({ ...s2, newsAsk: Date.now() })); setTab("home"); }}>이달의 소식 보기</Btn>
+        <div style={{ height: 8 }} />
         <Btn kind="quiet" onClick={() => { if (confirm("모든 데이터를 지우고 처음부터 시작할까요?")) { window.storage.delete("meonjeon").catch(() => {}); setSt(DEFAULT_STATE); } }}>데이터 전체 삭제</Btn>
       </div>
 
