@@ -127,7 +127,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0901-m';
+const GATE_BUILD = '0901-n';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1599,7 +1599,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-m";
+const BUILD = "0901-n";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -5296,6 +5296,10 @@ ${web ? `
           <input ref={fileRef} type="file" accept="image/*" multiple style={{ display: "none" }} onChange={onFiles} />
           <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 9, lineHeight: 1.65 }}>
             알림장·가정통신문·안내문자 캡처를 읽어 <b style={{ color: C.ink2 }}>할 일과 마감일</b>만 뽑습니다.<br />
+            {/* 종이를 찍으면 그림자와 각도 때문에 글자가 뭉갭니다.
+                화면 캡처는 글자가 그대로라 훨씬 잘 읽힙니다. */}
+            <b style={{ color: C.ink2 }}>화면 캡처가 사진보다 잘 읽힙니다.</b> 종이를 찍으면 그림자와 각도 때문에 글자가 뭉개져요.
+            키즈노트·문자는 캡처하시고, 종이만 있을 때는 평평하게 펴서 위에서 찍어주세요.<br />
             노트북이면 캡처해서 <b style={{ color: C.ink2 }}>붙여넣기(Ctrl+V)</b>가 빨라요. 휴대폰은 버튼을 누르면 카메라가 열립니다.
             장 본 영수증은 <b style={{ color: C.ink2 }}>식단 화면</b>에서 찍어주세요.
           </div>
