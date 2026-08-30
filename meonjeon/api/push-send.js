@@ -11,12 +11,23 @@ import webpush from "web-push";
 const DAY = 86400000;
 const startOfDay = (t) => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); };
 
-function todayLine(state, tzOffset) {
+function todayLine(state, tzOffset, userId) {
   const st = state || {};
   /* 그 집의 오늘 자정 (서버는 UTC라 시차를 더해서 봅니다) */
   const local = Date.now() + tzOffset * 60000;
   const today = startOfDay(local) - tzOffset * 60000;
-  const tasks = (st.tasks || []).filter((t) => t && !t.done);
+
+  /* 누구에게 보내는 알림인지 알아냅니다.
+     구성원마다 uid(로그인 계정)가 붙어 있고, 구독에도 user_id가 있습니다. */
+  const meId = (st.members || []).find((m) => m && m.uid === userId)?.id || null;
+
+  /* ⚠ 예전에는 집 안의 모든 할 일을 두 사람 폰에 똑같이 보냈습니다.
+     그러면 남편에게 넘긴 일이 아내 폰에도 계속 울립니다.
+     넘겼는데 내 화면에서 안 사라지면 내려놓은 게 아니고,
+     결국 "그거 했어?"를 다시 사람이 말하게 됩니다 — 그게 잔소리 지점입니다.
+     그래서 내 몫과 아직 임자 없는 일만 보냅니다. 남의 몫은 그 사람 폰에서 울립니다. */
+  const mine = (t) => !meId || !t.owner || t.owner === meId;
+  const tasks = (st.tasks || []).filter((t) => t && !t.done && mine(t));
 
   /* 오늘까지 온 것 + 지금 해야 하는 것. 살 것은 빼둡니다 — 급하지 않으니까요 */
   const now = tasks.filter((t) => t.status !== "buy" && ((t.dueAt || 0) <= today + DAY || t.status === "now"))
@@ -29,6 +40,8 @@ function todayLine(state, tzOffset) {
   const daily = [];
   for (const [key, cfg] of Object.entries(st.routines || {})) {
     if (!cfg || cfg.on === false) continue;
+    /* 정기 일정도 담당이 정해졌으면 그 사람 폰에서만 울립니다 */
+    if (meId && cfg.owner && cfg.owner !== meId) continue;
     const name = String(titles[key] || "").trim();
     if (!name) continue;                              /* 이름을 모르면 안 보냅니다 */
     if ((cfg.lastAt || 0) >= today) continue;         /* 오늘 이미 했음 */
@@ -84,7 +97,7 @@ export default async function handler(req, res) {
 
   let sent = 0, quiet = 0, gone = 0;
   for (const s of due) {
-    const line = todayLine(stateOf[s.household_id], Number(s.tz_offset) || 0);
+    const line = todayLine(stateOf[s.household_id], Number(s.tz_offset) || 0, s.user_id);
     if (!line) { quiet++; continue; }               /* 오늘 할 게 없으면 안 보냅니다 */
     try {
       await webpush.sendNotification(
