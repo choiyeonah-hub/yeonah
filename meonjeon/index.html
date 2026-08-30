@@ -124,7 +124,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0830-a';
+const GATE_BUILD = '0830-b';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1421,13 +1421,13 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0830-a";
+const BUILD = "0830-b";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
    상한에 닿아도 직접 적는 길은 항상 열려 있습니다. */
 /* ── 단계 ──────────────────────────────────────
-   "beta"  15가구 폐쇄 테스트 — 무료·유료를 나누지 않고 다 열어둡니다.
+   "beta"  30가구 폐쇄 테스트 — 무료·유료를 나누지 않고 다 열어둡니다.
            조이면 사람들이 AI를 못 써보고, 그러면 뭐가 이상한지 안 드러납니다.
            베타의 목적은 돈이 아니라 배우는 것입니다.
    "live"  정식 출시 — 무료는 맛보기, 유료는 넉넉하게.
@@ -1437,7 +1437,7 @@ const PHASE = "beta";
 /* 회당 대략의 원가(2026-08 기준, 재본 값)
      말하기 정리 9원 · 사진 인식 12원 · 웹검색 발굴 25원 (+ 검색 사용료 별도) */
 const AI_LIMITS = {
-  /* 15가구 × 약 840원 = 월 1만 3천원. 감당되는 선에서 최대한 열어둡니다 */
+  /* 30가구 × 약 840원 = 월 2만 5천원. 감당되는 선에서 최대한 열어둡니다 */
   beta: { talk: 40, photo: 15, find: 12 },
   /* 맛은 보되 아쉽게. 원가 약 119원 */
   free: { talk: 5, photo: 2, find: 2 },
@@ -2149,7 +2149,7 @@ const hourLabel = (h) => (h < 12 ? `오전 ${h}시` : h === 12 ? "낮 12시" : `
    Vercel은 넣은 값을 점(●●●)으로 가려서, 붙여넣을 때 딸려 들어간 공백 한 칸을
    눈으로 찾을 방법이 없습니다. 값은 절대 안 가져오고 "정상 / 공백 붙음 / 없음"만
    물어봅니다. 공백 한 칸 때문에 알림이 조용히 안 오는 일을 막는 자리입니다. */
-/* 15가구 전체 지표.
+/* 베타 전체 지표.
    매주 Supabase에 SQL을 붙여넣는 대신 여기서 봅니다.
    운영자(ADMIN_EMAIL)로 로그인했을 때만 서버가 답합니다. */
 function BetaAll() {
@@ -2173,7 +2173,7 @@ function BetaAll() {
     </div>
   );
   return (
-    <Section eyebrow="BETA" title="15가구 전체" right={d && d.ok ? d.asOf : null}>
+    <Section eyebrow="BETA" title="베타 전체" right={d && d.ok ? d.asOf : null}>
       {!d && (
         <button className="press" onClick={look} disabled={busy}
           style={{ width: "100%", background: C.card, border: `1px solid ${C.line}`, borderRadius: 16, padding: "14px 0", fontSize: 13.5, color: C.ink2, boxShadow: SHADOW }}>
