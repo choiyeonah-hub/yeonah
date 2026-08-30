@@ -124,7 +124,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0901-a';
+const GATE_BUILD = '0901-b';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1584,7 +1584,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-a";
+const BUILD = "0901-b";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -6339,9 +6339,20 @@ function usefulItems(st) {
 }
 
 function Useful() {
-  const { st, setSt, cats, setTab } = use();
+  const { st, setSt, cats, setTab, say } = use();
   const [open, setOpen] = useState(null);
   const items = useMemo(() => usefulItems(st), [st.flags, st.children, st.news]);
+  /* 유용정보는 유료입니다. 몰라서 못 받는 걸 찾아다 주는 것이 이 앱이 파는 것이고,
+     그 값을 안 받으면 서버비도 AI값도 못 냅니다.
+     다만 잠그기만 하면 무료 사용자는 여기에 뭐가 있는지도 모릅니다.
+     그래서 제목은 다 보이고, 한 개는 열어둡니다 — 값어치를 보고 정하시게. */
+  const opened = PHASE === "beta" || st.plan === "paid";
+  /* 열어두는 한 개는 "바뀐 것"을 먼저 고릅니다. 기준이 내려와서 이제 되는 것 —
+     그게 이 화면이 하는 일을 가장 잘 보여줍니다. */
+  const freeKey = useMemo(() => {
+    const chg = items.find((x) => x.chg);
+    return (chg || items[0] || {}).key;
+  }, [items]);
   const groups = useMemo(() => {
     const by = {};
     items.forEach((it) => { (by[it.cat] = by[it.cat] || []).push(it); });
@@ -6359,6 +6370,12 @@ function Useful() {
 
   const read = (k) => {
     if (open === k) return setOpen(null);
+    if (!opened && k !== freeKey) {
+      /* 잠긴 걸 눌렀을 때 아무 일도 안 일어나면 고장으로 보입니다.
+         왜 안 열리는지는 말해줘야 합니다. */
+      say("유용정보는 유료에서 열려요");
+      return setOpen(k);
+    }
     setOpen(k);
     setSt((sv) => ({ ...sv, wfRead: (Number(sv.wfRead) || 0) + 1 }));
   };
@@ -6372,6 +6389,15 @@ function Useful() {
           <b style={{ color: C.persim }}> 바뀐 것</b>은 기준이 내려와서 이제 되는 거예요 —
           예전에 안 된다고 들으셨어도 다시 보세요. 필요한 것만 골라서 쓰시면 됩니다.
         </p>
+        {PHASE === "beta" ? (
+          <p style={{ fontSize: 12, color: C.ink3, marginTop: 7, lineHeight: 1.7 }}>
+            베타 동안에는 다 열려 있어요.
+          </p>
+        ) : st.plan !== "paid" ? (
+          <p style={{ fontSize: 12, color: C.ink3, marginTop: 7, lineHeight: 1.7 }}>
+            무료에서는 한 개만 열려 있어요. 나머지는 제목만 보입니다.
+          </p>
+        ) : null}
       </div>
 
       {groups.map((g) => (
@@ -6387,14 +6413,30 @@ function Useful() {
                       <span style={{ flex: 1, minWidth: 0, fontSize: 14.5, fontWeight: 500 }}>{it.title}</span>
                       {it.chg ? <span className="mono" style={{ fontSize: 9, color: C.persim, background: C.persimSoft, borderRadius: 999, padding: "2px 7px" }}>바뀐 것</span>
                         : it.fresh ? <span className="mono" style={{ fontSize: 9, color: C.moss }}>이번 달</span> : null}
-                      <span style={{ fontSize: 11, color: C.ink3 }}>{on ? "접기" : "보기"}</span>
+                      <span style={{ fontSize: 11, color: C.ink3 }}>
+                        {!opened && it.key !== freeKey ? "잠김" : on ? "접기" : "보기"}
+                      </span>
                     </div>
                     {!on && it.what && (
                       <div style={{ fontSize: 12, color: C.ink3, marginTop: 5, overflow: "hidden",
                         textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.what}</div>
                     )}
                   </button>
-                  {on && (
+                  {on && !opened && it.key !== freeKey && (
+                    <div style={{ padding: "0 16px 16px" }}>
+                      <div style={{ background: C.bg, border: `1px solid ${C.line}`, borderRadius: 12, padding: "13px 15px" }}>
+                        <div style={{ fontSize: 13, color: C.ink2, lineHeight: 1.8 }}>
+                          이건 유료에서 열려요. 무엇인지·어디서 신청하는지·왜 놓치는지가 들어 있어요.
+                        </div>
+                        <button className="press" onClick={() => setTab("set")}
+                          style={{ marginTop: 11, background: C.moss, color: "#fff", border: "none",
+                            borderRadius: 999, padding: "9px 16px", fontSize: 12.5 }}>
+                          유료로 열기 ›
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  {on && (opened || it.key === freeKey) && (
                     <div style={{ padding: "0 16px 16px" }}>
                       {it.what && <div className="hae" style={{ fontSize: 13.5, color: C.ink, lineHeight: 1.8 }}>{it.what}</div>}
                       {it.who && <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 9, lineHeight: 1.7 }}>
