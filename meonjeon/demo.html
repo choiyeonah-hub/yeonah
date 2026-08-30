@@ -709,6 +709,10 @@ const SEED = [
   { id: "N005", cat: "home", f: null, lead: 0, st: "repeat", t: "화장실 곰팡이 제거", tg: "장마·환절기", ask: "실리콘 이음새에 곰팡이가 보이나요?", cy: "월 1회", g: "청소", src: "" },
   { id: "N006", cat: "home", f: null, lead: 0, st: "repeat", t: "창틀·방충망 닦기", tg: "환절기", ask: "", cy: "2~3개월", g: "청소", src: "" },
   { id: "N007", cat: "home", f: null, lead: 0, st: "repeat", t: "행주 삶기", tg: "주간", ask: "", cy: "주 1회", g: "청소", src: "" },
+  /* 요리와 옷 개기가 통째로 빠져 있었습니다. 둘 다 "안 잊는 일"이라 접기 후보이지만,
+     넣어두어야 넘기거나 담당을 정할 수 있습니다. 빠져 있으면 아예 나눌 수가 없습니다. */
+  { id: "N069", cat: "food", f: null, lead: 0, st: "repeat", t: "저녁 차리기", tg: "매일", ask: "", cy: "매일", g: "살림매일", src: "" },
+  { id: "N070", cat: "laundry", f: null, lead: 0, st: "repeat", t: "빨래 개서 넣기", tg: "빨래 돌린 뒤", ask: "", cy: "주 3회", g: "살림매일", src: "" },
   { id: "N058", cat: "home", f: null, lead: 0, st: "repeat", t: "설거지", tg: "매일", ask: "", cy: "매일", g: "청소", src: "" },
   { id: "N059", cat: "home", f: null, lead: 0, st: "repeat", t: "싱크대·배수구 청소", tg: "물때 끼기 전", ask: "배수구 냄새가 나기 시작했나요?", cy: "주 1회", g: "청소", src: "" },
   { id: "N060", cat: "home", f: null, lead: 0, st: "repeat", t: "수저·커트러리 삶기", tg: "주기", ask: "", cy: "2주", g: "청소", src: "" },
@@ -1470,7 +1474,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-s";
+const BUILD = "0901-u";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -1731,6 +1735,11 @@ function OwnerPicker({ title, current, onPick, onClose, withKids, onWithKids, ca
     <Sheet onClose={onClose}>
       <div className="disp" style={{ fontSize: 20, fontWeight: 600 }}>{title || "누가 할까요?"}</div>
       <p style={{ fontSize: 13, color: C.ink2, marginTop: 8, lineHeight: 1.65 }}>고른 사람 화면에서는 “내 몫”으로 올라갑니다.</p>
+      {/* 넘긴 일을 "했는지 확인"하게 만들면, 내려놓으려고 넘긴 것을 다시 머리에 올리게 됩니다.
+          그러면 앱이 분담 도구가 아니라 확인 도구가 됩니다. 그건 이 앱이 하려는 일이 아닙니다. */}
+      <p style={{ fontSize: 12, color: C.ink3, marginTop: 6, lineHeight: 1.65 }}>
+        넘기면 내 화면에서는 내려갑니다. 그 사람이 눌렀는지는 확인하지 않아도 됩니다 — 재촉하는 알림은 없습니다.
+      </p>
       <div className="flex flex-col gap-2" style={{ marginTop: 16 }}>
         {st.members.map((m) => {
           const on = current === m.id;
@@ -2391,7 +2400,10 @@ function Onboarding({ preview }) {
   }, [suggested]);
 
   const steps = [
-    { q: `${BRAND}에 오신 걸 환영해요.\n누구와 함께 챙기나요?`, s: "여기 있는 사람에게 할 일을 나눌 수 있어요. 나중에 바꿔도 됩니다." },
+    /* 예전에는 "누구와 함께 챙기나요?"였습니다. 함께 챙기는 사람이 있다고 전제하는 말입니다.
+       실제로는 혼자 다 지고 있는 집이 많고, 넣어봤자 안 거드는 경우도 있습니다.
+       넣을지 말지를 먼저 고르게 합니다. 혼자여도 앱은 다 됩니다. */
+    { q: `${BRAND}에 오신 걸 환영해요.\n혼자 챙기고 계신가요?`, s: "나눌 사람이 있을 때만 넣으세요. 혼자 쓰셔도 기능은 다 됩니다. 나중에 언제든 넣을 수 있어요." },
     { q: "아이가 있나요?", s: "아이마다 챙길 것이 완전히 달라서 따로 관리해요. 임신 중이면 주수로 넣어주세요." },
     { q: "우리 집에\n해당하는 것만 골라주세요", s: "고르지 않은 건 앞으로 한 번도 안 물어봐요." },
     /* 이 단계만 "기억해내기"를 시킵니다. 그렇다고 건너뛰라고 하면 안 됩니다 —
@@ -2399,7 +2411,11 @@ function Onboarding({ preview }) {
        비우라고 권하는 대신, 지금 아는 것부터 넣게 합니다. */
     { q: "음력으로 오는\n날이 있나요?", s: "부모님 생신과 제사는 음력이라 매년 양력 날짜가 달라집니다. 그래서 진짜로 놓칩니다 — 그 계산을 대신 합니다. 내 생일·아이 생일은 안 물어봐요. 안 까먹는 것은 안 묻습니다. 모르는 건 나중에 ‘행사·경조사’에서 채우면 됩니다." },
     { q: "차 이야기를\n한 번만 할게요", s: "검사와 보험은 날짜를 넘기면 과태료나 무보험이 됩니다. 한 번 넣어두면 다시 안 물어봐요." },
-    { q: "이 정도 주기면\n괜찮을까요?", s: "영역별로 한 화면씩 넘어갑니다. 기본 주기는 저희가 넣어뒀으니 바꾸거나 끄기만 하세요." },
+    /* 예전에는 "기본 주기는 넣어뒀으니 바꾸거나 끄기만 하세요"였습니다.
+       그런데 실제로는 전부 꺼진 채로 시작합니다 — 말과 동작이 반대였습니다.
+       더 나쁜 건 그 말이 "여기 있는 게 원래 해야 하는 것"으로 읽힌다는 점입니다.
+       집안일을 어디까지 하느냐는 집마다 다릅니다. 목록이 기준이 되면 안 됩니다. */
+    { q: "무엇을 챙겨드릴까요?", s: "영역별로 한 화면씩 넘어갑니다. 전부 꺼진 채로 시작하니 필요한 것만 켜세요. 여기 있는 걸 다 하는 집은 없습니다." },
   ];
   /* 차가 없는 집에는 차 단계를 보여주지 않습니다 */
   const LAST = 5;
@@ -2716,10 +2732,13 @@ function Onboarding({ preview }) {
               <button className="press" onClick={finish}
                 style={{ width: "100%", marginTop: 16, background: "transparent", border: `1px solid ${C.line}`,
                          borderRadius: 14, padding: "13px 0", fontSize: 13, color: C.ink2 }}>
-                나머지는 기본값으로 두고 <b style={{ color: C.moss }}>바로 시작하기</b>
+                나머지는 나중에 켤게요 · <b style={{ color: C.moss }}>바로 시작하기</b>
               </button>
+              {/* 예전 문구는 "나머지는 기본값으로 두고"였습니다. 켜져 있는 게 있는 것처럼 읽히는데
+                  실제로는 하나도 안 켜집니다. 지쳐서 이걸 누른 집은 빈 앱을 받고 그날 닫습니다. */}
               <p style={{ fontSize: 11.5, color: C.ink3, textAlign: "center", marginTop: 7, lineHeight: 1.7 }}>
-                주기는 나중에 설정에서 언제든 바꿀 수 있어요.<br />지금 다 정하지 않으셔도 됩니다.
+                안 켠 것은 안 올라옵니다. 영역 화면에서 언제든 켜고 끌 수 있어요.<br />
+                다 켜실 필요 없습니다. 두세 개로 시작하셔도 됩니다.
               </p>
               {pick && (
                 <CyclePicker current={(routines[pick] || {}).cycle} title="얼마마다 할까요?" pattern={routines[pick] || {}}
