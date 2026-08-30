@@ -124,7 +124,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0830-i';
+const GATE_BUILD = '0830-j';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1421,7 +1421,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0830-i";
+const BUILD = "0830-j";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -2712,19 +2712,34 @@ function Onboarding({ preview }) {
   /* 경조사 후보 — 이름을 이미 받았으니 물어볼 것만 남깁니다.
      제사·부모님 생신은 음력이 기본입니다. 사용자가 바꾸면 그게 우선입니다. */
   const [anns, setAnns] = useState({});
+  /* 몇 칸을 보여줄지. 처음부터 네 칸을 열어두면 빈칸이 벽처럼 보입니다 */
+  const [nParent, setNParent] = useState(2);
+  const [nJesa, setNJesa] = useState(2);
   const isLunar = (a, v) => (v && v.lunar !== undefined ? v.lunar : !!a.lunar);
   const annCandidates = useMemo(() => {
     const out = [];
     d.members.filter((m) => m.name.trim()).forEach((m) => out.push({ key: `b:${m.id}`, label: `${m.name} 생일`, title: `${m.name} 생일` }));
     d.children.filter((c) => c.name.trim()).forEach((c) => out.push({ key: `k:${c.id}`, label: `${c.name} 생일`, title: `${c.name} 생일` }));
     if (d.members.filter((m) => m.name.trim()).length > 1) out.push({ key: "wed", label: "결혼기념일", title: "결혼기념일" });
-    if (d.flags.parents) out.push({ key: "p1", label: "부모님 생신", title: "부모님 생신", lunar: true });
+    /* 부모님은 보통 네 분입니다(양가). 한 칸만 두면 세 분이 사라집니다.
+       누구 생신인지도 집마다 부르는 말이 달라서 이름을 직접 적게 둡니다. */
+    if (d.flags.parents) {
+      const PH = ["예: 아버지 생신", "예: 어머니 생신", "예: 시아버지 생신", "예: 시어머니 생신"];
+      for (let i = 0; i < nParent; i++) {
+        out.push({ key: `p${i + 1}`, label: i ? "" : "부모님 생신", group: "parent",
+                   title: "부모님 생신", lunar: true, editable: true,
+                   ph: PH[i] || "없으면 비워두세요" });
+      }
+    }
     /* 제사·기일은 거의 음력이고, 집마다 이름이 다릅니다("할아버지 제사", "시아버님 기일").
        이름을 직접 적게 둡니다. 안 적으면 안 만들어집니다. */
-    out.push({ key: "je1", label: "제사·기일", title: "제사", lunar: true, editable: true, ph: "예: 할아버지 제사" });
-    out.push({ key: "je2", label: "제사·기일 하나 더", title: "제사", lunar: true, editable: true, ph: "없으면 비워두세요" });
+    for (let i = 0; i < nJesa; i++) {
+      out.push({ key: `je${i + 1}`, label: i ? "" : "제사·기일", group: "jesa",
+                 title: "제사", lunar: true, editable: true,
+                 ph: i === 0 ? "예: 할아버지 제사" : "없으면 비워두세요" });
+    }
     return out;
-  }, [d.members, d.children, d.flags.parents]);
+  }, [d.members, d.children, d.flags.parents, nParent, nJesa]);
 
   const cids = useMemo(() => Object.keys(byCat), [byCat]);
   const onCount = Object.values(routines).filter((r) => r.on).length;
@@ -2902,12 +2917,20 @@ function Onboarding({ preview }) {
                       {Array.from({ length: isLunar(a, v) ? 30 : 31 }, (_, k) => k + 1).map((dd) => <option key={dd} value={dd}>{dd}일</option>)}
                     </select>
                   </div>
+                  {/* 묶음의 마지막 칸 아래에만 "더" 버튼을 둡니다 */}
+                  {a.group && (!arr[i + 1] || arr[i + 1].group !== a.group) ? (
+                    <button className="press" onClick={() => a.group === "parent" ? setNParent((n) => Math.min(n + 1, 6)) : setNJesa((n) => Math.min(n + 1, 6))}
+                      style={{ marginTop: 9, background: "transparent", border: `1px dashed ${C.line}`, borderRadius: 10,
+                               padding: "8px 12px", fontSize: 12, color: C.ink2 }}>
+                      ＋ {a.group === "parent" ? "한 분 더" : "하나 더"}
+                    </button>
+                  ) : null}
                 </div>
               );
             })}
             <div style={{ fontSize: 12, color: C.ink3, marginTop: 14, lineHeight: 1.7 }}>
-              모르면 비워두세요. <b style={{ color: C.ink2 }}>일주일 전</b>에 올려드리고,
-              나중에 ‘행사·경조사’에서 제사·시부모님 생신 같은 것도 넣을 수 있어요.
+              모르면 비워두세요. <b style={{ color: C.ink2 }}>일주일 전</b>에 올려드립니다.
+              이름을 안 적은 칸은 만들지 않아요.
             </div>
           </div></Card>
         )}
