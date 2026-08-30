@@ -62,7 +62,7 @@ const ID_LISTS = ['tasks', 'shopping', 'pantry', 'toss', 'customRoutines', 'cust
 /* 새 맵을 여기 안 넣으면 합칠 때 통째로 덮어써집니다 —
    남편이 접어둔 항목을 내가 열면 남편 쪽이 사라집니다.
    welfareOff는 복지 화면을 지우면서 같이 없어진 이름이라 뺐습니다. */
-const KEY_MAPS = ['routines', 'prefs', 'duty', 'groupsOff', 'flags', 'petTypes', 'dismissedDiscover', 'routineTitles', 'wfOff', 'aheadDone'];
+const KEY_MAPS = ['routines', 'prefs', 'duty', 'groupsOff', 'flags', 'petTypes', 'dismissedDiscover', 'routineTitles', 'wfOff', 'aheadDone', 'aheadWhen'];
 
 function mergeList(base, mine, theirs) {
   base = Array.isArray(base) ? base : []; mine = Array.isArray(mine) ? mine : []; theirs = Array.isArray(theirs) ? theirs : [];
@@ -127,7 +127,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0901-k';
+const GATE_BUILD = '0901-m';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -821,7 +821,7 @@ const SEED = [
   { id: "L066", cat: "travel", f: null, lead: 180, st: "check", t: "여권 유효기간 확인", tg: "출국일", ask: "출국일 기준 6개월 이상 남았나요?", cy: "여행별", g: "여행", src: "S09;S10" },
   { id: "L067", cat: "travel", f: null, lead: 14, st: "decide", t: "여행자보험·로밍·환전", tg: "출국일", ask: "", cy: "여행별", g: "여행", src: "" },
   { id: "L068", cat: "parents", f: "parents", lead: 7, st: "remember", t: "정기진료 일정 공유", tg: "진료일", ask: "다음 진료와 동행 담당자를 정할까요?", cy: "진료별", g: "부모님", src: "" },
-  { id: "L069", cat: "parents", f: "parents", lead: 7, st: "repeat", t: "약 처방일·잔량 확인", tg: "약 소진 전", ask: "약이 며칠 남았나요?", cy: "주/월", g: "부모님", src: "" },
+  { id: "L069", cat: "parents", f: "parentsWith", lead: 7, st: "repeat", t: "약 처방일·잔량 확인", tg: "약 소진 전", ask: "약이 며칠 남았나요?", cy: "주/월", g: "부모님", src: "" },
   { id: "L070", cat: "parents", f: "parents", lead: 45, st: "remember", t: "건강검진 예약", tg: "연간 검진", ask: "연말 전에 예약할까요?", cy: "연 1회", g: "부모님", src: "" },
   { id: "L071", cat: "parents", f: "parents", wf: 1, lead: 14, st: "conditional", t: "장기요양등급 신청 알아보기", tg: "거동이 예전 같지 않으실 때", ask: "최근 돌봄 필요가 커졌나요?", cy: "상태변화시", g: "부모님", src: "S04" },
   /* 혼자 계신 부모님 — 몰라서 못 받는 것이 많은 자리입니다.
@@ -848,9 +848,9 @@ const SEED = [
   { id: "W16", cat: "transport", f: "car", nkid: 2, wf: 1, chg: 1, lead: 0, st: "check", t: "고속도로 통행료 할인 신청", tg: "2026년에 새로 생겼어요", ask: "하이패스 다자녀 할인을 넣어두셨나요?", cy: "1회", g: "다자녀", src: "S05" },
   { id: "W17", cat: "transport", f: "car", nkid: 2, wf: 1, lc: 1, lead: 0, st: "check", t: "공영주차장 요금 감면 알아보기", tg: "사시는 곳마다 달라요", ask: "다자녀 주차 감면을 아셨나요?", cy: "1회", g: "다자녀", src: "S05" },
   { id: "W18", cat: "transport", f: "car", nkid: 2, wf: 1, lc: 1, lead: 0, st: "check", t: "전기차 보조금 다자녀 우선순위 알아보기", tg: "차 바꿀 때 한 번", ask: "다음 차를 전기차로 생각하고 계신가요?", cy: "1회", g: "다자녀", src: "S05" },
-  { id: "L072", cat: "pet", f: "pet", lead: 30, st: "remember", t: "예방접종·검진 일정", tg: "예정일", ask: "마지막 접종·검진일을 등록할까요?", cy: "연/병원권고", g: "반려동물", src: "" },
-  { id: "L073", cat: "pet", f: "pet", lead: 7, st: "repeat", t: "사료·모래·약 재고", tg: "소진 전", ask: "", cy: "주 1회", g: "반려동물", src: "" },
-  { id: "L074", cat: "pet", f: "pet", lead: 0, st: "repeat", t: "산책 일정 챙기기", tg: "매일/사용자 설정", ask: "평소 산책 횟수와 시간을 정해둘까요?", cy: "사용자 설정", g: "반려동물", src: "" },
+  { id: "L072", cat: "pet", f: "pet", pt: "dog|cat|bird|small", lead: 30, st: "remember", t: "예방접종·검진 일정", tg: "예정일", ask: "마지막 접종·검진일을 등록할까요?", cy: "연/병원권고", g: "반려동물", src: "" },
+  { id: "L073", cat: "pet", f: "pet", pt: "dog|cat", lead: 7, st: "repeat", t: "사료·모래·약 재고", tg: "소진 전", ask: "", cy: "주 1회", g: "반려동물", src: "" },
+  { id: "L074", cat: "pet", f: "pet", pt: "dog", lead: 0, st: "repeat", t: "산책 일정 챙기기", tg: "매일/사용자 설정", ask: "평소 산책 횟수와 시간을 정해둘까요?", cy: "사용자 설정", g: "반려동물", src: "" },
   { id: "N001", cat: "home", f: null, lead: 0, st: "repeat", t: "쓰레기봉투 비우기", tg: "가득 차기 전", ask: "봉투가 가득 찼나요?", cy: "2~3일", g: "청소", src: "" },
   { id: "N002", cat: "home", f: null, lead: 0, st: "repeat", t: "음식물쓰레기 처리", tg: "냄새 나기 전", ask: "", cy: "2~3일", g: "청소", src: "" },
   { id: "N003", cat: "home", f: null, lead: 0, st: "repeat", t: "화장실 청소", tg: "주간", ask: "", cy: "주 1회", g: "청소", src: "" },
@@ -905,12 +905,12 @@ const SEED = [
   { id: "R006", cat: "appliance", f: null, lead: 0, st: "repeat", t: "비데 필터 점검", tg: "교체 주기", ask: "", cy: "6개월", g: "가전정기", src: "" },
   { id: "R007", cat: "appliance", f: null, lead: 0, st: "repeat", t: "공기청정기 필터", tg: "교체 주기", ask: "필터 표시등이 켜졌나요?", cy: "3개월", g: "가전정기", src: "" },
   { id: "R008", cat: "appliance", f: null, lead: 0, st: "repeat", t: "청소기 먼지통·필터", tg: "흡입력 떨어지기 전", ask: "", cy: "월 1회", g: "가전정기", src: "" },
-  { id: "R009", cat: "pet", f: "pet", lead: 0, st: "repeat", t: "사료·물 챙기기", tg: "매일", ask: "", cy: "매일", g: "반려정기", src: "" },
-  { id: "R010", cat: "pet", f: "pet", lead: 0, st: "repeat", t: "배변 정리", tg: "매일", ask: "", cy: "매일", g: "반려정기", src: "" },
-  { id: "R011", cat: "pet", f: "pet", lead: 0, st: "repeat", t: "양치·귀 청소", tg: "주기", ask: "", cy: "2~3일", g: "반려정기", src: "" },
-  { id: "R012", cat: "pet", f: "pet", lead: 0, st: "repeat", t: "심장사상충·구충제", tg: "매월 같은 날", ask: "지난달에 먹였는지 기억나세요?", cy: "월 1회", g: "반려정기", src: "" },
-  { id: "R013", cat: "pet", f: "pet", lead: 0, st: "repeat", t: "발톱·미용 관리", tg: "주기", ask: "", cy: "월 1회", g: "반려정기", src: "" },
-  { id: "R014", cat: "pet", f: "pet", lead: 30, st: "repeat", t: "예방접종 확인", tg: "접종 주기", ask: "지난 접종일을 등록해둘까요?", cy: "연 1회", g: "반려정기", src: "" },
+  { id: "R009", cat: "pet", f: "pet", pt: "dog|cat|bird|small", lead: 0, st: "repeat", t: "사료·물 챙기기", tg: "매일", ask: "", cy: "매일", g: "반려정기", src: "" },
+  { id: "R010", cat: "pet", f: "pet", pt: "dog|cat|small|bird|reptile", lead: 0, st: "repeat", t: "배변 정리", tg: "매일", ask: "", cy: "매일", g: "반려정기", src: "" },
+  { id: "R011", cat: "pet", f: "pet", pt: "dog|cat", lead: 0, st: "repeat", t: "양치·귀 청소", tg: "주기", ask: "", cy: "2~3일", g: "반려정기", src: "" },
+  { id: "R012", cat: "pet", f: "pet", pt: "dog|cat", lead: 0, st: "repeat", t: "심장사상충·구충제", tg: "매월 같은 날", ask: "지난달에 먹였는지 기억나세요?", cy: "월 1회", g: "반려정기", src: "" },
+  { id: "R013", cat: "pet", f: "pet", pt: "dog|cat|bird|small", lead: 0, st: "repeat", t: "발톱·미용 관리", tg: "주기", ask: "", cy: "월 1회", g: "반려정기", src: "" },
+  { id: "R014", cat: "pet", f: "pet", pt: "dog|cat|bird|small", lead: 30, st: "repeat", t: "예방접종 확인", tg: "접종 주기", ask: "지난 접종일을 등록해둘까요?", cy: "연 1회", g: "반려정기", src: "" },
   { id: "R015", cat: "finance", f: null, lead: 0, st: "repeat", t: "가계부 정리", tg: "주간", ask: "카드 내역만 훑어볼까요?", cy: "주 1회", g: "금융정기", src: "" },
   { id: "R016", cat: "finance", f: null, lead: 0, st: "repeat", t: "용돈 주기", tg: "정한 날", ask: "누구에게, 얼마씩 주시나요?", cy: "월 1회", g: "금융정기", src: "" },
   { id: "R017", cat: "finance", f: null, lead: 0, st: "repeat", t: "고정지출·카드값 점검", tg: "결제일 전", ask: "안 쓰는 구독이 있나요?", cy: "월 1회", g: "금융정기", src: "" },
@@ -923,9 +923,12 @@ const SEED = [
   { id: "R024", cat: "event", f: null, lead: 7, st: "repeat", t: "이번 달 가족 생일 확인", tg: "매월 초", ask: "가족 생일을 등록해두면 미리 알립니다", cy: "월 1회", g: "행사정기", src: "" },
   { id: "R025", cat: "event", f: null, lead: 0, st: "repeat", t: "경조사·모임 확인", tg: "매월", ask: "이번 달 챙길 경조사가 있나요?", cy: "월 1회", g: "행사정기", src: "" },
   { id: "R026", cat: "parents", f: "parents", lead: 0, st: "repeat", t: "안부 전화", tg: "주간", ask: "", cy: "주 1회", g: "부모님정기", src: "" },
-  { id: "R027", cat: "parents", f: "parents", lead: 0, st: "repeat", t: "약 잔량 확인", tg: "떨어지기 전", ask: "약이 며칠 남았나요?", cy: "월 1회", g: "부모님정기", src: "" },
+  { id: "R027", cat: "parents", f: "parentsWith", lead: 0, st: "repeat", t: "약 잔량 확인", tg: "떨어지기 전", ask: "약이 며칠 남았나요?", cy: "월 1회", g: "부모님정기", src: "" },
   { id: "R028", cat: "parents", f: "parents", lead: 0, st: "repeat", t: "병원 동행 일정 확인", tg: "진료 주기", ask: "다음 진료일을 알고 계신가요?", cy: "월 1회", g: "부모님정기", src: "" },
   { id: "R029", cat: "parents", f: "parents", lead: 0, st: "repeat", t: "생활비·용돈 송금", tg: "정한 날", ask: "", cy: "월 1회", g: "부모님정기", src: "" },
+  /* 떨어져 살면 약통을 못 봅니다. 대신 처방받은 날을 알면 언제 떨어지는지 셀 수 있습니다 */
+  { id: "R030", cat: "parents", f: "parents", lead: 3, st: "repeat", t: "다음 진료일 물어보기", tg: "월 1회", ask: "", cy: "월 1회", g: "부모정기", src: "" },
+  { id: "R031", cat: "parents", f: "parents", lead: 7, st: "repeat", t: "생신·기념일 확인", tg: "연 1회", ask: "", cy: "연 1회", g: "부모정기", src: "" },
   { id: "R030", cat: "kid", kid: 1, w: [12, 84], lead: 0, st: "repeat", t: "알림장·앱 공지 확인", tg: "등원일", ask: "", cy: "매일", g: "보육정기", src: "" },
   { id: "R031", cat: "kid", kid: 1, w: [12, 84], lead: 0, st: "repeat", t: "가방·수건·여벌옷 세탁", tg: "주간", ask: "", cy: "주 1회", g: "보육정기", src: "" },
   { id: "R032", cat: "kid", kid: 1, w: [12, 84], lead: 0, st: "repeat", t: "낮잠이불 세탁", tg: "격주", ask: "", cy: "2주", g: "보육정기", src: "" },
@@ -1001,6 +1004,11 @@ const SEED = [
   { id: "P007", cat: "pet", f: "pet", pt: "small", lead: 0, st: "repeat", t: "케이지 베딩 교체", tg: "냄새 나기 전", ask: "", cy: "주 1회", g: "반려정기", src: "" },
   { id: "P008", cat: "pet", f: "pet", pt: "bird", lead: 0, st: "repeat", t: "새장 청소·모이통 세척", tg: "주기", ask: "", cy: "주 1회", g: "반려정기", src: "" },
   { id: "P009", cat: "pet", f: "pet", pt: "reptile", lead: 0, st: "repeat", t: "온습도·바닥재 점검", tg: "주기", ask: "", cy: "주 1회", g: "반려정기", src: "" },
+  /* 파충류는 물그릇이 아니라 분무로 습도를 맞춥니다. 하루만 걸러도 탈피에 지장이 갑니다 */
+  { id: "P010", cat: "pet", f: "pet", pt: "reptile", lead: 0, st: "repeat", t: "분무·습도 맞추기", tg: "매일", ask: "", cy: "매일", g: "반려정기", src: "" },
+  /* 살아 있는 먹이에 칼슘 가루를 묻혀 줍니다. 안 묻히면 뼈가 약해집니다 */
+  { id: "P011", cat: "pet", f: "pet", pt: "reptile", lead: 0, st: "repeat", t: "먹이 주기 (칼슘 가루 묻혀서)", tg: "주 3회", ask: "", cy: "주 3회", g: "반려정기", src: "" },
+  { id: "P012", cat: "pet", f: "pet", pt: "fish", lead: 0, st: "repeat", t: "먹이 주기·남은 것 건지기", tg: "매일", ask: "", cy: "매일", g: "반려정기", src: "" },
 
   /* 이사 — 켜두면 날짜를 역산해 하나씩 올립니다 */
   { id: "MV01", cat: "home", f: "moving", lead: 45, st: "decide", t: "이사업체 견적 비교", tg: "이사 6주 전", ask: "이사 날짜가 정해졌나요?", cy: "1회", g: "이사", src: "" },
@@ -1097,6 +1105,10 @@ const FLAGS = {
   /* 독거 여부만 알면 열리는 제도가 꽤 많습니다. 병명이나 등급은 안 물어봅니다 —
      그건 기관이 판단할 일이고, 앱은 "이런 게 있대요"까지만 합니다. */
   parentsAlone: { emoji: "🏠", label: "부모님이 혼자 지내심", desc: "혼자 계시면 받을 수 있는 게 따로 있어요", g: "가족", need: "parents" },
+  /* 같이 살아야 할 수 있는 일이 따로 있습니다.
+     약이 얼마나 남았는지는 약통을 봐야 압니다 — 떨어져 살면 볼 수가 없습니다.
+     따로 사는 집에 "약 잔량 확인"을 띄우면, 할 수 없는 일을 시키는 셈입니다. */
+  parentsWith: { emoji: "🏡", label: "부모님과 같이 삼", desc: "약·식사처럼 집에서만 챙길 수 있는 게 따로 있어요", g: "가족", need: "parents" },
   car: { emoji: "🚗", label: "자동차", desc: "검사·보험·정비·주유", g: "살림" },
   pet: { emoji: "🐶", label: "반려동물", desc: "접종·사료·병원", g: "살림" },
   plant: { emoji: "🪴", label: "화분·식물", desc: "물·영양제·분갈이", g: "살림" },
@@ -1587,7 +1599,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-k";
+const BUILD = "0901-m";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -6658,8 +6670,58 @@ function BuyOrder({ text }) {
   );
 }
 
+/* 쓰는 날을 넣으면 하루 전에 알립니다.
+   유용정보는 할 일을 안 만드는 자리입니다. 다만 사용자가 날짜를 직접 넣은 것은
+   앱이 짐작한 것이 아니라 사용자가 정한 것이라, 그때는 할 일이 되어도 됩니다.
+   가정통신문 사진으로 날짜가 확정될 때와 같은 규칙입니다. */
+function WhenUse({ item }) {
+  const { st, setSt, say, addTasks } = use();
+  const saved = (st.aheadWhen || {})[item.key] || "";
+  const [v, setV] = useState(saved);
+  const put = (mmdd) => {
+    const ev = parseWhen(mmdd);
+    if (!ev) return say("월-일을 넣어주세요 (예: 10-31)");
+    setSt((sv) => ({ ...sv, aheadWhen: { ...(sv.aheadWhen || {}), [item.key]: mmdd } }));
+    addTasks([{ title: item.title.replace(/ 미리 보기| 최종 점검/g, ""), category: item.cat,
+      status: "week", eventAt: ev, lead: 1, note: "쓰는 날 하루 전에 올라옵니다" }], "self");
+    say("하루 전에 알려드립니다");
+  };
+  const off = () => {
+    setSt((sv) => { const m = { ...(sv.aheadWhen || {}) }; delete m[item.key]; return { ...sv, aheadWhen: m }; });
+    setV(""); say("알림을 껐습니다");
+  };
+  return (
+    <div style={{ marginTop: 14, borderTop: `1px solid ${C.line}`, paddingTop: 13 }}>
+      <div style={{ fontSize: 12.5, color: C.ink, lineHeight: 1.7 }}>
+        지금 안 사셔도 됩니다. <b>쓰는 날을 아시면 넣어두세요</b> — 하루 전에 알립니다.
+      </div>
+      <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 4, lineHeight: 1.6 }}>
+        안 넣으면 알림은 없습니다. 이 자리에만 계속 떠 있습니다.
+      </div>
+      {saved ? (
+        <div className="flex items-center gap-2" style={{ marginTop: 10 }}>
+          <span className="mono" style={{ fontSize: 12.5, color: C.moss }}>{saved} 하루 전에 알림</span>
+          <button className="press" onClick={off}
+            style={{ background: "transparent", border: `1px solid ${C.line}`, borderRadius: 999,
+              padding: "6px 12px", fontSize: 12, color: C.ink3 }}>끄기</button>
+        </div>
+      ) : (
+        <div className="flex gap-2" style={{ marginTop: 10 }}>
+          <input className="hae" value={v} onChange={(e) => setV(e.target.value)} placeholder="10-31"
+            inputMode="numeric"
+            style={{ flex: 1, minWidth: 0, border: `1px solid ${C.line}`, borderRadius: 11,
+              padding: "10px 12px", fontSize: 14, background: C.bg, color: C.ink }} />
+          <button className="press" onClick={() => put(v.trim())}
+            style={{ flex: "none", background: C.moss, color: "#fff", border: "none",
+              borderRadius: 11, padding: "10px 16px", fontSize: 12.5, fontWeight: 600 }}>넣기</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Useful() {
-  const { st, setSt, cats, setTab, say } = use();
+  const { st, setSt, cats, setTab, say, addTasks } = use();
   const [open, setOpen] = useState(null);
   const items = useMemo(() => usefulItems(st), [st.flags, st.children, st.news]);
   /* 유용정보는 유료입니다. 몰라서 못 받는 걸 찾아다 주는 것이 이 앱이 파는 것이고,
@@ -6798,6 +6860,11 @@ function Useful() {
                         </div>
                       )}
                       {it.buy ? <BuyOrder text={it.title} /> : null}
+                      {/* 미리 사기 싫은 분이 있습니다. "그날 되면 다시 알려주지, 뭐하러 지금 사?"
+                          맞는 말입니다. 그래서 쓰는 날을 넣을 자리를 둡니다.
+                          넣으면 하루 전에 알림이 갑니다. 안 넣으면 알림은 없습니다 —
+                          앱이 모르는 날짜를 알려줄 수는 없습니다. */}
+                      {it.ahead ? <WhenUse item={it} /> : null}
                       {/* 챙긴 걸 말해두면 같은 묶음이 그 해 동안 안 뜹니다 —
                           2월에 한복을 마련했으면 7월 점검은 필요 없습니다 */}
                       <div className="flex gap-1.5" style={{ marginTop: 13, flexWrap: "wrap" }}>
