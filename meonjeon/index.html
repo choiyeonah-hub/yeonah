@@ -124,7 +124,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0831-f';
+const GATE_BUILD = '0831-g';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1178,7 +1178,7 @@ const LINKS = [
     flag: "car", kw: ["주유", "기름", "휘발유", "경유"], g: ["자동차", "자동차정기"] },
   { name: "자동차민원 대국민포털", desc: "검사 예약·과태료 조회", url: "https://www.ecar.go.kr/", tag: "정보",
     flag: "car", kw: ["자동차 검사", "정기검사", "과태료"], g: ["자동차"] },
-  { name: "네이버지도에서 동물병원", desc: "가까운 병원·영업시간 확인", url: "https://map.naver.com/p/search/동물병원", tag: "정보",
+  { name: "네이버지도에서 동물병원", near: "동물병원", desc: "사시는 동네로 바로 찾아드려요", url: "https://map.naver.com/p/search/{near}", tag: "정보",
     flag: "pet", kw: ["동물병원", "반려동물", "강아지", "고양이", "심장사상충", "중성화"],
     not: ["소아과", "어린이집", "유치원", "영유아", "초등", "등원", "하원", "학교"], g: ["반려정기"] },
   { ad: 1, name: "짐싸", desc: "포장이사·입주청소 견적을 한 번에 비교", url: "https://www.zimssa.com/", tag: "추천",
@@ -1217,7 +1217,20 @@ const linksFor = ({ group, text, flags }) => {
   });
   return hit;
 };
-const linkUrl = (l, text) => l.url.replace("{q}", encodeURIComponent(String(text || "").slice(0, 30)));
+/* {near}가 있는 링크는 사시는 곳을 앞에 붙여 보냅니다.
+   "동물병원"으로 보내면 지도가 어디를 보여줄지 모릅니다 —
+   설정에 적어둔 동네가 있으면 "강서구 동물병원"으로 보냅니다.
+   시·군·구를 안 적었으면 날씨용으로 고른 광역(서울)이라도 씁니다. */
+const nearWhere = (st) =>
+  String((st && st.region) || "").trim() || ((st && st.place && st.place.label) || "");
+const linkUrl = (l, text, st) => {
+  let u = l.url.replace("{q}", encodeURIComponent(String(text || "").slice(0, 30)));
+  if (l.near) {
+    const where = nearWhere(st);
+    u = u.replace("{near}", encodeURIComponent((where ? where + " " : "") + l.near));
+  }
+  return u;
+};
 
 /* 기존 코드 호환 — seed.g로 찾던 자리 */
 const PARTNERS = {};
@@ -1561,7 +1574,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0831-f";
+const BUILD = "0831-g";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -1941,7 +1954,7 @@ function LinkCards({ group, text, compact, exclude, noAd }) {
             onClick={() => {
               log("partner_click", { name: l.name, g: group || null, from });
               setSt((sv) => ({ ...sv, linkClicks: { ...(sv.linkClicks || {}), [l.name]: Date.now() } }));
-              window.open(linkUrl(l, text), "_blank", "noopener");
+              window.open(linkUrl(l, text, st), "_blank", "noopener");
             }}
             style={{ background: "transparent", border: "none", padding: "10px 4px 10px 12px" }}>
             <span className="mono" style={{ fontSize: 9, color: C.ink3, border: `1px solid ${C.line}`, borderRadius: 5, padding: "1px 5px", flexShrink: 0 }}>{l.tag}</span>
