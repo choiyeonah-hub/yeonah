@@ -124,7 +124,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0831-w';
+const GATE_BUILD = '0831-x';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1584,7 +1584,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0831-w";
+const BUILD = "0831-x";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -4245,17 +4245,12 @@ function Home() {
          거기서 상황이 보여야 합니다 — 소식이 있어야만 들어갈 수 있는
          화면이면, 소식이 없을 때 영영 못 들어갑니다 */
       if (forced) { setSt((sv) => ({ ...sv, newsAsk: 0 })); setTab("share"); }
-      if (!opened) {
-        if (forced) say("이달의 소식은 유료에서 열려요");
-        return;
-      }
+      const fail = (m) => { if (forced) { say(m); setSt((sv) => ({ ...sv, newsErr: m, newsBusy: false })); } };
+      if (!opened) { fail("이달의 소식은 유료에서 열려요"); return; }
       /* 눌렀는데 아무 말도 없으면 고장 난 걸로 보입니다.
          한도를 다 썼든 못 가져왔든, 이유는 말해줘야 합니다. */
-      if (!spendAI("find", 1)) {
-        if (forced) say(`이번 달 ${AI_LABEL.find}를 다 쓰셨어요`);
-        return;
-      }
-      setSt((sv) => ({ ...sv, newsBusy: true }));
+      if (!spendAI("find", 1)) { fail(`이번 달 ${AI_LABEL.find}를 다 쓰셨어요`); return; }
+      setSt((sv) => ({ ...sv, newsBusy: true, newsErr: "" }));
       try {
         const r = await askClaude(`당신은 한국 가정의 살림을 대신 기억해주는 AI 비서 '${BRAND}'입니다.
 이 집이 이번 달에 알아두면 좋을 행정·지원 정보를 3~4개 찾아주세요.
@@ -4295,12 +4290,15 @@ function Home() {
         const list = Array.isArray(r) ? r.filter((x) => x && x.title).slice(0, 4) : [];
         setSt((sv) => ({ ...sv, news: { month: mon, items: list, at: Date.now() } }));
         log("news_fetch", { n: list.length });
-        if (forced) say(list.length ? `${list.length}건 찾았어요` : "이번 달엔 찾은 게 없어요");
+        if (forced) {
+          say(list.length ? `${list.length}건 찾았어요` : "이번 달엔 찾은 게 없어요");
+          if (!list.length) setSt((sv) => ({ ...sv, newsErr: "찾았는데 이 집에 맞는 게 없었어요" }));
+        }
       } catch (e) {
         refundAI("find", 1);
-        const why = String((e && e.message) || "").slice(0, 70);
+        const why = String((e && e.message) || "").slice(0, 120);
         log("news_fail", { why: why.slice(0, 40) });
-        if (forced) say(why ? `못 가져왔어요 — ${why}` : "못 가져왔어요. 잠시 뒤에 다시 눌러주세요");
+        fail(why ? `못 가져왔어요 — ${why}` : "못 가져왔어요. 잠시 뒤에 다시 눌러주세요");
       }
       setSt((sv) => ({ ...sv, newsBusy: false }));
     })();
@@ -5155,7 +5153,9 @@ ${web ? `
           {/* 앱에는 병명을 적는 칸을 안 만들었습니다. 그런데 말로는 들어옵니다.
               막을 수는 없으니, 안 적어도 된다는 것만 알려드립니다. */}
           <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 9, lineHeight: 1.7 }}>
-            약 이름·병명은 안 적으셔도 돼요. <b style={{ color: C.ink2 }}>"약 떨어지기 전에 알려줘"</b>면 충분합니다.
+            <b style={{ color: C.ink2 }}>들은 대로 말하시면 돼요.</b> "월요일 단수래" 하면 날짜와 알림까지 알아서 잡습니다.
+            까먹으면 손해인 것을 찾아드리는 곳이라, 여행 코스나 일정 짜기는 전용 앱이 낫습니다.
+            <br />약 이름·병명은 안 적으셔도 돼요 — <b style={{ color: C.ink2 }}>"약 떨어지기 전에 알려줘"</b>면 충분합니다.
           </div>
 
           {shots.length > 0 && (
@@ -5505,6 +5505,12 @@ function Categories() {
   }
 
   return (
+    <>
+    {/* 광고 자리. 지금은 아무것도 안 그립니다.
+        유료 전환 뒤 무료 사용자에게만 켤 자리이고, 여기 둔 이유는
+        복지 안내와 멀리 떨어뜨리기 위해서입니다.
+        (복지는 유용정보 탭에 있고, 여기는 영역 목록 위입니다.) */}
+    <AdSlot where="영역" />
     <Section eyebrow="AREAS" title="우리 집 관리 영역" right="탭하면 놓친 것부터">
       <div className="grid grid-cols-2 gap-2.5">
         {allCats.map((c, i) => {
@@ -5542,7 +5548,21 @@ function Categories() {
         </div>
       </div>
     </Section>
+    </>
   );
+}
+
+
+/* 광고는 무료 사용자에게만, 유료 전환 뒤에 켭니다.
+   지금은 자리만 잡아두고 아무것도 안 그립니다 —
+   베타에 광고를 넣으면 유지율 숫자가 오염됩니다.
+   켤 때 지킬 것: 복지 안내 옆에는 절대 붙이지 않습니다. */
+function AdSlot({ where }) {
+  const { st } = use();
+  if (PHASE === "beta") return null;
+  if (st.plan === "paid") return null;
+  if (!st.adOn) return null;
+  return null;   /* 아직 붙인 광고가 없습니다 */
 }
 
 
@@ -6331,7 +6351,7 @@ function Useful() {
         <p style={{ fontSize: 13.5, color: C.ink2, marginTop: 9, lineHeight: 1.7 }}>
           몰라서 못 받는 것들이에요. <b style={{ color: C.ink }}>우리 집에 해당되는 것만</b> 띄워둡니다.
           <b style={{ color: C.persim }}> 바뀐 것</b>은 기준이 내려와서 이제 되는 거예요 —
-          예전에 안 된다고 들으셨어도 다시 보세요.
+          예전에 안 된다고 들으셨어도 다시 보세요. 필요한 것만 골라서 쓰시면 됩니다.
         </p>
       </div>
 
@@ -6394,8 +6414,17 @@ function Useful() {
           이번 달 새로 나온 것 찾아보기
         </Btn>
         <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 9, lineHeight: 1.7, textAlign: "center" }}>
-          한 달에 한 번, 이 집에 해당하는 행정·지원 정보를 찾아 위 목록에 넣어드려요.
+          {st.newsBusy ? "찾는 중이에요… 웹을 뒤져보느라 20초쯤 걸려요"
+            : "한 달에 한 번, 이 집에 해당하는 행정·지원 정보를 찾아 위 목록에 넣어드려요."}
         </div>
+        {/* 토스트는 2.3초 만에 사라져서 계속 놓치고 있었습니다.
+            왜 안 됐는지는 화면에 남아 있어야 합니다. */}
+        {st.newsErr && !st.newsBusy && (
+          <div style={{ marginTop: 11, background: C.persimSoft, borderRadius: 12, padding: "12px 14px" }}>
+            <div className="mono" style={{ fontSize: 9.5, color: C.persim }}>지난번에 안 된 이유</div>
+            <div style={{ fontSize: 12.5, color: C.ink, marginTop: 5, lineHeight: 1.75 }}>{st.newsErr}</div>
+          </div>
+        )}
       </div>
     </>
   );
