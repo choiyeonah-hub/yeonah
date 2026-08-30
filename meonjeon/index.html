@@ -124,7 +124,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0830-y';
+const GATE_BUILD = '0830-z';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -683,6 +683,63 @@ const PROMPTS = {
   travel: ["여권 유효기간 확인해줘", "출국 전에 준비할 거 순서대로 알려줘", "이번 여행 짐 목록 만들어줘"],
   etc: ["우리 집만의 반복 일 만들어줘", "요즘 자꾸 잊는 게 있는데 정리해줘"],
 };
+/* 아이 예시는 나이대로 갈립니다. 6개월 아기에게 "성교육 어떻게 시작할까"를
+   물어보라고 하던 화면이 있었습니다. 첫째와 둘째에게 같은 목록을 주면
+   이 앱은 아이를 한 명으로 보고 있다는 뜻이 됩니다. */
+const KID_PROMPTS = {
+  baby: [
+    "이번 주 아기 관련해서 놓친 게 있을까?",
+    "다음 예방접종 언제야?",
+    "지금 개월수에 맞는 이유식 알려줘",
+    "영유아 검진 언제까지 받아야 해?",
+    "아기 옷 사이즈 언제 다시 봐야 해?",
+    "지금 받을 수 있는 지원금 뭐가 있어?",
+    "이 개월수에 해볼 만한 놀이 알려줘",
+    "어린이집 입소 대기 언제 걸어야 해?",
+  ],
+  toddler: [
+    "이번 주 아이 관련해서 놓친 게 있을까?",
+    "아이 옷·신발 사이즈 언제 다시 재야 해?",
+    "이번 달 아이랑 해볼 만한 활동 찾아줘",
+    "유치원 신청 일정 알려줘",
+    "지금 나이에 남은 예방접종 있어?",
+    "취학 전에 준비할 거 알려줘",
+    "학원비 공제 되는 나이인지 확인해줘",
+    "무료로 하는 부모교육 있어?",
+  ],
+  kid: [
+    "이번 주 아이 관련해서 놓친 게 있을까?",
+    "새 학기 전에 챙길 거 알려줘",
+    "방학 프로그램 언제 신청해?",
+    "이번 달 아이랑 해볼 만한 활동 찾아줘",
+    "아이 옷·신발 사이즈 언제 다시 재야 해?",
+    "우리 아이 나이에 맞는 성교육 어떻게 시작할까?",
+    "늘봄·방과후 신청 일정 확인해줘",
+    "교육비 공제 되는 게 뭐가 있어?",
+  ],
+  teen: [
+    "이번 주 아이 관련해서 놓친 게 있을까?",
+    "사춘기 아이와 대화 나눌 주제 알려줘",
+    "이번 학기 시험·수행평가 일정 정리해줘",
+    "교복 사이즈 언제 다시 봐야 해?",
+    "우리 아이 나이에 맞는 성교육 어떻게 시작할까?",
+    "이 학년에 놓치기 쉬운 일정 알려줘",
+    "방학에 해볼 만한 활동 찾아줘",
+    "학교에 낸 교육비 중 공제되는 게 뭐야?",
+  ],
+};
+const kidBand = (m) => (m < 24 ? "baby" : m < 84 ? "toddler" : m < 156 ? "kid" : "teen");
+
+/* 같은 네 줄만 계속 뜨면 그 자리가 배경이 되어 안 읽힙니다.
+   날마다 시작점을 옮깁니다 — 무작위가 아니라서 하루 안에는 안 흔들립니다. */
+function rotatePrompts(list, seed, n) {
+  if (!list || list.length <= n) return list || [];
+  let h = Math.floor(Date.now() / DAY);
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) % 100003;
+  const start = h % list.length;
+  return Array.from({ length: n }, (_, i) => list[(start + i) % list.length]);
+}
+
 /* 카테고리별 프롬프트 보강 — 눌러서 그대로 질문이 됩니다 */
 PROMPTS.home = PROMPTS.home.concat(["베란다 청소 언제 해야 해?", "택배 상자 정리 알림 만들어줘", "화분 영양제랑 분갈이 시기 알려줘"]);
 PROMPTS.food = PROMPTS.food.concat(["이번 주 식단 짜줘", "남은 재료로 만들 밀키트 추천해줘", "장바구니에 담아둔 거 정리해줘"]);
@@ -1504,7 +1561,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0830-y";
+const BUILD = "0830-z";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -4474,7 +4531,14 @@ function Speak() {
 
   /* 카테고리별로 묶어두고 접었다 폅니다. 스스로 바뀌지 않아요 */
   const exByCat = useMemo(() => cats
-    .map((c) => ({ cat: c, list: (PROMPTS[c.child ? "kid" : c.id] || []) }))
+    .map((c) => {
+      const all = c.child
+        ? (KID_PROMPTS[kidBand(childMonths(c.child))] || [])
+        : (PROMPTS[c.id] || []);
+      /* 아이마다 다른 자리에서 시작하게 합니다 — 첫째와 둘째가 같은 줄이면
+         나이대로 갈라놓은 뜻이 없어집니다 */
+      return { cat: c, list: rotatePrompts(all, c.id, 4) };
+    })
     .filter((g) => g.list.length), [cats]);
 
   const startMic = () => {
