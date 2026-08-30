@@ -124,7 +124,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0830-d';
+const GATE_BUILD = '0830-e';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1421,7 +1421,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0830-d";
+const BUILD = "0830-e";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -2390,8 +2390,9 @@ function PushBox() {
                             fontSize: 12, color: C.ink2, lineHeight: 1.85 }}>
                 <b style={{ color: C.ink }}>그래도 안 오면 여기를 봐주세요</b>
                 <div style={{ marginTop: 6 }}>
-                  1. 아이폰 <b>설정 앱</b> → <b>알림</b> → <b>먼저ON</b><br />
+                  1. 아이폰 <b>설정 앱</b> → <b>알림</b> → 목록을 내려 <b>먼저ON</b> 찾기<br />
                   &nbsp;&nbsp;→ “알림 허용”이 켜져 있고 <b>“잠금 화면”에 체크</b>돼 있는지<br />
+                  &nbsp;&nbsp;<span style={{ opacity: .8 }}>(설정 <b>검색</b>으로는 안 나옵니다. 홈 화면에 추가한 앱은 검색에 안 잡혀요)</span><br />
                   2. 화면 위에서 아래로 쓸어내려 <b>집중 모드</b>가 켜져 있지 않은지<br />
                   3. <b>홈 화면 아이콘</b>으로 들어와 계신지 (사파리로 들어오면 안 옵니다)
                 </div>
