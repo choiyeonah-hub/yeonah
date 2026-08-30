@@ -124,7 +124,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0830-k';
+const GATE_BUILD = '0830-l';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1178,6 +1178,16 @@ const DEMO_SPEECH =
 /* "반복으로"를 누를 때마다 정기 일정을 새로 만들던 시절에, 같은 일정이
    여러 개 쌓인 집이 있습니다. 읽을 때 한 번 정리합니다.
    이름과 영역이 똑같은 것만 묶으므로, 일부러 따로 만든 것은 안 건드립니다. */
+/* 영수증에서 나온 재료 손질은 오래 두면 거짓말이 됩니다.
+   일주일이면 이미 먹었거나 상했는데 "야채 손질"만 남아 있으면,
+   앱이 우리 집을 모른다는 뜻이 됩니다. 안 끝낸 것만 조용히 걷어냅니다. */
+function cleanupPerishable(st) {
+  const tasks = st.tasks || [];
+  const cut = todayKey() - 7 * DAY;
+  const kept = tasks.filter((t) => !(t && t.perish && !t.done && (t.dueAt || 0) < cut));
+  return kept.length === tasks.length ? st : { ...st, tasks: kept };
+}
+
 function dedupeRoutines(st) {
   const list = st.customRoutines || [];
   if (list.length < 2) return st;
@@ -1453,7 +1463,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0830-k";
+const BUILD = "0830-l";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -2612,7 +2622,7 @@ function App() {
       for (const k of KEYS) {
         try {
           const r = await window.storage.get(k);
-          if (r) { setSt(dedupeRoutines({ ...DEFAULT_STATE, ...JSON.parse(r.value) })); break; }
+          if (r) { setSt(cleanupPerishable(dedupeRoutines({ ...DEFAULT_STATE, ...JSON.parse(r.value) }))); break; }
         } catch {}
       }
       setReady(true);
@@ -5448,19 +5458,31 @@ ${want.trim() ? "요청: " + want.trim() : ""}
 [사진] 영수증에서 **식재료만** 읽으세요.
 - 상호·카드번호·금액·전화번호·주소는 절대 옮기지 마세요. 품목 이름만 봅니다.
 - 생필품(휴지·세제 등)은 빼고 먹는 것만 고르세요.
-- prep에는 오늘·내일 안에 해두면 편한 손질을 3~5개 넣으세요.
-  (예: 고기 밑간하기, 채소 손질하기, 소분해서 얼리기)
+- prep에는 **안 하면 재료가 상하는 것만** 넣으세요. 없으면 빈 배열로 두세요.
+  (예: 채소 씻어 물기 빼기, 고기 소분해서 얼리기)
+  개수를 채우려 하지 마세요. 0개여도 됩니다. 많아야 3개입니다.
+  **요리 과정은 넣지 마세요** — 밑간·재우기·볶기는 요리할 때 자연히 합니다.
+  까먹어서 손해가 나는 것만 할 일입니다.
+- days에는 며칠 안에 해야 하는지 넣으세요. 오늘 안 하면 상하는 것만 0입니다.
 - meals에는 이 재료로 만들 수 있는 저녁 메뉴를 5~7개 제안하세요.
   need에는 이 영수증에 없어서 더 사야 할 재료만 넣고, 없으면 빈 배열로 두세요.
 
-출력은 JSON 객체만: {"bought":["재료","재료"],"prep":[{"title":"12자 이내","note":"15자 이내","days":0}],"meals":[{"dish":"14자 이내","why":"20자 이내","need":[],"min":30}]}`, [shot]);
+출력은 JSON 객체만: {"bought":["재료","재료"],"prep":[{"title":"12자 이내","note":"15자 이내","days":2}],"meals":[{"dish":"14자 이내","why":"20자 이내","need":[],"min":30}]}`, [shot]);
       const bought = Array.isArray(r && r.bought) ? r.bought.filter(Boolean).slice(0, 30) : [];
-      const prep = Array.isArray(r && r.prep) ? r.prep.filter((x) => x && x.title).slice(0, 5) : [];
+      const prep = Array.isArray(r && r.prep) ? r.prep.filter((x) => x && x.title).slice(0, 3) : [];
       const meals = Array.isArray(r && r.meals) ? r.meals.filter((x) => x && x.dish).slice(0, 8) : [];
       if (!bought.length && !meals.length) throw new Error("영수증에서 재료를 못 읽었어요");
       if (prep.length) {
-        addTasks(prep.map((x) => ({ title: String(x.title).slice(0, 20), category: "food", status: "now",
-          note: x.note || "산 김에", dueAt: todayKey() + (Number(x.days) || 0) * DAY })), "ai");
+        /* "지금"은 오늘 안 하면 문제가 생기는 것입니다. 야채 손질은 대개 이틀 여유가 있는데
+           전부 "지금"으로 넣으면 살펴둘 일 세 자리를 재료 손질이 다 차지합니다.
+           그리고 perish 표시를 남겨서, 일주일 지나면 저절로 사라지게 합니다 —
+           그때쯤이면 이미 먹었거나 상했는데 할 일만 남아 있으면 앱을 못 믿게 됩니다. */
+        addTasks(prep.map((x) => {
+          const days = Math.max(Number(x.days) || 0, 0);
+          return { title: String(x.title).slice(0, 20), category: "food",
+                   status: days > 0 ? "week" : "now", perish: true,
+                   note: x.note || "산 김에", dueAt: todayKey() + days * DAY };
+        }), "ai");
       }
       setSt((sv) => ({ ...sv, meal: { at: Date.now(), items: meals, chosen: [], bought },
                        mealPast: [...(sv.mealPast || []), ...meals.map((x) => x.dish)].slice(-24) }));
