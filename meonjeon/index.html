@@ -124,7 +124,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0831-q';
+const GATE_BUILD = '0831-r';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1577,7 +1577,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0831-q";
+const BUILD = "0831-r";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -2966,7 +2966,6 @@ function App() {
                 {tab === "home" && <Home />}
                 {tab === "cat" && <Categories />}
                 {tab === "speak" && <Speak />}
-                {tab === "time" && <Timeline />}
                 {tab === "ann" && <AnnScreen />}
                 {tab === "meal" && <MealScreen />}
                 {tab === "news" && <NewsScreen />}
@@ -6163,72 +6162,6 @@ function NewsScreen() {
   );
 }
 
-/* ── 타임라인 (UX-09) ─────────────────────────── */
-function Timeline() {
-  const { st, setTab } = use();
-  const recs = useMemo(() => buildRecommendations(st), [st]);
-  const dated = recs.filter((r) => r.dateKnown);
-  const undated = recs.filter((r) => !r.dateKnown);
-
-  /* 시점 미정은 "기준 날짜를 몰라서 아직 계산 못 한 일"입니다.
-     정의상 급하지 않은데 한 줄로 죽 쌓이니 중구난방으로 보입니다.
-     화면을 새로 만드는 대신 여기서 영역별로 접어둡니다.
-     급한 것(날짜가 계산된 일)은 그대로 날짜순으로 펼쳐둡니다. */
-  const undatedByCat = useMemo(() => {
-    const g = {};
-    undated.forEach((r) => {
-      const cid = r.child ? `kid:${r.child.id}` : r.seed.cat;
-      const meta = r.child
-        ? { label: `${r.child.name}(${childLabel(r.child)})`, emoji: "🧒" }
-        : (BASE_CATS.find((c) => c.id === r.seed.cat) || { label: "기타", emoji: "🗂" });
-      (g[cid] = g[cid] || { cid, label: meta.label, emoji: meta.emoji, items: [] }).items.push(r);
-    });
-    return Object.values(g).sort((a, b) => b.items.length - a.items.length);
-  }, [undated]);
-
-  return (
-    <>
-      <div className="rise" style={{ marginTop: 12, borderRadius: R.xl, padding: 22, background: "linear-gradient(165deg, #124038 0%, #17302C 70%)", boxShadow: SHADOW_LIFT }}>
-        <div className="mono" style={{ fontSize: 10, color: "#F0DE9A" }}>LIFE TIMELINE</div>
-        <div className="disp" style={{ color: "#fff", fontSize: 21, fontWeight: 600, marginTop: 9, lineHeight: 1.45 }}>지금 시작해야<br />늦지 않는 일</div>
-        <div style={{ color: "#9DBDB5", fontSize: 13, marginTop: 10, lineHeight: 1.7 }}>
-          필요한 시점이 아니라 <b style={{ color: "#fff" }}>준비를 시작해야 하는 시점</b>으로 계산했어요.
-        </div>
-      </div>
-
-      {dated.length > 0 && (
-        <Section eyebrow="SCHEDULED" title="날짜가 계산된 일" right={`${dated.length}건`}>
-          {dated.map((r, i) => <RecCard key={r.key} rec={r} delay={i * 55} />)}
-        </Section>
-      )}
-      {undated.length > 0 && (
-        <Section eyebrow="UNDATED" title="시점 미정" right={`${undated.length}건 · 영역별`}>
-          <div style={{ fontSize: 12.5, color: C.ink2, lineHeight: 1.7, marginBottom: 2 }}>
-            기준 날짜를 아직 몰라서 <b style={{ color: C.ink }}>언제 할지 계산하지 못한</b> 일이에요.
-            급한 게 아니니 영역별로 접어뒀습니다. 눌러서 펼쳐보세요.
-          </div>
-          {undatedByCat.map((g) => (
-            <Fold key={g.cid} icon={g.emoji} title={`${g.label} ${g.items.length}건`}
-              sub={g.items.slice(0, 3).map((r) => r.seed.t).join(" · ")}>
-              <div style={{ marginBottom: -10 }}>
-                {g.items.map((r, i) => <RecCard key={r.key} rec={r} delay={i * 30} flat />)}
-              </div>
-            </Fold>
-          ))}
-        </Section>
-      )}
-      {!recs.length && (
-        <Card style={{ marginTop: 20 }}>
-          <div style={{ padding: "30px 20px", textAlign: "center", fontSize: 13.5, color: C.ink3, lineHeight: 1.75 }}>
-            지금 챙길 선행 준비가 없어요.<br />설정에서 가족 상황을 더 알려주시면 늘어납니다.
-          </div>
-        </Card>
-      )}
-    </>
-  );
-}
-
-
 /* ── 이번 주 우리 집 ───────────────────────────────
    집안일은 성공하면 투명해집니다. 화장실 휴지가 채워져 있는 걸
    아무도 눈치채지 못하고, 없을 때만 압니다. 그래서 아무리 잘해도
@@ -6646,7 +6579,7 @@ function Share() {
   return (
     <>
       <div style={{ marginTop: 18, paddingLeft: 2 }}>
-        <div className="disp" style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-.03em" }}>정보</div>
+        <div className="disp" style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-.03em" }}>유용정보</div>
         <p style={{ fontSize: 13.5, color: C.ink2, marginTop: 9, lineHeight: 1.7 }}>
           몰라서 못 받는 것들이 여기 다 있어요. <b style={{ color: C.ink }}>읽어두기만 하면 됩니다</b> —
           할 일은 늘지 않아요.
@@ -7369,8 +7302,7 @@ function TabBar() {
     { id: "cat", label: "영역", icon: "▦" },
     { id: "speak", label: "말하기", icon: "✦", primary: true },
     { id: "meal", label: "식단", icon: "❖" },
-    { id: "time", label: "타임라인", icon: "◷" },
-    { id: "share", label: "정보", icon: "◑" },
+    { id: "share", label: "유용정보", icon: "◑" },
   ].filter((it) => !(solo && it.id === "share"));
   return (
     <nav style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 440,
