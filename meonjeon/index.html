@@ -124,7 +124,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0830-p';
+const GATE_BUILD = '0830-q';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1465,7 +1465,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0830-p";
+const BUILD = "0830-q";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -3961,10 +3961,10 @@ function Home() {
      "기억하고 있는 26개"라고만 하면 안 엽니다 — 26개는 그것대로 벽이니까요.
      급한 게 몇 개인지 알면 엽니다. */
   const shownKeys = new Set(think.filter((x) => x.kind === "task").map((x) => x.t.id));
+  /* 할 일만 셉니다. 정기 일정은 "이번 주 정기 일정"에 따로 자리가 있고,
+     주기가 돌아온 것이지 오늘 안 하면 큰일 나는 게 아닙니다.
+     그것까지 세면 숫자가 스무 개를 넘어가고, 그럼 이 줄도 벽이 됩니다. */
   const hiddenUrgent = arrived.filter((t) => !shownKeys.has(t.id));
-  const hiddenRoutineDue = occasional.filter((r) => !doneToday(r)
-    && !think.some((x) => x.kind === "routine" && x.r.key === r.key)
-    && ((st.routines[r.key] || {}).nextAt || 0) < todayKey() + DAY);
 
   /* 오늘 끝낸 할 일도 지우지 않고 취소선 상태로 남겨둡니다 (루틴과 같은 규칙) */
   const doneTasksToday = st.tasks.filter((t) => t.done && (t.doneAt || 0) >= todayKey() && visible(t.owner) && (t.status === "now" || t.status === "week"));
@@ -4215,16 +4215,15 @@ function Home() {
             )}
             {thinkShown.filter((x) => x.kind === "rec").map((x, i) => <div key={x.r.key} style={{ marginTop: 10 }}><RecCard rec={x.r} delay={120 + i * 60} /></div>)}
             {/* 급한 것을 조용히 숨기지 않습니다. 개수만 말하고, 누르면 펼칩니다 */}
-            {(hiddenUrgent.length + hiddenRoutineDue.length) > 0 && !all && (
+            {hiddenUrgent.length > 0 && !all && (
               <button className="press w-full text-left" onClick={() => setAll(true)}
                 style={{ marginTop: 10, background: C.persimSoft, border: `1px solid ${C.persimSoft}`,
                          borderRadius: 14, padding: "12px 14px" }}>
                 <span style={{ fontSize: 13, color: C.persim, fontWeight: 600 }}>
-                  오늘까지인 일이 {hiddenUrgent.length + hiddenRoutineDue.length}개 더 있어요
+                  오늘까지인 일이 {hiddenUrgent.length}개 더 있어요
                 </span>
                 <span style={{ display: "block", fontSize: 11.5, color: C.persim, opacity: .85, marginTop: 3, lineHeight: 1.6 }}>
-                  {[...hiddenUrgent.map((t) => t.title), ...hiddenRoutineDue.map((r) => r.seed.t)]
-                    .slice(0, 3).join(" · ")} · 눌러서 보기
+                  {hiddenUrgent.slice(0, 3).map((t) => t.title).join(" · ")} · 눌러서 보기
                 </span>
               </button>
             )}
