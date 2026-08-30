@@ -124,7 +124,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0830-m';
+const GATE_BUILD = '0830-n';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -723,7 +723,7 @@ const SEED = [
   { id: "L028", cat: "kid", kid: 1, w: [0, 36], lead: 7, st: "repeat", t: "월령 맞춤 놀이 아이디어", tg: "주간", ask: "이번 주 10분 놀이 3개만 골라드릴까요?", cy: "주 1회", g: "놀이", src: "" },
   { id: "L029", cat: "kid", kid: 1, w: [-9, 24], lead: 180, st: "week", t: "어린이집 입소대기 신청", tg: "희망 입소월", ask: "희망 입소월과 후보를 정했나요?", cy: "상시", g: "어린이집", src: "S01;S02" },
   { id: "L030", cat: "finance", kid: 1, w: [10, 36], lead: 14, st: "now", t: "보육료 자격 신청", tg: "입소일", ask: "입소일이 15일 전/후인지 확인할까요?", cy: "1회", g: "어린이집", src: "S02" },
-  { id: "L031", cat: "edu", kid: 1, w: [12, 84], lead: 14, st: "repeat", t: "가방·여벌옷·준비물 리셋", tg: "새 학기/계절", ask: "새 학기 준비물 공지가 왔나요?", cy: "학기별", g: "기관준비물", src: "" },
+  { id: "L031", cat: "edu", kid: 1, w: [12, 84], lead: 21, an: "03-02", st: "repeat", t: "가방·여벌옷·준비물 리셋", tg: "새 학기 전 (2월)", ask: "새 학기 준비물 공지가 왔나요?", cy: "연 1회", g: "기관준비물", src: "" },
   { id: "L032", cat: "edu", kid: 1, w: [12, 180], lead: 0, st: "conditional", t: "가정통신문 일정 추출", tg: "공지 수신 시", ask: "공지에서 날짜·준비물·마감을 뽑아드릴까요?", cy: "수시", g: "학교문서", src: "" },
   { id: "L033", cat: "event", kid: 1, w: [3, 9], lead: 180, st: "decide", t: "돌잔치 장소 조사", tg: "돌 무렵 행사", ask: "돌잔치를 할 계획인가요?", cy: "1회", g: "돌잔치", src: "" },
   { id: "L034", cat: "event", kid: 1, w: [8, 12], lead: 60, st: "week", t: "돌잔치 촬영·의상·답례품", tg: "행사일", ask: "장소는 예약했나요?", cy: "1회", g: "돌잔치", src: "" },
@@ -738,7 +738,7 @@ const SEED = [
   { id: "L043", cat: "edu", kid: 1, w: [145, 216], lead: 14, st: "repeat", t: "학원·학교 시간표 통합", tg: "학기 시작", ask: "시간표 변경이 잦은가요?", cy: "학기별", g: "학원", src: "" },
   { id: "L044", cat: "edu", kid: 1, w: [145, 216], lead: 28, st: "remember", t: "시험기간 역산 계획", tg: "시험일", ask: "시험일 기준 가족일정을 조정할까요?", cy: "시험별", g: "시험", src: "" },
   { id: "L045", cat: "edu", kid: 1, w: [145, 216], lead: 7, st: "conditional", t: "수행평가·제출기한 추출", tg: "제출일", ask: "문서에서 기한과 준비물을 뽑을까요?", cy: "수시", g: "시험", src: "" },
-  { id: "L046", cat: "edu", kid: 1, w: [145, 228], lead: 30, st: "repeat", t: "교복 사이즈·수선 점검", tg: "계절변경/새학기", ask: "최근 키가 많이 컸나요?", cy: "학기별", g: "성장", src: "" },
+  { id: "L046", cat: "edu", kid: 1, w: [145, 228], lead: 30, an: "03-02", st: "repeat", t: "교복 사이즈·수선 점검", tg: "새 학기 전 (2월 초)", ask: "최근 키가 많이 컸나요?", cy: "연 1회", g: "성장", src: "" },
   { id: "L047", cat: "food", f: null, lead: 2, st: "now", t: "유통기한 임박 재료 소진", tg: "소진기한", ask: "빨리 써야 할 재료가 있나요?", cy: "주 3회", g: "냉장고", src: "" },
   { id: "L048", cat: "food", f: null, lead: 1, st: "repeat", t: "주간 밀키트 준비", tg: "평일 저녁", ask: "바쁜 요일 기준 2~3개만 준비할까요?", cy: "주 1회", g: "냉장고", src: "" },
   { id: "L049", cat: "event", f: null, lead: 2, st: "conditional", t: "손님상 메뉴·장보기 역산", tg: "방문일", ask: "인원과 재료로 메뉴를 짤까요?", cy: "행사별", g: "손님", src: "" },
@@ -794,11 +794,11 @@ const SEED = [
   { id: "N018", cat: "laundry", f: null, lead: 0, st: "repeat", t: "수선할 옷 맡기기", tg: "필요할 때", ask: "수선 맡길 옷이 쌓여 있나요?", cy: "3개월", g: "옷관리", src: "" },
   { id: "N019", cat: "laundry", kid: 1, w: [0, 144], lead: 0, st: "repeat", t: "작아진 옷 정리·기부", tg: "성장 시점", ask: "기부할 것·팔 것·물려줄 것을 나눌까요?", cy: "6개월", g: "옷관리", src: "" },
   { id: "N020", cat: "laundry", f: null, lead: 0, st: "repeat", t: "새 옷 택 제거·세탁", tg: "구매 직후", ask: "", cy: "월 1회", g: "옷관리", src: "" },
-  { id: "N021", cat: "laundry", kid: 1, w: [12, 96], lead: 7, st: "repeat", t: "아이옷 이름표 붙이기", tg: "새 옷·새 학기", ask: "새로 산 옷에 이름표를 붙였나요?", cy: "학기별", g: "옷관리", src: "" },
+  { id: "N021", cat: "laundry", kid: 1, w: [12, 96], lead: 21, an: "03-02", st: "repeat", t: "아이옷 이름표 붙이기", tg: "새 학기 전 (2월)", ask: "새로 산 옷에 이름표를 붙였나요?", cy: "연 1회", g: "옷관리", src: "" },
   { id: "N022", cat: "laundry", kid: 1, w: [12, 144], lead: 21, st: "repeat", t: "수영복·물놀이 준비", tg: "물놀이 시작 전", ask: "작년 수영복이 아직 맞나요?", cy: "연 1회", g: "옷관리", src: "" },
   { id: "N023", cat: "kid", kid: 1, w: [12, 144], lead: 14, st: "remember", t: "스승의날 선물 준비", tg: "5월 15일", ask: "어린이집·유치원에서 선물을 받는 곳인가요? 아니면 이 제안을 꺼두셔도 돼요.", cy: "기관별", g: "기관행사", src: "" },
   { id: "N024", cat: "kid", kid: 1, w: [12, 108], lead: 21, st: "remember", t: "할로윈 의상 준비", tg: "10월 말 행사", ask: "올해 할로윈 행사가 있는 기관인가요?", cy: "기관별", g: "기관행사", src: "" },
-  { id: "N025", cat: "kid", kid: 1, w: [12, 96], lead: 7, st: "repeat", t: "물품 이름표 주문", tg: "입소·새 학기 전", ask: "이름표 수량이 충분한가요?", cy: "학기별", g: "기관준비물", src: "" },
+  { id: "N025", cat: "kid", kid: 1, w: [12, 96], lead: 30, an: "03-02", st: "repeat", t: "물품 이름표 주문", tg: "새 학기 전 (2월 초)", ask: "이름표 수량이 충분한가요?", cy: "연 1회", g: "기관준비물", src: "" },
   { id: "N026", cat: "kid", kid: 1, w: [12, 96], lead: 3, st: "repeat", t: "물품 이름표 붙이기", tg: "등원 전", ask: "", cy: "학기별", g: "기관준비물", src: "" },
   { id: "N027", cat: "kid", kid: 1, w: [12, 84], lead: 1, st: "repeat", t: "어린이집 준비물 챙기기", tg: "등원 전날", ask: "이번 주 알림장에 준비물이 있었나요?", cy: "주 1회", g: "기관준비물", src: "" },
   { id: "N028", cat: "kid", kid: 1, w: [0, 96], lead: 14, st: "repeat", t: "아이 로션·크림 고르기", tg: "계절 바뀔 때", ask: "지금 쓰는 제품이 계절에 맞나요?", cy: "계절별", g: "육아소모품", src: "" },
@@ -1465,7 +1465,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0830-m";
+const BUILD = "0830-n";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -1927,6 +1927,14 @@ function nextAnchorAfter(anchor, lead, afterMs) {
    내년에는 알아서 다른 날로 갑니다. */
 function seedCfg(seed) {
   const cycle = cycleToDays(seed.cy);
+  /* 새 학기처럼 날짜가 정해진 일은 주기로 떠돌면 안 됩니다.
+     "학기별(120일)"로 두면 8월에 이름표를 붙이라고 합니다. */
+  if (seed && seed.an) {
+    const lead = seed.lead || 0;
+    const at = nextAnchorAfter(seed.an, 0, todayKey());
+    return { cycle: 365, anchor: seed.an, leadDays: lead,
+             nextAt: Math.max(at - lead * DAY, todayKey()) };
+  }
   if (!seed || !seed.lu) return { cycle };
   const lead = seed.lead || 0;
   const at = nextLunarSolarAfter(seed.lu, todayKey());
@@ -5503,36 +5511,30 @@ ${want.trim() ? "요청: " + want.trim() : ""}
 [사진] 영수증에서 **식재료만** 읽으세요.
 - 상호·카드번호·금액·전화번호·주소는 절대 옮기지 마세요. 품목 이름만 봅니다.
 - 생필품(휴지·세제 등)은 빼고 먹는 것만 고르세요.
-- prep에는 **안 하면 재료가 상하는 것만** 넣으세요. 없으면 빈 배열로 두세요.
-  (예: 채소 씻어 물기 빼기, 고기 소분해서 얼리기)
-  개수를 채우려 하지 마세요. 0개여도 됩니다. 많아야 3개입니다.
-  **요리 과정은 넣지 마세요** — 밑간·재우기·볶기는 요리할 때 자연히 합니다.
-  까먹어서 손해가 나는 것만 할 일입니다.
-- days에는 며칠 안에 해야 하는지 넣으세요. 오늘 안 하면 상하는 것만 0입니다.
+- freeze에는 **오늘 안 얼리면 버리게 되는 것만** 넣으세요. 없으면 빈 배열로 두세요.
+  (예: 목살 500g) 대개 0~2개입니다. 채소 손질·밑간·정리는 넣지 마세요 —
+  영수증을 찍는 지금이 이미 정리하는 중이고, 요리 과정은 요리할 때 합니다.
 - meals에는 이 재료로 만들 수 있는 저녁 메뉴를 5~7개 제안하세요.
   need에는 이 영수증에 없어서 더 사야 할 재료만 넣고, 없으면 빈 배열로 두세요.
 
-출력은 JSON 객체만: {"bought":["재료","재료"],"prep":[{"title":"12자 이내","note":"15자 이내","days":2}],"meals":[{"dish":"14자 이내","why":"20자 이내","need":[],"min":30}]}`, [shot]);
+출력은 JSON 객체만: {"bought":["재료","재료"],"freeze":["재료 이름"],"meals":[{"dish":"14자 이내","why":"20자 이내","need":[],"min":30}]}`, [shot]);
       const bought = Array.isArray(r && r.bought) ? r.bought.filter(Boolean).slice(0, 30) : [];
-      const prep = Array.isArray(r && r.prep) ? r.prep.filter((x) => x && x.title).slice(0, 3) : [];
+      const freeze = Array.isArray(r && r.freeze) ? r.freeze.filter(Boolean).slice(0, 3) : [];
       const meals = Array.isArray(r && r.meals) ? r.meals.filter((x) => x && x.dish).slice(0, 8) : [];
       if (!bought.length && !meals.length) throw new Error("영수증에서 재료를 못 읽었어요");
-      if (prep.length) {
-        /* "지금"은 오늘 안 하면 문제가 생기는 것입니다. 야채 손질은 대개 이틀 여유가 있는데
-           전부 "지금"으로 넣으면 살펴둘 일 세 자리를 재료 손질이 다 차지합니다.
-           그리고 perish 표시를 남겨서, 일주일 지나면 저절로 사라지게 합니다 —
-           그때쯤이면 이미 먹었거나 상했는데 할 일만 남아 있으면 앱을 못 믿게 됩니다. */
-        addTasks(prep.map((x) => {
-          const days = Math.max(Number(x.days) || 0, 0);
-          return { title: String(x.title).slice(0, 20), category: "food",
-                   status: days > 0 ? "week" : "now", perish: true,
-                   note: x.note || "산 김에", dueAt: todayKey() + days * DAY };
-        }), "ai");
+      /* 영수증을 찍는 시점은 이미 집에 와서 정리하는 중입니다. 그때 "정리하세요"를
+         할 일로 만들면 지금 하고 있는 일이 목록에 쌓입니다. 살펴둘 일 세 자리는
+         까먹어서 손해가 나는 것에만 씁니다.
+         오늘 안 얼리면 버리게 되는 것 하나만 예외로 둡니다. */
+      if (freeze.length) {
+        addTasks([{ title: `${freeze.slice(0, 2).join("·")} 얼리기`.slice(0, 20),
+                    category: "food", status: "now", perish: true,
+                    note: "안 얼리면 버리게 돼요", dueAt: todayKey() }], "ai");
       }
       setSt((sv) => ({ ...sv, meal: { at: Date.now(), items: meals, chosen: [], bought },
                        mealPast: [...(sv.mealPast || []), ...meals.map((x) => x.dish)].slice(-24) }));
       if (bought.length) toPantry(bought);
-      say(`재료 ${bought.length}개를 읽고 ${prep.length ? `손질할 일 ${prep.length}개와 ` : ""}식단 ${meals.length}개를 냈어요`);
+      say(`재료 ${bought.length}개를 읽고 식단 ${meals.length}개를 냈어요${freeze.length ? " · 얼릴 것도 챙겼어요" : ""}`);
     } catch (er) {
       refundAI("photo", 1);
       setErr(er && er.message ? er.message : "영수증을 못 읽었어요");
