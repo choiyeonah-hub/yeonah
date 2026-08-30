@@ -124,7 +124,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0831-z';
+const GATE_BUILD = '0901-a';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1584,7 +1584,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0831-z";
+const BUILD = "0901-a";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -3047,7 +3047,7 @@ function Onboarding({ preview }) {
     /* 이 단계만 "기억해내기"를 시킵니다. 그렇다고 건너뛰라고 하면 안 됩니다 —
        제사·부모님 생신은 까먹으면 큰일 나는 것이고, 이 앱이 있는 이유입니다.
        비우라고 권하는 대신, 지금 아는 것부터 넣게 합니다. */
-    { q: "잊으면 안 되는\n날짜가 있나요?", s: "생일·기념일·제사처럼 매년 오는 날이요. 이런 건 까먹으면 큰일이라, 여기서 넣어두시는 게 좋아요. 지금 아는 것부터 넣으시고 모르는 건 나중에 ‘행사·경조사’에서 채우면 됩니다." },
+    { q: "음력으로 오는\n날이 있나요?", s: "부모님 생신과 제사는 음력이라 매년 양력 날짜가 달라집니다. 그래서 진짜로 놓칩니다 — 그 계산을 대신 해드릴게요. 내 생일·아이 생일은 안 물어봐요. 그건 안 까먹으시니까요. 모르는 건 나중에 ‘행사·경조사’에서 채우면 됩니다." },
     { q: "차 이야기를\n한 번만 할게요", s: "검사와 보험은 날짜를 넘기면 과태료나 무보험이 됩니다. 한 번 넣어두면 다시 안 물어봐요." },
     { q: "이 정도 주기면\n괜찮을까요?", s: "영역별로 한 화면씩 넘어갑니다. 기본 주기는 저희가 넣어뒀으니 바꾸거나 끄기만 하세요." },
   ];
@@ -3067,9 +3067,11 @@ function Onboarding({ preview }) {
   const [nJesa, setNJesa] = useState(2);
   const isLunar = (a, v) => (v && v.lunar !== undefined ? v.lunar : !!a.lunar);
   const annCandidates = useMemo(() => {
+    /* 내 생일·남편 생일·아이 생일은 안 물어봅니다.
+       그건 폰 달력에도 있고 가족이 서로 챙깁니다 — 까먹어서 손해 보는 일이 아닙니다.
+       앱만 할 수 있는 건 음력입니다. 음력은 매년 양력 날짜가 달라서
+       사람이 계산을 못 하고, 그래서 진짜로 놓칩니다. */
     const out = [];
-    d.members.filter((m) => m.name.trim()).forEach((m) => out.push({ key: `b:${m.id}`, label: `${m.name} 생일`, title: `${m.name} 생일` }));
-    d.children.filter((c) => c.name.trim()).forEach((c) => out.push({ key: `k:${c.id}`, label: `${c.name} 생일`, title: `${c.name} 생일` }));
     if (d.members.filter((m) => m.name.trim()).length > 1) out.push({ key: "wed", label: "결혼기념일", title: "결혼기념일" });
     /* 부모님은 보통 네 분입니다(양가). 한 칸만 두면 세 분이 사라집니다.
        누구 생신인지도 집마다 부르는 말이 달라서 이름을 직접 적게 둡니다. */
@@ -3089,7 +3091,7 @@ function Onboarding({ preview }) {
                  ph: i === 0 ? "예: 할아버지 제사" : "없으면 비워두세요" });
     }
     return out;
-  }, [d.members, d.children, d.flags.parents, nParent, nJesa]);
+  }, [d.members, d.flags.parents, nParent, nJesa]);
 
   const cids = useMemo(() => Object.keys(byCat), [byCat]);
   const onCount = Object.values(routines).filter((r) => r.on).length;
