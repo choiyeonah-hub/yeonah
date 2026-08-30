@@ -6726,12 +6726,21 @@ function usefulItems(st) {
     if (a.mo && a.mo.indexOf(mon) < 0) return;
     if (off[a.id]) return;
     if (a.g && done[a.g] === yr) return;
+    /* 영역 이름은 BASE_CATS에 있는 것만 씁니다.
+       "house"나 "kid"처럼 없는 이름을 넣으면 유용정보에서는 '기타'로 묶이고,
+       할 일로 담으면 영역 화면에 없는 칸으로 들어가 사라집니다. */
+    let cat = a.cat === "house" ? "home" : a.cat;
     if (a.w) {
       const w = a.w;
-      if (!kids.some((ch) => { const m = childMonths(ch); return m >= w[0] && m <= w[1]; })) return;
+      const ch = kids.find((c) => { const m = childMonths(c); return m >= w[0] && m <= w[1]; });
+      if (!ch) return;
+      /* 아이 항목은 그 아이 칸으로 보냅니다. 아이가 둘이면 나이가 맞는 쪽입니다. */
+      if (cat === "kid") cat = `kid:${ch.id}`;
+    } else if (cat === "kid") {
+      cat = "etc";
     }
     out.push({
-      key: a.id, cat: a.cat, title: a.t, what: a.why,
+      key: a.id, cat, title: a.t, what: a.why,
       use: a.use, risk: a.risk, tip: a.tip, ask: a.ask, buy: a.buy, g2: a.g, ahead: 1,
     });
   });
