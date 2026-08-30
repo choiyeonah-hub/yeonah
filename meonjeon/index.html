@@ -124,7 +124,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0901-c';
+const GATE_BUILD = '0901-d';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1584,7 +1584,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-c";
+const BUILD = "0901-d";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -6236,6 +6236,82 @@ function NewsScreen() {
    금액과 나이는 적지 않습니다. 지자체마다 다르고 해마다 바뀌는데,
    앱이 숫자를 말해버리면 그게 틀렸을 때 사용자가 손해를 봅니다.
    "어디에 물어보면 되는지"까지가 앱이 책임질 수 있는 범위입니다. */
+/* ── 미리 사두기 ─────────────────────────────────
+   이 앱이 복지 앱과 갈라지는 지점입니다.
+
+   ① 행사 날짜를 몰라도 됩니다.
+      원마다 물놀이 날짜는 다릅니다. 그런데 5월에 수영복을 사두면
+      7월보다 싸다는 건 어느 원을 다니든 같습니다.
+      그래서 아이 나이(w)가 아니라 달력 월(mo)로 띄웁니다.
+
+   ③ 필요한 시점이 아니라 값이 싼 시점에 띄웁니다.
+      행사 3주 전은 부모들이 다 같이 사는 때라 제일 비싸고 품절입니다.
+      그때 알려주는 건 "늦었다"를 알려주는 것에 가깝습니다.
+
+   싸다고 열두 달 앞서 사면 아이 키가 달라집니다. 세 살에서 일곱 살은
+   한 해에 5~7cm 자랍니다. 그래서 risk가 붙은 것에는 반드시
+   "한 사이즈 크게"를 같이 말합니다. 앱이 시켜서 산 옷이 안 맞으면
+   그 앱은 지워집니다. */
+const AHEAD = [
+  { id: "B01", mo: [1], cat: "house", w: [0, 144], t: "내년 겨울 방한용품 미리 보기",
+    why: "시즌이 끝나 재고를 털어냅니다. 연중 제일 쌉니다.", use: "11~12개월 뒤", risk: "high",
+    tip: "한 사이즈 크게 사세요. 지금 맞는 건 내년에 안 맞습니다.", buy: 1 },
+  { id: "B02", mo: [2], cat: "kid", w: [12, 108], t: "한복 미리 보기",
+    why: "설이 지나 수요가 뚝 떨어집니다. 연중 비수기라 대여도 자리가 있습니다.",
+    use: "7개월 뒤 (추석)", risk: "high",
+    ask: "원에 한복 입는 행사가 있는지 먼저 물어보세요.",
+    tip: "사기보다 대여가 나을 수 있어요. 한 해 한두 번 입는 옷입니다.", buy: 1 },
+  { id: "B03", mo: [2], cat: "kid", w: [24, 108], t: "할로윈 의상 미리 보기",
+    why: "국내는 비수기, 해외는 시즌오프입니다. 당근에도 작년 것이 나옵니다.",
+    use: "8개월 뒤 (10월)", risk: "high",
+    tip: "한 사이즈 크게. 지금 맞는 건 10월에 작습니다.", buy: 1 },
+  { id: "B04", mo: [2], cat: "kid", w: [24, 108], t: "발표회용 흰 타이츠·검정 구두 미리 보기",
+    why: "발표회 철이 지나 재고가 남습니다. 12월에는 같은 물건이 두 배입니다.",
+    use: "10개월 뒤 (12월)", risk: "high",
+    tip: "발표회는 거의 매년 있습니다. 색만 맞으면 되는 물건이라 미리 사둘 만합니다.", buy: 1 },
+  { id: "B05", mo: [3], cat: "kid", w: [12, 96], t: "우비·장화·미술 앞치마 미리 보기",
+    why: "장마 전이라 쌉니다. 6월에는 우비가 없습니다.", use: "3개월 뒤",
+    tip: "앞치마와 팔토시는 넉넉해서 두 해 씁니다.", buy: 1 },
+  { id: "B06", mo: [4], cat: "kid", w: [12, 108], t: "어린이날 선물·소풍 준비물 미리 보기",
+    why: "5월이 되면 값이 오릅니다. 답례품은 5월 초에 품절됩니다.", use: "1개월 뒤",
+    tip: "도시락통은 아이 손 크기를 보고 고르세요. 큰 걸 사면 아이가 못 엽니다.", buy: 1 },
+  { id: "B07", mo: [5], cat: "kid", w: [12, 108], t: "래시가드·아쿠아슈즈 미리 보기",
+    why: "물놀이 성수기(6~7월) 직전이라 아직 재고가 있습니다.", use: "1~2개월 뒤", risk: "mid",
+    ask: "알림장에 물놀이·여름행사 공지가 있는지 확인해보세요.",
+    tip: "작년 것부터 꺼내 입혀보세요. 수영복은 늘어나서 한 해 더 되는 경우가 많습니다.", buy: 1 },
+  { id: "B08", mo: [6], cat: "kid", w: [12, 108], t: "벌레퇴치제·숲체험용 긴바지 미리 보기",
+    why: "여름 야외활동 시작 전입니다. 7~8월에는 약국 물량이 빠집니다.", use: "1개월 뒤", buy: 1 },
+  { id: "B09", mo: [7], cat: "kid", w: [12, 108], t: "추석 한복 사이즈 점검·대여 예약",
+    why: "추석 직전에는 인기 사이즈가 없습니다. 대여도 다 나갑니다.", use: "2개월 뒤",
+    tip: "작년 한복을 지금 입혀보세요. 당일 아침에 알면 방법이 없습니다.", buy: 1 },
+  { id: "B10", mo: [8], cat: "kid", w: [12, 108], t: "가을 소풍용 바람막이·운동화 미리 보기",
+    why: "가을 현장학습 시즌 전입니다.", use: "1~2개월 뒤", risk: "mid",
+    ask: "알림장에 가을 현장학습 공지가 있는지 확인해보세요.", buy: 1 },
+  { id: "B11", mo: [9], cat: "kid", w: [24, 108], t: "할로윈 의상 최종 점검",
+    why: "해외배송과 당근을 잡을 수 있는 마지막 달입니다. 10월엔 매장가밖에 없습니다.",
+    use: "1개월 뒤",
+    tip: "2월에 사두신 게 있으면 지금 입혀보세요. 수선할 시간이 있습니다.", buy: 1 },
+  { id: "B12", mo: [10], cat: "kid", w: [12, 120], t: "크리스마스 선물·산타 선물 미리 보기",
+    why: "12월이 되면 인기 완구는 값이 오르거나 품절입니다.", use: "2개월 뒤",
+    ask: "원에서 교환 선물 금액 상한을 정해주는지 안내문을 보세요.", buy: 1 },
+  { id: "B13", mo: [11], cat: "house", w: [0, 144], t: "블랙프라이데이 — 내년 것까지 사두기",
+    why: "해외 브랜드가 연중 제일 쌉니다. 다음 해 할로윈 의상, 크리스마스 소품, 겨울 방한용품이 여기입니다.",
+    use: "최대 12개월 뒤", risk: "high",
+    tip: "한 해 뒤에 입힐 옷입니다. 한 사이즈, 걱정되면 두 사이즈 크게 사세요.", buy: 1 },
+  { id: "B14", mo: [12], cat: "kid", w: [12, 120], t: "연말 재고로 답례품용 완구 묶어두기",
+    why: "연말 재고 할인입니다. 답례품은 여러 개를 사야 해서 차이가 큽니다.", use: "5개월 뒤", buy: 1 },
+  { id: "B15", mo: [1, 2], cat: "house", w: [12, 108], t: "공용 준비물 상자 만들어두기",
+    why: "행사 때마다 새로 사지 않게, 자주 쓰는 것을 한 상자에 모아둡니다. 흰·검정 무지 티셔츠, 흰 양말과 타이츠, 검정 단화, 미술 앞치마, 이름표와 네임펜, 방수팩, 작은 돗자리, 포장지와 카드.",
+    use: "일 년 내내",
+    tip: "새로 사라는 목록이 아닙니다. 집에 이미 있는 걸 한 곳에 모으는 게 먼저입니다.", buy: 1 },
+];
+/* 사이즈 위험이 붙은 것에는 "한 사이즈 크게"를 빠뜨릴 수 없게 여기서 붙입니다.
+   문구를 손으로 적다 보면 언젠가 한 줄을 빠뜨립니다. */
+const RISK_LINE = {
+  high: "한 해 가까이 뒤에 입힐 옷입니다. 한 사이즈 크게 고르세요.",
+  mid: "몇 달 뒤에 입힐 옷입니다. 지금 딱 맞는 건 그때 작습니다.",
+};
+
 const WELFARE_DETAIL = {
   W01: {
     what: "집 안에 화재·활동량 감지기와 응급버튼을 달아주고, 이상이 생기면 119와 지역센터로 자동 연결됩니다.",
@@ -6352,6 +6428,18 @@ function usefulItems(st) {
     key: sd.id, cat: sd.cat, title: sd.t, g: sd.g, chg: sd.chg,
     ...(WELFARE_DETAIL[sd.id] || {}),
   }));
+  /* 미리 사두기 — 달력 월로 뜹니다.
+     아이가 없으면 원 행사도 없어서 하나도 안 뜹니다. */
+  const mon = new Date().getMonth() + 1;
+  AHEAD.forEach((a) => {
+    if (a.mo.indexOf(mon) < 0) return;
+    const w = a.w || [0, 9999];
+    if (!kids.some((ch) => { const m = childMonths(ch); return m >= w[0] && m <= w[1]; })) return;
+    out.push({
+      key: a.id, cat: a.cat, title: a.t, what: a.why,
+      use: a.use, risk: a.risk, tip: a.tip, ask: a.ask, buy: a.buy, ahead: 1,
+    });
+  });
   /* 달마다 AI가 찾아온 것도 같은 목록에 섞습니다.
      "이달의 소식"이라고 따로 붙이면 자리가 또 하나 늘어납니다. */
   ((st.news || {}).items || []).forEach((n, i) => {
@@ -6360,6 +6448,50 @@ function usefulItems(st) {
       where: n.src || "", fresh: 1, url: n.url || "" });
   });
   return out;
+}
+
+/* ④ 사기 전에 순서를 제안합니다.
+   이 앱이 쇼핑앱과 갈라지는 지점입니다. "안 사도 되는 걸 안 사게 해준다"가
+   사람들이 이 앱을 믿는 이유고, 그걸 깨면 남을 이유가 없어집니다.
+   그래서 구매는 맨 아래에 둡니다.
+
+   외동은 "물려받기" 칸이 비어 있습니다. 형제가 없으니까요.
+   그 집에는 대여와 당근이 더 중요합니다. */
+function BuyOrder({ text }) {
+  const { st } = use();
+  const solo = (st.children || []).length < 2;
+  const near = String((st && st.region) || "").trim();
+  const q = encodeURIComponent(String(text || "").replace(/ 미리 보기| 최종 점검|·.*$/g, "").slice(0, 20));
+  const steps = [
+    { t: "집에 있는지 먼저 보기", d: "작년 것이 그대로 있는 경우가 많습니다" },
+    !solo && { t: "형제에게 물려받기", d: "위 아이가 쓰던 것부터" },
+    { t: "당근에서 찾기", d: "철 지난 것이 싸게 나옵니다",
+      u: `https://www.daangn.com/search/${q}` },
+    { t: "빌릴 수 있는지 보기", d: solo ? "형제가 없으면 여기가 제일 낫습니다" : "한두 번 쓰는 것은 빌리는 게 낫습니다",
+      u: `https://map.naver.com/p/search/${encodeURIComponent((near ? near + " " : "") + "육아종합지원센터")}` },
+    { t: "그래도 없으면 사기", d: "여기까지 왔으면 사셔도 됩니다" },
+  ].filter(Boolean);
+  return (
+    <div style={{ marginTop: 13 }}>
+      <div className="mono" style={{ fontSize: 9.5, color: C.moss, marginBottom: 8 }}>사기 전에</div>
+      {steps.map((x, i) => (
+        <div key={i} style={{ display: "flex", gap: 10, alignItems: "baseline", marginBottom: 7 }}>
+          <span className="mono" style={{ fontSize: 10, color: C.ink3, flex: "none", width: 14 }}>{i + 1}</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {x.u ? (
+              <a className="press" href={x.u} target="_blank" rel="noopener noreferrer"
+                style={{ fontSize: 13.5, color: C.ink, textDecoration: "none", borderBottom: `1px solid ${C.line}` }}>
+                {x.t} ›
+              </a>
+            ) : (
+              <span style={{ fontSize: 13.5, color: C.ink }}>{x.t}</span>
+            )}
+            <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 2, lineHeight: 1.6 }}>{x.d}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function Useful() {
@@ -6383,9 +6515,9 @@ function Useful() {
     /* 바뀐 것이 먼저입니다. 한 번 "안 된다"고 들은 사람은 다시 안 알아봅니다 —
        그 사이에 기준이 바뀐 걸 아무도 알려주지 않습니다.
        "이제 된대요"를 알려주는 것만으로 이 화면은 값을 합니다. */
-    const rank = (x) => (x.chg ? 0 : x.fresh ? 1 : 2);
+    const rank = (x) => (x.chg ? 0 : x.ahead ? 1 : x.fresh ? 2 : 3);
     Object.keys(by).forEach((id) => by[id].sort((a, b) => rank(a) - rank(b)));
-    const hasChg = (g) => (g.some((x) => x.chg) ? 0 : 1);
+    const hasChg = (g) => (g.some((x) => x.chg) ? 0 : g.some((x) => x.ahead) ? 1 : 2);
     return Object.keys(by).map((id) => ({
       cat: (cats || []).find((c) => c.id === id) || { id, emoji: "🗂", label: "기타" },
       list: by[id],
@@ -6409,9 +6541,12 @@ function Useful() {
       <div style={{ marginTop: 18, paddingLeft: 2 }}>
         <div className="disp" style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-.03em" }}>유용정보</div>
         <p style={{ fontSize: 13.5, color: C.ink2, marginTop: 9, lineHeight: 1.7 }}>
-          몰라서 못 받는 것들이에요. <b style={{ color: C.ink }}>우리 집에 해당되는 것만</b> 띄워둡니다.
+          몰라서 못 받는 것, 그리고 <b style={{ color: C.ink }}>지금 사두면 나중보다 싼 것</b>을 띄워둡니다.
+          우리 집에 해당되는 것만 나옵니다.
           <b style={{ color: C.persim }}> 바뀐 것</b>은 기준이 내려와서 이제 되는 거예요 —
-          예전에 안 된다고 들으셨어도 다시 보세요. 필요한 것만 골라서 쓰시면 됩니다.
+          예전에 안 된다고 들으셨어도 다시 보세요.
+          <b style={{ color: C.moss }}> 지금이 싸요</b>는 행사가 코앞이라서가 아니라,
+          지금이 값이 제일 내려간 때라서 띄운 거예요.
         </p>
         {!CHARGING() ? (
           <p style={{ fontSize: 12, color: C.ink3, marginTop: 7, lineHeight: 1.7 }}>
@@ -6436,6 +6571,7 @@ function Useful() {
                     <div className="flex items-baseline gap-2">
                       <span style={{ flex: 1, minWidth: 0, fontSize: 14.5, fontWeight: 500 }}>{it.title}</span>
                       {it.chg ? <span className="mono" style={{ fontSize: 9, color: C.persim, background: C.persimSoft, borderRadius: 999, padding: "2px 7px" }}>바뀐 것</span>
+                        : it.ahead ? <span className="mono" style={{ fontSize: 9, color: C.moss, background: C.mossSoft, borderRadius: 999, padding: "2px 7px" }}>지금이 싸요</span>
                         : it.fresh ? <span className="mono" style={{ fontSize: 9, color: C.moss }}>이번 달</span> : null}
                       <span style={{ fontSize: 11, color: C.ink3 }}>
                         {!opened && it.key !== freeKey ? "잠김" : on ? "접기" : "보기"}
@@ -6473,6 +6609,31 @@ function Useful() {
                           <div style={{ fontSize: 12.5, color: C.ink, marginTop: 5, lineHeight: 1.75 }}>{it.miss}</div>
                         </div>
                       )}
+                      {it.use && <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 9, lineHeight: 1.7 }}>
+                        <span className="mono" style={{ fontSize: 9.5, color: C.moss, marginRight: 7 }}>언제 쓰나</span>{it.use}</div>}
+                      {/* 사이즈 위험은 빠뜨리면 안 됩니다. 앱이 시켜서 산 옷이 안 맞으면 그 앱은 지워집니다 */}
+                      {it.risk && (
+                        <div style={{ marginTop: 11, background: C.persimSoft, borderRadius: 12, padding: "11px 13px" }}>
+                          <div className="mono" style={{ fontSize: 9.5, color: C.persim }}>사이즈</div>
+                          <div style={{ fontSize: 12.5, color: C.ink, marginTop: 5, lineHeight: 1.75 }}>{RISK_LINE[it.risk]}</div>
+                        </div>
+                      )}
+                      {it.tip && <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 9, lineHeight: 1.7 }}>
+                        <span className="mono" style={{ fontSize: 9.5, color: C.moss, marginRight: 7 }}>참고</span>{it.tip}</div>}
+                      {/* ② 2단계 — 앱은 날짜를 모릅니다. 아는 사람은 알림장을 받은 분입니다.
+                             찍어서 넣으면 3단계로 넘어가 날짜와 준비물이 생깁니다. */}
+                      {it.ask && (
+                        <div style={{ marginTop: 12, background: C.bg, border: `1px solid ${C.line}`,
+                          borderRadius: 12, padding: "12px 14px" }}>
+                          <div style={{ fontSize: 12.5, color: C.ink, lineHeight: 1.75 }}>{it.ask}</div>
+                          <button className="press" onClick={() => { setTab("speak"); say("가정통신문을 찍어서 넣으면 날짜까지 정리해드려요"); }}
+                            style={{ marginTop: 9, background: "transparent", border: `1px solid ${C.line}`,
+                              borderRadius: 999, padding: "7px 13px", fontSize: 12, color: C.ink2 }}>
+                            가정통신문 찍어서 넣기 ›
+                          </button>
+                        </div>
+                      )}
+                      {it.buy ? <BuyOrder text={it.title} /> : null}
                       {it.url ? (
                         <a className="press" href={it.url} target="_blank" rel="noopener noreferrer"
                           style={{ display: "inline-block", marginTop: 11, background: C.bg, border: `1px solid ${C.line}`,
