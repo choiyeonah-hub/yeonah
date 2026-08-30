@@ -124,7 +124,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0831-t';
+const GATE_BUILD = '0831-u';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -831,18 +831,18 @@ const SEED = [
   /* 다자녀 — 나이가 아니라 아이 수로 열립니다.
      기준이 셋에서 둘로 내려온 제도가 여럿인데, 그때 이미 애를 낳아 키우던 집은
      "우리는 해당 안 된다"고 알고 지나갑니다. 그래서 한 번은 다시 말해줍니다. */
-  { id: "W10", cat: "finance", nkid: 2, wf: 1, lead: 0, st: "check", t: "다자녀 기준 다시 확인", tg: "셋에서 둘로 내려온 제도가 있어요", ask: "예전에 해당 안 된다고 들으셨나요?", cy: "1회", g: "다자녀", src: "S05" },
+  { id: "W10", cat: "finance", nkid: 2, wf: 1, chg: 1, lead: 0, st: "check", t: "다자녀 기준 다시 확인", tg: "셋에서 둘로 내려온 제도가 있어요", ask: "예전에 해당 안 된다고 들으셨나요?", cy: "1회", g: "다자녀", src: "S05" },
   { id: "W11", cat: "finance", nkid: 2, wf: 1, lead: 0, st: "check", t: "다자녀 우대카드 알아보기", tg: "지자체마다 이름이 달라요", ask: "사시는 곳에 다자녀 카드가 있나요?", cy: "1회", g: "다자녀", src: "S05" },
   { id: "W12", cat: "finance", nkid: 2, wf: 1, lead: 0, st: "check", t: "전기·도시가스 요금 할인 알아보기", tg: "신청한 달부터 적용", ask: "다자녀 요금 할인을 넣어두셨나요?", cy: "1회", g: "다자녀", src: "S05" },
   { id: "W13", cat: "transport", f: "car", nkid: 2, wf: 1, lead: 0, st: "check", t: "자동차 취득세 감면 알아보기", tg: "차 살 때 한 번", ask: "다자녀 감면을 아셨나요?", cy: "1회", g: "다자녀", src: "S05" },
   { id: "W14", cat: "travel", nkid: 2, wf: 1, lead: 0, st: "check", t: "기차 다자녀 할인 알아보기", tg: "미리 등록해두는 것", ask: "가족 등록을 해두셨나요?", cy: "1회", g: "다자녀", src: "S05" },
   { id: "W15", cat: "edu", nkid: 2, wf: 1, lead: 0, st: "check", t: "아이돌봄서비스 우선순위 알아보기", tg: "다자녀는 순위가 앞", ask: "아이돌봄을 신청해보신 적 있나요?", cy: "1회", g: "다자녀", src: "S05" },
   /* kid + w 로 나이를 봅니다 — 초등 1~2학년(약 85~108개월)에만 뜹니다 */
-  { id: "W20", cat: "finance", kid: 1, w: [85, 108], wf: 1, lead: 30, st: "check", t: "예체능 학원비 공제 알아보기", tg: "2026년에 새로 생겼어요", ask: "아이가 예체능 학원에 다니나요?", cy: "연 1회", g: "다자녀", src: "S06" },
+  { id: "W20", cat: "finance", kid: 1, w: [85, 108], wf: 1, chg: 1, lead: 30, st: "check", t: "예체능 학원비 공제 알아보기", tg: "2026년에 새로 생겼어요", ask: "아이가 예체능 학원에 다니나요?", cy: "연 1회", g: "다자녀", src: "S06" },
   /* 통행료는 2026년 7~8월에 막 시작한 제도입니다. 3자녀는 7월 28일,
      2자녀는 8월 22일부터. 시작한 지 얼마 안 돼서 아무도 모릅니다.
      local: 1 은 지자체마다 다른 것 — 앱이 답을 말하지 않고 어디서 보는지만 알려줍니다. */
-  { id: "W16", cat: "transport", f: "car", nkid: 2, wf: 1, lead: 0, st: "check", t: "고속도로 통행료 할인 신청", tg: "2026년에 새로 생겼어요", ask: "하이패스 다자녀 할인을 넣어두셨나요?", cy: "1회", g: "다자녀", src: "S05" },
+  { id: "W16", cat: "transport", f: "car", nkid: 2, wf: 1, chg: 1, lead: 0, st: "check", t: "고속도로 통행료 할인 신청", tg: "2026년에 새로 생겼어요", ask: "하이패스 다자녀 할인을 넣어두셨나요?", cy: "1회", g: "다자녀", src: "S05" },
   { id: "W17", cat: "transport", f: "car", nkid: 2, wf: 1, lc: 1, lead: 0, st: "check", t: "공영주차장 요금 감면 알아보기", tg: "사시는 곳마다 달라요", ask: "다자녀 주차 감면을 아셨나요?", cy: "1회", g: "다자녀", src: "S05" },
   { id: "W18", cat: "transport", f: "car", nkid: 2, wf: 1, lc: 1, lead: 0, st: "check", t: "전기차 보조금 다자녀 우선순위 알아보기", tg: "차 바꿀 때 한 번", ask: "다음 차를 전기차로 생각하고 계신가요?", cy: "1회", g: "다자녀", src: "S05" },
   { id: "L072", cat: "pet", f: "pet", lead: 30, st: "remember", t: "예방접종·검진 일정", tg: "예정일", ask: "마지막 접종·검진일을 등록할까요?", cy: "연/병원권고", g: "반려동물", src: "" },
@@ -1580,7 +1580,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0831-t";
+const BUILD = "0831-u";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -6372,7 +6372,8 @@ function usefulItems(st) {
     return true;
   };
   const out = SEED.filter(fits).map((sd) => ({
-    key: sd.id, cat: sd.cat, title: sd.t, g: sd.g, ...(WELFARE_DETAIL[sd.id] || {}),
+    key: sd.id, cat: sd.cat, title: sd.t, g: sd.g, chg: sd.chg,
+    ...(WELFARE_DETAIL[sd.id] || {}),
   }));
   /* 달마다 AI가 찾아온 것도 같은 목록에 섞습니다.
      "이달의 소식"이라고 따로 붙이면 자리가 또 하나 늘어납니다. */
@@ -6391,10 +6392,16 @@ function Useful() {
   const groups = useMemo(() => {
     const by = {};
     items.forEach((it) => { (by[it.cat] = by[it.cat] || []).push(it); });
+    /* 바뀐 것이 먼저입니다. 한 번 "안 된다"고 들은 사람은 다시 안 알아봅니다 —
+       그 사이에 기준이 바뀐 걸 아무도 알려주지 않습니다.
+       "이제 된대요"를 알려주는 것만으로 이 화면은 값을 합니다. */
+    const rank = (x) => (x.chg ? 0 : x.fresh ? 1 : 2);
+    Object.keys(by).forEach((id) => by[id].sort((a, b) => rank(a) - rank(b)));
+    const hasChg = (g) => (g.some((x) => x.chg) ? 0 : 1);
     return Object.keys(by).map((id) => ({
       cat: (cats || []).find((c) => c.id === id) || { id, emoji: "🗂", label: "기타" },
       list: by[id],
-    })).sort((a, b) => b.list.length - a.list.length);
+    })).sort((a, b) => hasChg(a.list) - hasChg(b.list) || b.list.length - a.list.length);
   }, [items, cats]);
 
   const read = (k) => {
@@ -6408,8 +6415,9 @@ function Useful() {
       <div style={{ marginTop: 18, paddingLeft: 2 }}>
         <div className="disp" style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-.03em" }}>유용정보</div>
         <p style={{ fontSize: 13.5, color: C.ink2, marginTop: 9, lineHeight: 1.7 }}>
-          몰라서 못 받는 것들이에요. <b style={{ color: C.ink }}>우리 집에 해당되는 것만</b> 띄워둡니다 —
-          날짜도 없고, 할 일도 안 늘어요.
+          몰라서 못 받는 것들이에요. <b style={{ color: C.ink }}>우리 집에 해당되는 것만</b> 띄워둡니다.
+          <b style={{ color: C.persim }}> 바뀐 것</b>은 기준이 내려와서 이제 되는 거예요 —
+          예전에 안 된다고 들으셨어도 다시 보세요.
         </p>
       </div>
 
@@ -6424,7 +6432,8 @@ function Useful() {
                     style={{ background: "transparent", border: "none", padding: "14px 16px", display: "block" }}>
                     <div className="flex items-baseline gap-2">
                       <span style={{ flex: 1, minWidth: 0, fontSize: 14.5, fontWeight: 500 }}>{it.title}</span>
-                      {it.fresh ? <span className="mono" style={{ fontSize: 9, color: C.moss }}>이번 달</span> : null}
+                      {it.chg ? <span className="mono" style={{ fontSize: 9, color: C.persim, background: C.persimSoft, borderRadius: 999, padding: "2px 7px" }}>바뀐 것</span>
+                        : it.fresh ? <span className="mono" style={{ fontSize: 9, color: C.moss }}>이번 달</span> : null}
                       <span style={{ fontSize: 11, color: C.ink3 }}>{on ? "접기" : "보기"}</span>
                     </div>
                     {!on && it.what && (
