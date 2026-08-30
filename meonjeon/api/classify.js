@@ -13,6 +13,9 @@ const SEARCH_DOMAINS = [
   "brunch.co.kr", "tistory.com",
   "gov.kr", "korea.kr", "kdca.go.kr", "childcare.go.kr", "schoolinfo.go.kr",
   "seoul.go.kr", "nhis.or.kr", "familynet.or.kr",
+  /* 몰라서 못 받는 복지가 많습니다. 정부 사이트만 넣습니다 —
+     블로그로 확인한 제도는 이미 바뀌었을 수 있습니다. */
+  "bokjiro.go.kr", "longtermcare.or.kr", "129.go.kr", "mohw.go.kr",
 ];
 const MAX_SEARCHES = 2;      /* 한 번의 발굴에서 검색 2회까지.
                                 검색은 한 번마다 따로 과금됩니다. 3회에서 2회로 줄였습니다 —

@@ -124,7 +124,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0830-q';
+const GATE_BUILD = '0830-r';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -764,6 +764,13 @@ const SEED = [
   { id: "L069", cat: "parents", f: "parents", lead: 7, st: "repeat", t: "약 처방일·잔량 확인", tg: "약 소진 전", ask: "약이 며칠 남았나요?", cy: "주/월", g: "부모님", src: "" },
   { id: "L070", cat: "parents", f: "parents", lead: 45, st: "remember", t: "건강검진 예약", tg: "연간 검진", ask: "연말 전에 예약할까요?", cy: "연 1회", g: "부모님", src: "" },
   { id: "L071", cat: "parents", f: "parents", lead: 14, st: "conditional", t: "복지·돌봄 서비스 확인", tg: "상태 변화 시", ask: "최근 돌봄 필요가 커졌나요?", cy: "상태변화시", g: "부모님", src: "S04" },
+  /* 혼자 계신 부모님 — 몰라서 못 받는 것이 많은 자리입니다.
+     "대상입니다"라고 말하지 않습니다. 조건은 지자체마다 다르고, 판단은 기관이 합니다. */
+  { id: "W01", cat: "parents", f: "parentsAlone", lead: 0, st: "check", t: "응급안전안심서비스 알아보기", tg: "한 번 신청하면 끝", ask: "댁에 응급 감지 장비가 있나요?", cy: "1회", g: "독거", src: "S04" },
+  { id: "W02", cat: "parents", f: "parentsAlone", lead: 0, st: "check", t: "노인맞춤돌봄서비스 알아보기", tg: "안부 확인·말벗", ask: "생활지원사 방문을 받고 계신가요?", cy: "1회", g: "독거", src: "S04" },
+  { id: "W03", cat: "parents", f: "parentsAlone", lead: 0, st: "check", t: "AI 안부전화 신청 알아보기", tg: "지자체마다 다름", ask: "안부 전화 서비스를 알고 계신가요?", cy: "1회", g: "독거", src: "S04" },
+  { id: "W04", cat: "parents", f: "parentsAlone", lead: 0, st: "check", t: "반려로봇 보급사업 알아보기", tg: "지자체 사업", ask: "말동무 로봇 보급을 하는 지역인지 알아볼까요?", cy: "1회", g: "독거", src: "S04" },
+  { id: "W05", cat: "parents", f: "parentsAlone", lead: 0, st: "repeat", t: "혼자 계신 날 안부 확인", tg: "주 2~3회", ask: "", cy: "2~3일", g: "부모님정기", src: "" },
   { id: "L072", cat: "pet", f: "pet", lead: 30, st: "remember", t: "예방접종·검진 일정", tg: "예정일", ask: "마지막 접종·검진일을 등록할까요?", cy: "연/병원권고", g: "반려동물", src: "" },
   { id: "L073", cat: "pet", f: "pet", lead: 7, st: "repeat", t: "사료·모래·약 재고", tg: "소진 전", ask: "", cy: "주 1회", g: "반려동물", src: "" },
   { id: "L074", cat: "pet", f: "pet", lead: 0, st: "repeat", t: "산책 일정 챙기기", tg: "매일/사용자 설정", ask: "평소 산책 횟수와 시간을 정해둘까요?", cy: "사용자 설정", g: "반려동물", src: "" },
@@ -1010,6 +1017,9 @@ const SOURCE_NAME = {
 
 const FLAGS = {
   parents: { emoji: "👵", label: "부모님 챙김", desc: "병원·약·안부를 함께 봐요", g: "가족" },
+  /* 독거 여부만 알면 열리는 제도가 꽤 많습니다. 병명이나 등급은 안 물어봅니다 —
+     그건 기관이 판단할 일이고, 앱은 "이런 게 있대요"까지만 합니다. */
+  parentsAlone: { emoji: "🏠", label: "부모님이 혼자 지내심", desc: "혼자 계시면 받을 수 있는 게 따로 있어요", g: "가족", need: "parents" },
   car: { emoji: "🚗", label: "자동차", desc: "검사·보험·정비·주유", g: "살림" },
   pet: { emoji: "🐶", label: "반려동물", desc: "접종·사료·병원", g: "살림" },
   plant: { emoji: "🪴", label: "화분·식물", desc: "물·영양제·분갈이", g: "살림" },
@@ -1111,6 +1121,10 @@ const LINKS = [
     kw: ["이유식", "미음", "유아식", "알레르기"], g: ["이유식"] },
   { name: "코레일", desc: "명절 승차권 예매는 보통 한 달 전부터", url: "https://www.letskorail.com/", tag: "정보",
     kw: ["기차", "KTX", "승차권", "명절 교통", "귀성"], g: ["행사정기"] },
+  { name: "복지로", desc: "받을 수 있는 복지를 한 곳에서 찾아봐요", url: "https://www.bokjiro.go.kr", tag: "추천",
+    flag: "parents", kw: ["복지", "돌봄", "지원금", "수당", "기초연금", "안심", "말벗"], g: ["독거", "부모님", "부모님정기"] },
+  { name: "보건복지상담센터 129", desc: "어디에 신청하는지 전화로 물어보는 게 제일 빨라요", url: "tel:129", tag: "추천",
+    flag: "parentsAlone", kw: ["응급안전", "노인맞춤돌봄", "안부전화", "반려로봇", "독거"], g: ["독거"] },
 ];
 
 /* 맞는 것을 다 돌려줍니다. 몇 개만 보일지는 LinkCards가 정합니다 —
@@ -1212,7 +1226,7 @@ function dedupeRoutines(st) {
 const DEFAULT_STATE = {
   members: [{ id: "m1", name: "나", role: "admin", color: MEMBER_COLORS[0] }],
   children: [],
-  flags: { parents: false, car: true, pet: false, plant: false, apart: true, moving: false, worker: true, biz: false },
+  flags: { parents: false, parentsAlone: false, car: true, pet: false, plant: false, apart: true, moving: false, worker: true, biz: false },
   petTypes: {},
   /* 차는 여러 대일 수 있습니다. 맞벌이면 두 대인 집이 흔하고,
      검사일도 보험 갱신 달도 차마다 다릅니다.
@@ -1465,7 +1479,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0830-q";
+const BUILD = "0830-r";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -3052,7 +3066,9 @@ function Onboarding({ preview }) {
           <div key={g} style={{ marginBottom: 14 }}>
             <Eyebrow>{g}</Eyebrow>
             <Card style={{ marginTop: 7 }}>
-              {Object.keys(FLAGS).filter((k) => FLAGS[k].g === g).map((k, i, arr) => {
+              {/* need가 있는 항목은 그 항목을 켰을 때만 나옵니다.
+                   안 그러면 부모님을 안 챙기는 집에도 "혼자 지내심"이 뜹니다 */}
+              {Object.keys(FLAGS).filter((k) => FLAGS[k].g === g && (!FLAGS[k].need || d.flags[FLAGS[k].need])).map((k, i, arr) => {
                 const on = d.flags[k];
                 return (
                   <button key={k} className="press flex items-center gap-3 w-full text-left" onClick={() => setD((s) => ({ ...s, flags: { ...s.flags, [k]: !s.flags[k] } }))}
@@ -6451,7 +6467,7 @@ function Settings() {
       {FLAG_GROUPS.map((g) => (
         <Section key={g} eyebrow="ONB-03" title={`우리 집 · ${g}`}>
           <Card>
-            {Object.keys(FLAGS).filter((k) => FLAGS[k].g === g).map((k, i, arr) => {
+            {Object.keys(FLAGS).filter((k) => FLAGS[k].g === g && (!FLAGS[k].need || d.flags[FLAGS[k].need])).map((k, i, arr) => {
               const on = d.flags[k];
               return (
                 <button key={k} className="press flex items-center gap-3 w-full text-left" onClick={() => setD((s) => ({ ...s, flags: { ...s.flags, [k]: !s.flags[k] } }))}
