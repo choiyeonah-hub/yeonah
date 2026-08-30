@@ -36,8 +36,10 @@ export default async function handler(req, res) {
     return r.ok ? r.json() : null;
   };
 
-  /* 가구의 마지막 활동 시각만 가져옵니다. state(집안 내용)는 안 읽습니다 */
-  const hh = await get("households?select=id,created_at,updated_at");
+  /* 가구의 마지막 활동 시각과, state 안의 숫자 하나(opens)만 가져옵니다.
+     집안 내용은 여전히 안 읽습니다 — state->opens 는 "몇 번 열었나" 정수 하나입니다.
+     이 숫자가 있어야 광고를 붙일 값어치가 있는지 판단이 됩니다. */
+  const hh = await get("households?select=id,created_at,updated_at,state->opens");
   const subs = await get("push_subs?select=household_id");
   if (!hh) return res.status(500).json({ error: "가구를 못 읽었어요" });
 
@@ -69,6 +71,15 @@ export default async function handler(req, res) {
       on: { n: on.length, d7: active(on, 7), pct: pct(active(on, 7), on.length) },
       off: { n: off.length, d7: active(off, 7), pct: pct(active(off, 7), off.length) },
     },
+    /* 하루에 몇 번 여는지 — 붙잡아두는 앱인지 아닌지가 여기서 갈립니다 */
+    opens: (() => {
+      const seen = hh.filter((h) => Number(h.opens) > 0);
+      if (!seen.length) return { n: 0, perDay: 0, total: 0 };
+      const total = seen.reduce((a, h) => a + Number(h.opens || 0), 0);
+      /* 만든 지 하루가 안 된 집은 1일로 봅니다 */
+      const dayss = seen.reduce((a, h) => a + Math.max(days(h.created_at), 1), 0);
+      return { n: seen.length, total, perDay: Math.round((total / dayss) * 10) / 10 };
+    })(),
     retain4w: {
       n: old4.length,
       kept: active(old4, 7), pct: pct(active(old4, 7), old4.length),
