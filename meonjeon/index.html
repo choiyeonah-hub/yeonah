@@ -124,7 +124,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0831-s';
+const GATE_BUILD = '0831-t';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1580,7 +1580,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0831-s";
+const BUILD = "0831-t";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -2972,7 +2972,7 @@ function App() {
                 {tab === "ann" && <AnnScreen />}
                 {tab === "meal" && <MealScreen />}
                 {tab === "news" && <NewsScreen />}
-                {tab === "share" && <Share />}
+                {tab === "share" && <Useful />}
                 {tab === "set" && <Settings />}
                 </LinkClaims>
               </div>
@@ -6352,159 +6352,14 @@ const WELFARE_DETAIL = {
   },
 };
 
-/* ── 이번 주 알아둘 것 ─────────────────────────────
-   복지는 몰라서 못 받습니다. 자격이 안 돼서가 아니라,
-   그런 게 있는 줄을 몰라서입니다. 그런데 지금까지 이 앱은
-   그걸 영역 안쪽에 넣어두고 사용자가 찾아 들어오기를 기다렸습니다.
-   먼저 챙긴다면서 찾아오라고 하는 건 앞뒤가 안 맞습니다.
+/* ── 유용정보 ─────────────────────────────────
+   복지는 마감이 없습니다. 날짜를 붙이면 "시점 미정"만 쌓이고,
+   할 일로 담으면 목록이 읽을 수 없게 길어집니다.
+   여기서는 갈래별로 띄워두기만 합니다 — 해당되니 알아보세요, 까지입니다.
 
-   지키는 선:
-   · 한 주에 하나만. 네 개를 한꺼번에 늘어놓으면 광고판이 됩니다.
-   · "대상입니다"라고 하지 않습니다. 자격은 지자체가 판단합니다.
-   · 병명·등급·주소를 묻지 않습니다. 해당사항 한 줄로만 고릅니다.
-   · 다 보고 나면 사라집니다. 남은 게 없으면 아무것도 그리지 않습니다. */
-function welfarePick(st) {
-  const off = st.welfareOff || {};
-  const taken = new Set(st.tasks.map((t) => t.seedId).filter(Boolean));
-  const kids = st.children || [];
-  const fits = (sd) => {
-    if (sd.f && !st.flags[sd.f]) return false;
-    if (sd.nkid && kids.length < sd.nkid) return false;
-    /* 나이로 열리는 것 — 초등 1~2학년만 되는 공제 같은 건
-       아이가 없는 집이나 나이가 지난 집에 뜨면 안 됩니다 */
-    if (sd.kid) {
-      const w = sd.w || [0, 9999];
-      if (!kids.some((ch) => { const m = childMonths(ch); return m >= w[0] && m <= w[1]; })) return false;
-    }
-    return true;
-  };
-  const pool = SEED.filter((sd) => sd.wf && fits(sd) && !off[sd.id] && !taken.has(sd.id));
-  if (!pool.length) return null;
-  /* 주가 바뀌면 다음 것으로 넘어갑니다 — 같은 주에는 화면을 다시 열어도 같은 것 */
-  const wk = weekKey();
-  let h = 0;
-  for (let i = 0; i < wk.length; i++) h = (h * 31 + wk.charCodeAt(i)) % 100000;
-  return pool[h % pool.length];
-}
-
-function WelfareWeek() {
-  const { st, setSt, say, cats, setTab } = use();
-  const sd = useMemo(() => welfarePick(st), [st.tasks, st.flags, st.children, st.welfareOff]);
-  if (!sd) return null;
-  /* 어느 영역의 이야기인지 먼저 보여줍니다 — 복지는 따로 노는 게 아니라
-     부모님·금융·교육 안에 이미 들어 있는 것입니다 */
-  const cat = (cats || []).find((c) => c.id === sd.cat) || {};
-  const wd = WELFARE_DETAIL[sd.id];
-  /* 지자체마다 다른 것은 답을 말하지 않습니다.
-     229개 시·군·구의 조례를 표로 담으면 만드는 데도 오래 걸리지만,
-     조례가 바뀌는 걸 따라가지 못해서 결국 틀린 답을 자신 있게 보여주게 됩니다.
-     틀린 답은 모르는 것보다 나쁩니다. 그래서 표 대신 길을 놓습니다 —
-     사시는 곳 한 줄만 받아서, 그 동네 조례로 바로 데려다줍니다. */
-  /* 시·군·구를 안 적었어도 날씨용으로 고른 광역(서울 등)은 이미 압니다.
-     광역만으로도 조례는 찾아집니다 — 아무것도 못 보여주는 것보다 낫습니다. */
-  const fine = String(st.region || "").trim();
-  const region = fine || ((st.place && st.place.label) || "");
-  const hide = () => setSt((s) => ({
-    ...s,
-    welfareOff: { ...(s.welfareOff || {}), [sd.id]: Date.now() },
-    wfRead: (Number(s.wfRead) || 0) + 1,
-  }));
-  return (
-    <Section eyebrow="WELFARE" title="이번 주 알아둘 것">
-      <Card>
-        <div style={{ padding: 18 }}>
-          <div className="flex items-center gap-1.5" style={{ fontSize: 11.5, color: C.ink3 }}>
-            {cat.emoji && <span style={{ fontSize: 13 }}>{cat.emoji}</span>}
-            <span>{cat.label || "우리 집"}</span>
-            <span style={{ color: C.line }}>·</span>
-            <span>신청해야 받는 것들이에요</span>
-          </div>
-          <div className="disp" style={{ fontSize: 17.5, fontWeight: 600, marginTop: 8, lineHeight: 1.45 }}>{sd.t}</div>
-          {wd ? (
-            <>
-              <div className="hae" style={{ fontSize: 13.5, color: C.ink, marginTop: 10, lineHeight: 1.8 }}>{wd.what}</div>
-              <div style={{ marginTop: 13, display: "grid", gap: 9 }}>
-                {wd.who && (
-                  <div className="flex items-start gap-2.5">
-                    <span className="mono" style={{ fontSize: 9.5, color: C.moss, minWidth: 30, paddingTop: 3 }}>누가</span>
-                    <span style={{ fontSize: 12.5, color: C.ink2, lineHeight: 1.7, flex: 1 }}>{wd.who}</span>
-                  </div>
-                )}
-                <div className="flex items-start gap-2.5">
-                  <span className="mono" style={{ fontSize: 9.5, color: C.moss, minWidth: 30, paddingTop: 3 }}>어디에</span>
-                  <span style={{ fontSize: 12.5, color: C.ink2, lineHeight: 1.7, flex: 1 }}>{wd.where}</span>
-                </div>
-              </div>
-              {sd.lc === 1 && (
-                <div style={{ marginTop: 12, border: `1px solid ${C.line}`, borderRadius: 12, padding: "11px 13px" }}>
-                  <div className="mono" style={{ fontSize: 9.5, color: C.moss }}>사시는 곳마다 다릅니다</div>
-                  {region ? (
-                    <>
-                      <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 5, lineHeight: 1.7 }}>
-                        <b style={{ color: C.ink }}>{region}</b>의 조례를 바로 열어드릴게요.
-                        {!fine && <span style={{ color: C.ink3 }}> 설정에 구·군까지 적으시면 더 좁혀서 찾아드려요.</span>}
-                      </div>
-                      <div className="flex flex-wrap gap-2" style={{ marginTop: 9 }}>
-                        <a className="press" target="_blank" rel="noopener noreferrer"
-                          href={`https://www.law.go.kr/LSW/ordinSc.do?menuId=3&query=${encodeURIComponent(region + " " + (sd.id === "W17" ? "주차장" : "자동차"))}`}
-                          style={{ background: C.bg, border: `1px solid ${C.line}`, borderRadius: 999, padding: "7px 12px", fontSize: 12, color: C.ink2, textDecoration: "none" }}>
-                          {region} 조례 보기
-                        </a>
-                        <a className="press" target="_blank" rel="noopener noreferrer"
-                          href={`https://www.google.com/search?q=${encodeURIComponent(region + " 다자녀 " + (sd.id === "W17" ? "공영주차장 감면" : "전기차 보조금"))}`}
-                          style={{ background: C.bg, border: `1px solid ${C.line}`, borderRadius: 999, padding: "7px 12px", fontSize: 12, color: C.ink2, textDecoration: "none" }}>
-                          우리 동네 안내 찾기
-                        </a>
-                      </div>
-                    </>
-                  ) : (
-                    <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 5, lineHeight: 1.7 }}>
-                      설정에 사시는 시·군·구를 적어두시면, 여기서 그 동네 조례로 바로 보내드려요.
-                      <button className="press" onClick={() => setTab("set")}
-                        style={{ display: "block", marginTop: 7, background: "transparent", border: "none", padding: 0, fontSize: 12.5, color: C.moss, fontWeight: 600 }}>
-                        설정에서 적어두기 ›
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-              {/* 이 앱이 있는 이유가 이 한 줄입니다 — 자격이 없어서가 아니라 이래서 놓칩니다 */}
-              <div style={{ marginTop: 13, background: C.persimSoft, borderRadius: 12, padding: "11px 13px" }}>
-                <div className="mono" style={{ fontSize: 9.5, color: C.persim }}>놓치는 이유</div>
-                <div style={{ fontSize: 12.5, color: C.ink, marginTop: 5, lineHeight: 1.75 }}>{wd.miss}</div>
-              </div>
-            </>
-          ) : sd.tg ? <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 7 }}>{sd.tg}</div> : null}
-
-          <div className="flex items-center gap-2 flex-wrap" style={{ marginTop: 14 }}>
-            {/* 복지는 마감이 없습니다. 할 일로 담으면 타임라인에 "시점 미정"만 쌓이고,
-                할 일 목록이 읽을 수 없을 만큼 길어집니다.
-                읽고 알아두는 것이 이 카드가 하는 일입니다. 담는 건 하지 않습니다. */}
-            <button className="press" onClick={() => { hide(); say("다음 것을 보여드릴게요"); }}
-              style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 999, padding: "10px 16px", fontSize: 13, color: C.ink2, fontWeight: 600 }}>
-              읽었어요
-            </button>
-          </div>
-
-          <div style={{ marginTop: 14, fontSize: 11.5, color: C.ink3, lineHeight: 1.75 }}>
-            받을 수 있는지는 지자체가 정합니다. 여기서는 있다는 것만 알려드려요.
-          </div>
-        </div>
-        <div style={{ padding: "0 18px 16px" }}>
-          <LinkCards group={sd.g} text={sd.t} compact noAd />
-        </div>
-      </Card>
-    </Section>
-  );
-}
-
-/* 우리 집에 해당되는 복지를 한 자리에 모읍니다.
-   "이번 주 알아둘 것" 하나만 보여주면 나머지는 영영 안 보이고,
-   전부 펼쳐놓으면 읽히지 않습니다. 하나는 펼치고 나머지는 접어둡니다. */
-function WelfareAll() {
-  const { st, setSt, cats, say } = use();
-  const [open, setOpen] = useState(null);
-  const now = useMemo(() => welfarePick(st), [st.tasks, st.flags, st.children, st.welfareOff]);
+   흩어져 있던 것을 걷었습니다. 예전에는 같은 항목이 영역에도,
+   타임라인에도, 맡기기에도 있었습니다. 이제 이 한 화면뿐입니다. */
+function usefulItems(st) {
   const kids = st.children || [];
   const fits = (sd) => {
     if (!sd.wf) return false;
@@ -6516,114 +6371,109 @@ function WelfareAll() {
     }
     return true;
   };
-  const rest = SEED.filter((sd) => fits(sd) && (!now || sd.id !== now.id));
-  if (!rest.length) return null;
-  const off = st.welfareOff || {};
-  return (
-    <Section eyebrow="ALL" title="우리 집에 해당되는 것" right={`${rest.length}개`}>
-      <Card>
-        {rest.map((sd, i) => {
-          const wd = WELFARE_DETAIL[sd.id] || {};
-          const cat = (cats || []).find((c) => c.id === sd.cat) || {};
-          const on = open === sd.id;
-          return (
-            <div key={sd.id} style={{ borderBottom: i === rest.length - 1 ? "none" : `1px solid ${C.line}` }}>
-              <button className="press w-full text-left" onClick={() => {
-                  if (!on) setSt((sv) => ({ ...sv, wfRead: (Number(sv.wfRead) || 0) + 1 }));
-                  setOpen(on ? null : sd.id);
-                }}
-                style={{ background: "transparent", border: "none", padding: "14px 16px", display: "block" }}>
-                <div className="flex items-baseline gap-2">
-                  <span style={{ fontSize: 13 }}>{cat.emoji}</span>
-                  <span style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 500,
-                    color: off[sd.id] ? C.ink3 : C.ink }}>{sd.t}</span>
-                  <span style={{ fontSize: 11, color: C.ink3 }}>{on ? "접기" : "보기"}</span>
-                </div>
-                {!on && wd.what && (
-                  <div style={{ fontSize: 12, color: C.ink3, marginTop: 5, overflow: "hidden",
-                    textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{wd.what}</div>
-                )}
-              </button>
-              {on && (
-                <div style={{ padding: "0 16px 16px" }}>
-                  {wd.what && <div className="hae" style={{ fontSize: 13.5, color: C.ink, lineHeight: 1.8 }}>{wd.what}</div>}
-                  {wd.who && <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 9, lineHeight: 1.7 }}>
-                    <span className="mono" style={{ fontSize: 9.5, color: C.moss, marginRight: 7 }}>누가</span>{wd.who}</div>}
-                  {wd.where && <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 5, lineHeight: 1.7 }}>
-                    <span className="mono" style={{ fontSize: 9.5, color: C.moss, marginRight: 7 }}>어디에</span>{wd.where}</div>}
-                  {wd.miss && (
-                    <div style={{ marginTop: 11, background: C.persimSoft, borderRadius: 12, padding: "11px 13px" }}>
-                      <div className="mono" style={{ fontSize: 9.5, color: C.persim }}>놓치는 이유</div>
-                      <div style={{ fontSize: 12.5, color: C.ink, marginTop: 5, lineHeight: 1.75 }}>{wd.miss}</div>
-                    </div>
-                  )}
-                  <div style={{ marginTop: 11 }}><LinkCards group={sd.g} text={sd.t} compact noAd /></div>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </Card>
-    </Section>
-  );
+  const out = SEED.filter(fits).map((sd) => ({
+    key: sd.id, cat: sd.cat, title: sd.t, g: sd.g, ...(WELFARE_DETAIL[sd.id] || {}),
+  }));
+  /* 달마다 AI가 찾아온 것도 같은 목록에 섞습니다.
+     "이달의 소식"이라고 따로 붙이면 자리가 또 하나 늘어납니다. */
+  ((st.news || {}).items || []).forEach((n, i) => {
+    if (!n || !n.title) return;
+    out.push({ key: `n${i}`, cat: n.category || "etc", title: n.title, what: n.body,
+      where: n.src || "", fresh: 1, url: n.url || "" });
+  });
+  return out;
 }
 
-/* ── 정보 (구 나눔·맡기기) ───────────────────────
-   담당자를 정하는 화면이었습니다. 그런데 영역마다 담당자는 이미 설정에 있고,
-   할 일 카드에서도 정할 수 있습니다. 무엇보다 "누가 할지 정하는 것"이
-   그 자체로 또 하나의 일이었습니다.
+function Useful() {
+  const { st, setSt, cats, setTab } = use();
+  const [open, setOpen] = useState(null);
+  const items = useMemo(() => usefulItems(st), [st.flags, st.children, st.news]);
+  const groups = useMemo(() => {
+    const by = {};
+    items.forEach((it) => { (by[it.cat] = by[it.cat] || []).push(it); });
+    return Object.keys(by).map((id) => ({
+      cat: (cats || []).find((c) => c.id === id) || { id, emoji: "🗂", label: "기타" },
+      list: by[id],
+    })).sort((a, b) => b.list.length - a.list.length);
+  }, [items, cats]);
 
-   대신 이 자리에 알아두면 좋은 것을 모읍니다. 복지도, 이달의 소식도
-   여기 한 곳에 있습니다. 읽는 화면이라 할 일이 늘지 않습니다. */
-function Share() {
-  const { st, setSt, setTab, say } = use();
-  const news = (st.news || {}).items || [];
+  const read = (k) => {
+    if (open === k) return setOpen(null);
+    setOpen(k);
+    setSt((sv) => ({ ...sv, wfRead: (Number(sv.wfRead) || 0) + 1 }));
+  };
 
   return (
     <>
       <div style={{ marginTop: 18, paddingLeft: 2 }}>
         <div className="disp" style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-.03em" }}>유용정보</div>
         <p style={{ fontSize: 13.5, color: C.ink2, marginTop: 9, lineHeight: 1.7 }}>
-          몰라서 못 받는 것들이 여기 다 있어요. <b style={{ color: C.ink }}>읽어두기만 하면 됩니다</b> —
-          할 일은 늘지 않아요.
+          몰라서 못 받는 것들이에요. <b style={{ color: C.ink }}>우리 집에 해당되는 것만</b> 띄워둡니다 —
+          날짜도 없고, 할 일도 안 늘어요.
         </p>
       </div>
 
-      <WelfareWeek />
-      <WelfareAll />
+      {groups.map((g) => (
+        <Section key={g.cat.id} eyebrow="" title={`${g.cat.emoji} ${g.cat.label}`} right={`${g.list.length}개`}>
+          <Card>
+            {g.list.map((it, i) => {
+              const on = open === it.key;
+              return (
+                <div key={it.key} style={{ borderBottom: i === g.list.length - 1 ? "none" : `1px solid ${C.line}` }}>
+                  <button className="press w-full text-left" onClick={() => read(it.key)}
+                    style={{ background: "transparent", border: "none", padding: "14px 16px", display: "block" }}>
+                    <div className="flex items-baseline gap-2">
+                      <span style={{ flex: 1, minWidth: 0, fontSize: 14.5, fontWeight: 500 }}>{it.title}</span>
+                      {it.fresh ? <span className="mono" style={{ fontSize: 9, color: C.moss }}>이번 달</span> : null}
+                      <span style={{ fontSize: 11, color: C.ink3 }}>{on ? "접기" : "보기"}</span>
+                    </div>
+                    {!on && it.what && (
+                      <div style={{ fontSize: 12, color: C.ink3, marginTop: 5, overflow: "hidden",
+                        textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.what}</div>
+                    )}
+                  </button>
+                  {on && (
+                    <div style={{ padding: "0 16px 16px" }}>
+                      {it.what && <div className="hae" style={{ fontSize: 13.5, color: C.ink, lineHeight: 1.8 }}>{it.what}</div>}
+                      {it.who && <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 9, lineHeight: 1.7 }}>
+                        <span className="mono" style={{ fontSize: 9.5, color: C.moss, marginRight: 7 }}>누가</span>{it.who}</div>}
+                      {it.where && <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 5, lineHeight: 1.7 }}>
+                        <span className="mono" style={{ fontSize: 9.5, color: C.moss, marginRight: 7 }}>어디에</span>{it.where}</div>}
+                      {it.miss && (
+                        <div style={{ marginTop: 11, background: C.persimSoft, borderRadius: 12, padding: "11px 13px" }}>
+                          <div className="mono" style={{ fontSize: 9.5, color: C.persim }}>놓치는 이유</div>
+                          <div style={{ fontSize: 12.5, color: C.ink, marginTop: 5, lineHeight: 1.75 }}>{it.miss}</div>
+                        </div>
+                      )}
+                      {it.url ? (
+                        <a className="press" href={it.url} target="_blank" rel="noopener noreferrer"
+                          style={{ display: "inline-block", marginTop: 11, background: C.bg, border: `1px solid ${C.line}`,
+                            borderRadius: 999, padding: "8px 14px", fontSize: 12.5, color: C.ink2, textDecoration: "none" }}>
+                          안내 보기 ›
+                        </a>
+                      ) : null}
+                      {it.g ? <div style={{ marginTop: 11 }}><LinkCards group={it.g} text={it.title} compact noAd /></div> : null}
+                      <div style={{ marginTop: 11, fontSize: 11.5, color: C.ink3, lineHeight: 1.7 }}>
+                        받을 수 있는지는 기관이 정합니다. 여기서는 있다는 것만 알려드려요.
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </Card>
+        </Section>
+      ))}
 
-      <Section eyebrow="MONTHLY" title="이달의 소식" right={news.length ? `${news.length}건` : ""}>
-        <Card>
-          <div style={{ padding: "16px 18px" }}>
-            {news.length ? (
-              <>
-                {news.slice(0, 4).map((n, i) => (
-                  <div key={i} style={{ marginTop: i ? 11 : 0 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600 }}>{n.title}</div>
-                    <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 4, lineHeight: 1.7 }}>{n.body}</div>
-                    {n.deadline && <div className="mono" style={{ fontSize: 10.5, color: C.persim, marginTop: 4 }}>{n.deadline} 마감</div>}
-                  </div>
-                ))}
-                <button className="press" onClick={() => setTab("news")}
-                  style={{ marginTop: 13, background: "transparent", border: "none", padding: 0, fontSize: 12.5, color: C.moss, fontWeight: 600 }}>
-                  자세히 보기 ›
-                </button>
-              </>
-            ) : (
-              <>
-                <div style={{ fontSize: 13, color: C.ink3, lineHeight: 1.8 }}>
-                  한 달에 한 번, 이 집 아이 나이에 맞는 행정·지원 정보를 찾아둡니다.
-                </div>
-                <div style={{ marginTop: 13 }}>
-                  <Btn kind="ghost" onClick={() => { setSt((sv) => ({ ...sv, newsAsk: Date.now() })); setTab("home"); }}>
-                    지금 찾아보기
-                  </Btn>
-                </div>
-              </>
-            )}
-          </div>
-        </Card>
-      </Section>
+      {/* 달마다 새로 찾아오는 것 — 버튼 하나로 끝냅니다 */}
+      <div style={{ marginTop: 18 }}>
+        <Btn kind="ghost" onClick={() => { setSt((sv) => ({ ...sv, newsAsk: Date.now() })); setTab("home"); }}>
+          이번 달 새로 나온 것 찾아보기
+        </Btn>
+        <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 9, lineHeight: 1.7, textAlign: "center" }}>
+          한 달에 한 번, 이 집에 해당하는 행정·지원 정보를 찾아 위 목록에 넣어드려요.
+        </div>
+      </div>
     </>
   );
 }
