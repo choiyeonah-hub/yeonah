@@ -127,7 +127,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0901-o';
+const GATE_BUILD = '0901-p';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -818,8 +818,8 @@ const SEED = [
   { id: "L063", cat: "finance", f: "moving", lead: 180, st: "remember", t: "임대차 계약 만료 대비", tg: "계약 만료일", ask: "계약 만료일을 등록할까요?", cy: "계약별", g: "이사", src: "" },
   { id: "L064", cat: "finance", f: "worker", lead: 14, st: "remember", t: "연말정산 자료 점검", tg: "1월 간소화 개통", ask: "부양가족·의료·교육비 누락을 볼까요?", cy: "연 1회", g: "세금", src: "S12" },
   { id: "L065", cat: "finance", f: "biz", lead: 30, st: "remember", t: "종합소득세 신고 준비", tg: "5월 신고", ask: "올해 신고대상 소득이 있나요?", cy: "연 1회", g: "세금", src: "S11" },
-  { id: "L066", cat: "travel", f: null, lead: 180, st: "check", t: "여권 유효기간 확인", tg: "출국일", ask: "출국일 기준 6개월 이상 남았나요?", cy: "여행별", g: "여행", src: "S09;S10" },
-  { id: "L067", cat: "travel", f: null, lead: 14, st: "decide", t: "여행자보험·로밍·환전", tg: "출국일", ask: "", cy: "여행별", g: "여행", src: "" },
+  { id: "L066", cat: "travel", f: null, dk: "tripDate", lead: 180, st: "check", t: "여권 유효기간 확인", tg: "출국일", ask: "출국일 기준 6개월 이상 남았나요?", cy: "여행별", g: "여행", src: "S09;S10" },
+  { id: "L067", cat: "travel", f: null, dk: "tripDate", lead: 14, st: "decide", t: "여행자보험·로밍·환전", tg: "출국일", ask: "", cy: "여행별", g: "여행", src: "" },
   { id: "L068", cat: "parents", f: "parents", lead: 7, st: "remember", t: "정기진료 일정 공유", tg: "진료일", ask: "다음 진료와 동행 담당자를 정할까요?", cy: "진료별", g: "부모님", src: "" },
   { id: "L069", cat: "parents", f: "parentsWith", lead: 7, st: "repeat", t: "약 처방일·잔량 확인", tg: "약 소진 전", ask: "약이 며칠 남았나요?", cy: "주/월", g: "부모님", src: "" },
   { id: "L070", cat: "parents", f: "parents", lead: 45, st: "remember", t: "건강검진 예약", tg: "연간 검진", ask: "연말 전에 예약할까요?", cy: "연 1회", g: "부모님", src: "" },
@@ -1383,6 +1383,9 @@ const uid = (p) => `${p}${Date.now().toString(36)}${Math.random().toString(36).s
 const monthsToDays = (m) => Math.round(m * 30.44);
 const startOfDay = (t) => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); };
 const todayKey = () => startOfDay(Date.now());
+/* 설정에 적어둔 "2027-01-15" 같은 날짜를 밀리초로 바꿉니다.
+   안 적었거나 형식이 다르면 null — 그러면 예전처럼 시점 미정으로 둡니다. */
+const isoDay = (s) => (s && /^\d{4}-\d{2}-\d{2}$/.test(s) ? new Date(s + "T00:00:00").getTime() : null);
 
 function toFragments(text) {
   const words = String(text).split(/[\s.,!?]+/).filter(Boolean);
@@ -1589,6 +1592,17 @@ function buildRecommendations(st) {
     } else {
       if (seed.f && !st.flags[seed.f]) return;
       if (seed.nkid && (st.children || []).length < seed.nkid) return;
+      /* 기준 날짜를 집이 직접 적어둔 항목(여행 출국일 등)은 그 날짜로 셉니다.
+         안 적었으면 예전처럼 "시점 미정"으로 둡니다 — 없는 날짜를 지어내지 않습니다. */
+      if (seed.dk) {
+        const at = isoDay(st[seed.dk]);
+        if (!at) return push(seed, null, null, false);
+        const days = Math.ceil((startOfDay(at) - todayKey()) / DAY);
+        const p = st.prefs[keyOf(seed, null)] || {};
+        const lead = p.lead != null ? p.lead : seed.lead;
+        if (days < -1 || days > lead) return;   /* 아직 이르거나 이미 지난 것 */
+        return push(seed, null, days, true);
+      }
       push(seed, null, null, false);
     }
   });
@@ -1599,7 +1613,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-o";
+const BUILD = "0901-p";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -4130,6 +4144,94 @@ function MovePlan() {
   );
 }
 
+/* ── 여행: 출국일을 넣으면 역산해서 나눕니다 ──────
+   여행은 이사와 달리 "언제 가는지"를 앱이 알 방법이 없습니다.
+   그래서 예전에는 여권·환전이 늘 "시점 미정"에만 있었고,
+   정작 출국 두 주 전에는 아무것도 안 올라왔습니다.
+   여기서 날짜를 한 번 적으면 아래 항목이 전부 그 날짜 기준으로 돕니다. */
+const TRIP_PLAN = [
+  { d: 180, t: "여권 유효기간 확인", n: "입국일 기준 6개월 이상 남아야 하는 나라가 많습니다", c: "travel" },
+  { d: 150, t: "아이 여권 만들기", n: "만 18세 미만은 유효기간 5년입니다. 발급에 3~5일 걸립니다", c: "travel" },
+  { d: 90,  t: "항공권 값 보기", n: "국제선은 보통 이때부터 두 달 전 사이가 가장 쌉니다", c: "travel" },
+  { d: 60,  t: "숙소 예약", n: "무료 취소 조건으로 먼저 잡아두면 값이 내려갈 때 바꿀 수 있습니다", c: "travel" },
+  { d: 45,  t: "비자·전자여행허가 확인", n: "미국 ESTA, 캐나다 eTA처럼 미리 받아야 하는 나라가 있습니다", c: "travel" },
+  { d: 30,  t: "여행자보험 비교", n: "출국 당일에도 들 수 있지만 값은 미리가 쌉니다", c: "finance" },
+  { d: 21,  t: "국제운전면허증", n: "운전 계획이 있을 때만. 경찰서·면허시험장에서 당일 발급됩니다", c: "travel" },
+  { d: 14,  t: "로밍·유심·eSIM 정하기", n: "공항에서 사면 비쌉니다", c: "travel" },
+  { d: 10,  t: "상비약·처방약 챙기기", n: "처방약은 진료 예약이 먼저입니다", c: "health" },
+  { d: 7,   t: "환전", n: "은행 앱 환전이 공항 환전소보다 쌉니다", c: "finance" },
+  { d: 5,   t: "집 비우는 동안 정리", n: "택배·우유 배달 정지, 반려동물 맡길 곳", c: "home" },
+  { d: 3,   t: "어댑터·충전기·보조배터리", n: "보조배터리는 기내 반입만 됩니다", c: "travel" },
+  { d: 2,   t: "짐 싸기", n: "액체 100ml, 칼·가위는 기내 반입 금지입니다", c: "travel" },
+  { d: 1,   t: "온라인 체크인·공항 가는 편", n: "주차할 거면 예약도 이때", c: "travel" },
+  { d: 0,   t: "여권·항공권·숙소 주소 캡처", n: "통신이 안 될 때를 대비해 사진으로", c: "travel" },
+  { d: -3,  t: "카드 해외결제 내역 확인", n: "이중 결제·해외 수수료를 여기서 걸러냅니다", c: "finance" },
+];
+
+function TripPlan({ always }) {
+  const { st, setSt, addTasks, say } = use();
+  const [date, setDate] = useState(st.tripDate || "");
+  const ms = isoDay(date);
+  const dday = ms ? Math.ceil((startOfDay(ms) - todayKey()) / DAY) : null;
+  /* 홈에서는 날짜를 적어둔 집에만 띄웁니다. 여행 영역 안에서는 항상 보입니다. */
+  if (!always && (dday == null || dday < -3 || dday > 200)) return null;
+  const rows = ms ? TRIP_PLAN.filter((x) => x.d <= Math.max(dday, 0) + 3) : [];
+
+  return (
+    <Fold icon="✈️" title={dday == null ? "여행 날짜 넣기" : dday > 0 ? `출국까지 ${dday}일` : dday === 0 ? "오늘 출국" : "다녀온 뒤 정리"}
+      sub="출국일을 넣으면 여권·환전이 그 날짜 기준으로 올라옵니다" defaultOpen={dday == null || dday <= 30}>
+        <div style={{ fontSize: 12.5, color: C.ink2, lineHeight: 1.65 }}>
+          날짜를 안 적으면 여권·환전 같은 항목은 <b style={{ color: C.ink }}>시점 미정</b>에만 있습니다.
+          출국일을 넣으면 각 항목이 필요한 날에 맞춰 올라옵니다.
+        </div>
+        <div className="flex gap-2" style={{ marginTop: 11 }}>
+          <input className="hae" type="date" value={date} aria-label="출국일"
+            onChange={(e) => { setDate(e.target.value); setSt((sv) => ({ ...sv, tripDate: e.target.value })); }}
+            style={{ flex: 1, border: `1px solid ${C.line}`, borderRadius: R.sm, padding: "11px 12px", fontSize: 14, background: C.bg, color: C.ink }} />
+          <button className="press" disabled={!ms} onClick={() => {
+            const items = TRIP_PLAN.map((x) => {
+              const when = startOfDay(ms) - x.d * DAY;
+              const left = Math.ceil((when - todayKey()) / DAY);
+              const dt = new Date(when);
+              return {
+                title: x.t, category: x.c,
+                status: left <= 0 ? "now" : left <= 7 ? "week" : "remember",
+                note: `${dt.getMonth() + 1}/${dt.getDate()} · ${x.n}`,
+              };
+            });
+            const n = addTasks(items, "ai");
+            say(`${n}개로 나눠 담았어요`);
+          }} style={{ background: ms ? C.moss : C.line, color: ms ? "#fff" : C.ink3, border: "none", borderRadius: R.sm, padding: "0 16px", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>계획 만들기</button>
+        </div>
+        {date && (
+          <button className="press" onClick={() => { setDate(""); setSt((sv) => ({ ...sv, tripDate: "" })); say("날짜를 지웠어요"); }}
+            style={{ marginTop: 8, background: "none", border: "none", color: C.ink3, fontSize: 11.5, padding: "2px 0" }}>날짜 지우기</button>
+        )}
+        {rows.length > 0 && (
+          <div style={{ marginTop: 12, background: C.bg, borderRadius: R.sm, padding: "12px 13px" }}>
+            <div style={{ fontSize: 11.5, color: C.ink3, marginBottom: 7 }}>이런 순서로 나눠집니다</div>
+            {rows.slice(0, 6).map((x) => {
+              const when = new Date(startOfDay(ms) - x.d * DAY);
+              return (
+                <div key={x.t} className="flex gap-2" style={{ fontSize: 12.5, color: C.ink2, lineHeight: 1.9 }}>
+                  <span className="mono" style={{ color: C.ink3, whiteSpace: "nowrap" }}>{when.getMonth() + 1}/{when.getDate()}</span>
+                  <span className="flex-1 min-w-0">{x.t}</span>
+                </div>
+              );
+            })}
+            {rows.length > 6 && <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 5 }}>외 {rows.length - 6}개</div>}
+          </div>
+        )}
+        {!ms && (
+          <div style={{ marginTop: 12, fontSize: 12, color: C.ink3, lineHeight: 1.7 }}>
+            아직 계획이 없으면 비워두셔도 됩니다. 정해지면 그때 적으세요.
+          </div>
+        )}
+        <LinkCards group="여행" text="여행 준비" />
+    </Fold>
+  );
+}
+
 function DiscoverCard({ item, onAdd, onLater, onNo, delay = 0 }) {
   const { cats } = use();
   const cat = cats.find((c) => c.id === item.category) || { emoji: "🗂", label: "기타" };
@@ -4485,6 +4587,7 @@ function Home() {
 
       <HolidayBrief />
       <MovePlan />
+      <TripPlan />
 
 
 
@@ -5589,6 +5692,9 @@ function Categories() {
             onUse={(p) => { setSt((sv) => ({ ...sv, draft: p, draftRun: true })); setOpenCat(null); setTab("speak"); }} />
         </div>
         <LinkCards group={null} text={openCat.label} />
+
+        {/* 여행은 출국일을 모르면 아무것도 못 셉니다. 여기서 적게 합니다. */}
+        {openCat.id === "travel" && <div style={{ marginTop: 14 }}><TripPlan always /></div>}
 
         {myRoutines.length > 0 && (
           <Section eyebrow="ROUTINE" title="반복 업무" right="주기를 눌러 바꿀 수 있어요">
