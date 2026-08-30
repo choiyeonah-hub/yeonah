@@ -131,6 +131,12 @@ export default async function handler(req, res) {
     let data = null, r = null;
     /* 검색을 쓰면 한 번에 안 끝나고 pause_turn으로 돌아올 수 있습니다.
        그대로 두면 답이 잘린 채로 화면에 갑니다. 끝날 때까지 이어받습니다. */
+    /* Vercel이 60초에서 함수를 끊습니다. 끊기면 화면에는 아무 이유도 안 남습니다 —
+       504가 HTML로 오기 때문에 우리가 만든 안내문이 닿지도 않습니다.
+       그래서 45초가 지나면 이어받기를 멈추고, 지금까지 온 것으로 답합니다.
+       검색을 쓰면 한 바퀴가 20초 넘게 걸리는 일이 있습니다. */
+    const started = Date.now();
+    const DEADLINE = 45000;
     for (let round = 0; round < MAX_ROUNDS; round++) {
       r = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST", headers, body: JSON.stringify({ ...base, messages }),
@@ -138,6 +144,10 @@ export default async function handler(req, res) {
       data = await r.json();
       if (!r.ok) break;
       if (data.stop_reason !== "pause_turn") break;
+      if (Date.now() - started > DEADLINE) {
+        console.warn("classify: 시간이 모자라 이어받기를 멈춤", round + 1, "바퀴");
+        break;
+      }
       messages.push({ role: "assistant", content: data.content });
     }
     if (!r.ok) {
