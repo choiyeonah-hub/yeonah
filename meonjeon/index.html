@@ -127,7 +127,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0901-ar';
+const GATE_BUILD = '0901-as';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1884,7 +1884,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-ar";
+const BUILD = "0901-as";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -6686,7 +6686,7 @@ function CallScreen() {
     const text = say1.trim();
     if (!text || busy) return;
     setBusy(true); setSayErr("");
-      try {
+    try {
       const r = await askClaude(`한국 가정의 살림을 돕는 AI '${BRAND}'입니다.
 부모가 조부모께 전할 말을 말로 불렀습니다. ${tomorrow ? "내일" : "오늘"} 것만 정리하세요.
 
@@ -6702,8 +6702,17 @@ function CallScreen() {
 · 아이가 여럿이면 누구 것인지 "who"에 이름을 그대로 적으세요. 한 명이면 빈 문자열.
 
 출력은 JSON 배열만: [{"kind":"sked|med|bag","time":"HH:MM","what":"…","who":"…"}]`);
-      const rows = (Array.isArray(r) ? r : []).filter((x) => x && x.what).slice(0, 6);
-      if (!rows.length) { setSayErr("넣을 것을 못 찾았어요. 조금 더 자세히 말씀해주세요."); setBusy(false); return; }
+      /* AI가 배열이 아니라 {items:[…]} 로 감싸 보내는 일이 있습니다.
+         한 줄만 있으면 객체 하나로 오기도 하고요. 셋 다 받습니다. */
+      const arr = Array.isArray(r) ? r
+        : (r && Array.isArray(r.items)) ? r.items
+        : (r && Array.isArray(r.rows)) ? r.rows
+        : (r && r.what) ? [r] : [];
+      const rows = arr.filter((x) => x && x.what).slice(0, 6);
+      if (!rows.length) {
+        setSayErr("넣을 것을 못 찾았어요. 시각과 무엇을 하실지 같이 말씀해 보세요 — 예: “내일 3시에 소아과”");
+        setBusy(false); return;
+      }
       setSt((sv) => {
         const t = { ...(sv.callToday || {}) };
         const cur = t[day] || {};
@@ -6722,7 +6731,12 @@ function CallScreen() {
       say(`${rows.length}개 넣었어요`);
       log("call_say", { n: rows.length });
     } catch (e) {
-      setSayErr("잘 안 됐어요. 다시 한 번 눌러주세요.");
+      /* 무슨 일인지 감추면 고칠 수가 없습니다.
+         로그인이 풀렸는지, 한도를 다 썼는지, AI가 이상한 답을 줬는지
+         화면에서 바로 보여야 합니다. */
+      const m = (e && e.message) ? String(e.message) : "";
+      setSayErr(m || "잘 안 됐어요. 다시 한 번 눌러주세요.");
+      log("call_say_fail", { why: m.slice(0, 80) });
     }
     setBusy(false);
   };
