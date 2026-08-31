@@ -127,7 +127,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0901-an';
+const GATE_BUILD = '0901-ao';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1861,7 +1861,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-an";
+const BUILD = "0901-ao";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -3389,7 +3389,6 @@ function App() {
               <div className="px-5">
                 <LinkClaims key={tab}>
                 {tab === "home" && <Home />}
-                {tab === "cat" && <Categories />}
                 {tab === "speak" && <Speak />}
                 {tab === "ann" && <AnnScreen />}
                 {tab === "news" && <NewsScreen />}
@@ -4662,6 +4661,7 @@ function Home() {
   const callScr = st.callOn ? callScript(st, callDay) : "";
   const callDone = !!(st.callChecked || {})[callDay];
   const callTomorrow = callDay > todayKey();
+  const callBatchN = st.callOn ? callBatches(st, callDay).length : 0;
 
   const recs = useMemo(() => buildRecommendations(st), [st]);
   const due = useMemo(() => dueRoutines(st), [st]);
@@ -4696,12 +4696,12 @@ function Home() {
   const arrived = visTasks.filter((t) => t.status !== "buy" && dueNow(t))
     .sort((a, b) => (a.dueAt || 0) - (b.dueAt || 0));
   const rest = visTasks.filter((t) => !arrived.includes(t));
+  /* 조부모께 전달하는 앱으로 좁히면서, 씨앗에서 저절로 나오던 것들을 뺐습니다.
+     결혼기념일·가정통신문 추천·루틴 체크리스트 같은 것들입니다.
+     남는 건 부모가 말하기로 직접 넣은 일뿐입니다 — 그게 어른께 갈 말이 됩니다. */
   const think = [
     ...arrived.map((t) => ({ kind: "task", t })),
     ...rest.filter((t) => t.status === "now").map((t) => ({ kind: "task", t })),
-    ...occasional.filter((r) => !doneToday(r)).map((r) => ({ kind: "routine", r })),
-    /* 추천 카드는 아직 누구 몫도 아니라서 "내 몫만"에서는 뺍니다 */
-    ...(only === "mine" ? [] : recs.filter((r) => r.dateKnown).map((r) => ({ kind: "rec", r }))),
     ...rest.filter((t) => t.status === "week").map((t) => ({ kind: "task", t })),
   ].slice(0, limit);
   /* 세 개만 보여주는 건 벽을 만들지 않기 위해서입니다. 그건 그대로 둡니다.
@@ -4930,11 +4930,16 @@ function Home() {
             {new Date().getMonth() + 1}월 {new Date().getDate()}일 {WEEKDAY[new Date().getDay()]}요일
           </div>
           <div className="disp" style={{ color: "#fff", fontSize: 23, fontWeight: 600, lineHeight: 1.42, marginTop: 10, letterSpacing: "-.03em" }}>
-            {meName} 님, 오늘<br />살펴둘 일은 {think.length}가지예요.
+            {st.callOn
+              ? <>{callTomorrow ? "내일" : "오늘"} {((st.elders || [])[0] || {}).label || "어른"}께<br />{callBatchN}통 나갑니다.</>
+              : <>{meName} 님, 오늘<br />살펴둘 일은 {think.length}가지예요.</>}
           </div>
           <div style={{ color: "#9DBDB5", fontSize: 13, marginTop: 10, lineHeight: 1.65 }}>
-            {daily.length > 0 ? `루틴 ${daily.length}개는 늘 하던 일이라 세지 않았어요. ` : ""}
-            {remain > 0 ? `나머지 ${remain}개는 제가 기억하고 있을게요.` : "지금은 급한 게 없어요."}
+            {st.callOn
+              ? (callBatchN
+                  ? `${st.callAt || "07:50"}에 첫 통이 나갑니다. 달라진 게 있으면 지금 고쳐두세요.`
+                  : `${callTomorrow ? "내일" : "오늘"}은 넣어둔 것이 없어서 전화가 나가지 않아요.`)
+              : (remain > 0 ? `나머지 ${remain}개는 제가 기억하고 있을게요.` : "지금은 급한 게 없어요.")}
           </div>
           <button className="press" onClick={() => setTab("speak")}
             style={{ width: "100%", marginTop: 17, background: "#fff", color: C.ink, border: "none", borderRadius: R.md, padding: "15px 0", fontSize: 14.5, fontWeight: 600 }}>생각나는 거 말하기</button>
@@ -5079,116 +5084,13 @@ function Home() {
       </Section>
 
       {/* 이달의 소식 — 안 읽었을 때만 눈에 띕니다 */}
-      {((st.news || {}).items || []).length > 0 && (
-        <button className="press w-full text-left" onClick={() => setTab("news")}
-          style={{ marginTop: 12, background: C.card, border: `1px solid ${C.sprout}`, borderRadius: R.lg, padding: "14px 16px", boxShadow: SHADOW }}>
-          <span className="flex items-center gap-3">
-            <span style={{ fontSize: 19 }}>📬</span>
-            <span className="flex-1 min-w-0">
-              <span style={{ display: "block", fontSize: 14, fontWeight: 600 }}>
-                이달의 소식 {st.news.items.length}건
-              </span>
-              <span style={{ display: "block", fontSize: 12, color: C.ink3, marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {st.news.items.map((n) => n.title).join(" · ")}
-              </span>
-            </span>
-            <span style={{ fontSize: 14, color: C.moss }}>›</span>
-          </span>
-        </button>
-      )}
 
 
-      {only !== "mine" && (disc.length > 0 || loadingDisc) && (
-        <Fold icon="✦" tone={C.sprout} defaultOpen={false}
-          title={loadingDisc && !disc.length ? `${BRAND}이 찾아보는 중…` : `${BRAND}이 미리 찾은 것 ${disc.length}개`}
-          sub={disc.length ? disc.map((d) => d.title).join(" · ") : "지금 시기에 놓치기 쉬운 일"}>
-          {loadingDisc && !disc.length && (
-            <Card><div style={{ padding: 18 }}>
-              <div className="skel" style={{ height: 13, width: "45%" }} />
-              <div className="skel" style={{ height: 17, width: "72%", marginTop: 11 }} />
-              <div className="skel" style={{ height: 13, width: "88%", marginTop: 9 }} />
-              <div className="skel" style={{ height: 44, width: "100%", marginTop: 14, borderRadius: 14 }} />
-              <div style={{ fontSize: 12, color: C.ink3, marginTop: 11 }}>지금 시기에 놓치기 쉬운 걸 찾아보는 중…</div>
-            </div></Card>
-          )}
-          {disc.map((item, i) => (
-            <DiscoverCard key={i} item={item} delay={i * 70}
-              onAdd={() => {
-                /* 물건 제안은 할 일이 아니라 살 것으로 갑니다 */
-                const isBuy = item.kind === "buy";
-                const hit = isBuy ? { id: "etc", label: "살 것" }
-                  : (cats.find((c) => c.id === item.category) || cats.find((c) => c.label.includes(String(item.category || ""))) || { id: "etc", label: "기타" });
-                addTasks([{ title: item.title, category: hit.id,
-                  status: isBuy ? "buy" : (item.status && STATUS[item.status] ? item.status : "week"),
-                  note: item.why, coverage: "new" }], "ai");
-                setDisc((d) => d.filter((x) => x !== item));
-                say(isBuy ? "살 것에 담았어요" : `${hit.label} 영역에 담았어요`);
-              }}
-              onLater={() => {
-                const m = String(item.when || "").match(/(\d{1,2})\s*월/);
-                let at = Date.now() + 30 * DAY;
-                if (m) { const mm = Number(m[1]); const now = new Date(); const y = now.getFullYear() + (mm - 1 < now.getMonth() ? 1 : 0); at = new Date(y, mm - 1, 1).getTime(); }
-                setSt((sv) => ({ ...sv, discoverSnoozed: [...(sv.discoverSnoozed || []), { ...item, dueAt: at }] }));
-                setDisc((d) => d.filter((x) => x !== item));
-                say(`${item.when || "한 달 뒤"} 다시 알립니다`);
-              }}
-              onNo={() => { setSt((sv) => ({ ...sv, dismissedDiscover: [...sv.dismissedDiscover, item.title] })); setDisc((d) => d.filter((x) => x !== item)); }} />
-          ))}
-        </Fold>
-      )}
 
       <PendingDates />
       <SkippedCats />
 
       {/* 매일 루틴은 체크리스트로 따로 */}
-      {daily.length > 0 && (
-        <Section eyebrow="ROUTINE" title="오늘의 루틴" right="매일 하는 것">
-          <Card>
-            {/* 접혀 있어도 무엇이 남았는지 이름으로 보입니다.
-                잘 챙기고 있다고 말해주는 칭찬은 여기 쓰지 않습니다 —
-                매일 하는 일을 매일 까먹는 사람에게는 틀린 말이고, 놀리는 것처럼 들립니다. */}
-            <button className="press flex items-center justify-between w-full" onClick={() => setOpenRoutine((v) => !v)}
-              style={{ background: "transparent", border: "none", padding: "14px 16px", borderBottom: openRoutine ? `1px solid ${C.line}` : "none" }}>
-              <span style={{ fontSize: 14, color: C.ink2, textAlign: "left", minWidth: 0 }}>
-                {/* "N개 남음"은 빚처럼 읽히고 "다 했어요"는 평가입니다.
-                    매일 하는 일을 매일 못 하는 사람에게 둘 다 상처가 됩니다.
-                    오늘 무엇이 도는지, 사실만 적습니다. */}
-                <b style={{ color: C.ink, fontWeight: 600 }}>
-                  {dailyLeft.length ? `오늘 도는 것 ${dailyLeft.length}개` : `오늘 도는 것 ${daily.length}개`}
-                </b>
-                {st.members.length > 1 && mineRoutines.length ? ` · ${meName} 님 몫 ${mineRoutines.length}개` : ""}
-                {!openRoutine && dailyLeft.length > 0 && (
-                  <span style={{ display: "block", fontSize: 11.5, color: C.ink3, marginTop: 3, lineHeight: 1.5 }}>
-                    {dailyLeft.slice(0, 3).map((r) => r.seed.t + (r.child ? ` (${r.child.name})` : "")).join(" · ")}
-                    {dailyLeft.length > 3 ? ` 외 ${dailyLeft.length - 3}개` : ""}
-                  </span>
-                )}
-              </span>
-              <span style={{ fontSize: 12.5, color: C.moss, flexShrink: 0 }}>{openRoutine ? "접기" : "펼치기"}</span>
-            </button>
-            {openRoutine && dailyLeft.length > 1 && (
-              <div style={{ padding: "11px 16px", borderBottom: `1px solid ${C.line}` }}>
-                {/* 하나씩 누르는 것도 일입니다. 다 했으면 한 번에 긋습니다.
-                    안 한 것을 캐묻지 않습니다 — 그냥 내일 또 돕니다. */}
-                <button className="press" onClick={() => {
-                    dailyLeft.forEach((r) => routineAction(r.key, st.routines[r.key] || {}, "done"));
-                    say(`${dailyLeft.length}개에 줄 그었어요`);
-                  }}
-                  style={{ background: C.bg, border: `1px solid ${C.line}`, borderRadius: 999,
-                    padding: "8px 14px", fontSize: 12.5, color: C.ink2, fontWeight: 600 }}>
-                  오늘 건 한꺼번에 줄 긋기
-                </button>
-              </div>
-            )}
-            {openRoutine && daily.map((r, i, a) => <RoutineRow key={r.key} r={r} delay={i * 30} last={i === a.length - 1} />)}
-          </Card>
-          {openRoutine && <div className="flex gap-2" style={{ marginTop: 8 }}>
-            <button className="press" onClick={doneAll} style={{ flex: 1.2, background: C.moss, border: "none", borderRadius: 12, padding: "10px 0", fontSize: 12.5, color: "#fff", fontWeight: 600 }}>✓ 전부 완료</button>
-            <button className="press" onClick={pushAll} style={{ flex: 1, background: "transparent", border: `1px solid ${C.line}`, borderRadius: 12, padding: "10px 0", fontSize: 12.5, color: C.ink2 }}>통째로 내일로</button>
-            {spouse && <button className="press" onClick={handOver} style={{ flex: 1, background: "transparent", border: `1px solid ${C.line}`, borderRadius: 12, padding: "10px 0", fontSize: 12.5, color: C.ink2 }}>{spouse.name}에게</button>}
-          </div>}
-        </Section>
-      )}
 
       <div style={{ marginTop: 22 }}>
         <button onClick={() => setAll((v) => !v)} style={{ width: "100%", background: "none", border: "none", color: C.ink3, fontSize: 12.5, padding: 10 }}>
@@ -6140,152 +6042,6 @@ function AnnScreen() {
 }
 
 /* ── 영역(카테고리) ───────────────────────────── */
-function Categories() {
-  const { st, setSt, cats, openCat, setOpenCat, addTasks, say, log, setTab } = use();
-
-  const [picked, setPicked] = useState({});
-  const [aiItems, setAiItems] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [adding, setAdding] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [ex, setEx] = useState(0);
-
-  const allCats = [...cats, { id: "etc", emoji: "🗂", label: "기타" }];
-
-  const open = async (cat) => {
-    setOpenCat(cat); setPicked({}); setAiItems([]); setLoading(true); log("cat_open", { id: cat.id });
-    const mine = st.tasks.filter((t) => t.category === cat.id).map((t) => t.title);
-    try {
-      const r = await askClaude(`한국 가정의 살림을 대신 기억해주는 AI 비서 '${BRAND}'입니다.
-"${cat.label}" 영역에서 이 집이 아직 등록하지 않았지만 주기적으로 챙겨야 할 항목을 알려주세요.
-가구: ${householdLine(st)}
-이미 등록: ${mine.length ? mine.join(", ") : "없음"}
-규칙: 이 집에 실제 해당하는 것만, 한국 기준, 3~4개, 이미 등록한 항목 제외.
-출력은 JSON 배열만: [{"t":"12자 이내","cy":"권장 주기","why":"놓치기 쉬운 이유 20자"}]`);
-      if (Array.isArray(r)) setAiItems(r.filter((x) => x && x.t));
-    } catch {}
-    setLoading(false);
-  };
-
-  if (openCat) {
-    const baseKey = openCat.child ? "kid" : openCat.id;
-    const mine = st.tasks.filter((t) => t.category === openCat.id && !t.done);
-    /* 이미 담았거나 반복으로 도는 항목은 "놓친 것" 목록에서 뺍니다 */
-    const list = [...(BLIND[baseKey] || []), ...aiItems]
-      .filter((c) => !st.tasks.some((t) => !t.done && t.title === c.t));
-    const myRoutines = eligibleRoutines(st, true).filter((r) => (r.child ? `kid:${r.child.id}` : r.seed.cat) === openCat.id);
-    const chosen = list.filter((_, i) => picked[i]);
-    const prompts = PROMPTS[baseKey] || PROMPTS.etc;
-
-    return (
-      <>
-        <PageHead onBack={() => setOpenCat(null)} backLabel="영역 전체" />
-        <div className="flex items-center gap-3" style={{ marginTop: 16, marginBottom: 6 }}>
-          <span style={{ fontSize: 30 }}>{openCat.emoji}</span>
-          <div>
-            <div className="disp" style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-.025em" }}>{openCat.label}</div>
-            <div style={{ fontSize: 12.5, color: C.ink3, marginTop: 3 }}>반복 {myRoutines.length}개 · 진행 중 {mine.length}건</div>
-          </div>
-        </div>
-
-
-        {/* 예시 질문 — 고정입니다. 누르면 말하기 화면 입력칸에 그대로 들어가요 */}
-        <div style={{ marginTop: 16 }}>
-          <PromptRail list={prompts.slice(0, 5)}
-            note="누르면 ‘말하기’ 입력칸에 들어갑니다. 고쳐서 보내셔도 돼요."
-            onUse={(p) => { setSt((sv) => ({ ...sv, draft: p, draftRun: true })); setOpenCat(null); setTab("speak"); }} />
-        </div>
-        <LinkCards group={null} text={openCat.label} />
-
-        {/* 여행은 출국일을 모르면 아무것도 못 셉니다. 여기서 적게 합니다. */}
-        {openCat.id === "travel" && <div style={{ marginTop: 14 }}><TripPlan always /></div>}
-
-        {myRoutines.length > 0 && (
-          <Section eyebrow="ROUTINE" title="반복 업무" right="주기를 눌러 바꿀 수 있어요">
-            <Card>{myRoutines.map((r, i, a) => <RoutineRow key={r.key} r={r} delay={i * 40} last={i === a.length - 1} manage />)}</Card>
-          </Section>
-        )}
-        {mine.length > 0 && (
-          <Section eyebrow="TASKS" title="담아둔 일">
-            <Card>{mine.map((t, i, a) => <TaskRow key={t.id} t={t} delay={i * 40} last={i === a.length - 1} />)}</Card>
-          </Section>
-        )}
-
-        <Section eyebrow="BLIND SPOT" title="혹시 놓치고 있는 건 없나요?" right="등록 안 해도 해당되는 일">
-          <Card>
-            {list.map((c, i) => (
-              <button key={i} className="press rise flex items-start gap-3 w-full text-left" onClick={() => setPicked((p) => ({ ...p, [i]: !p[i] }))}
-                style={{ background: picked[i] ? C.mossSoft : "transparent", border: "none", borderBottom: i === list.length - 1 && !loading ? "none" : `1px solid ${C.line}`, padding: "14px 16px", animationDelay: `${i * 50}ms` }}>
-                <span style={{ width: 21, height: 21, marginTop: 1, borderRadius: 999, flexShrink: 0, border: `1.5px solid ${picked[i] ? C.moss : C.line}`, background: picked[i] ? C.moss : "transparent", color: "#fff", fontSize: 12, lineHeight: "19px", textAlign: "center" }}>{picked[i] ? "✓" : ""}</span>
-                <span className="flex-1 min-w-0">
-                  <span style={{ display: "block", fontSize: 14.5, fontWeight: 500 }}>{c.t}</span>
-                  <span style={{ display: "block", fontSize: 12, color: C.ink3, marginTop: 3 }}>{c.why}</span>
-                </span>
-                <span className="mono" style={{ fontSize: 11, color: C.moss, whiteSpace: "nowrap", marginTop: 3 }}>{c.cy}</span>
-              </button>
-            ))}
-            {loading && <div style={{ padding: "15px 16px", fontSize: 12.5, color: C.ink3, borderTop: `1px solid ${C.line}` }}>이 집에만 해당하는 항목을 더 찾는 중…</div>}
-          </Card>
-        </Section>
-
-        <div style={{ marginTop: 18 }}>
-          <Btn disabled={!chosen.length} onClick={() => { addTasks(chosen.map((c) => ({ title: c.t, category: openCat.id, status: "check", note: c.cy, coverage: "system" })), "ai"); say(`${chosen.length}개를 담았어요`); setPicked({}); }}>
-            {chosen.length ? `${chosen.length}개 챙기기` : "챙길 항목을 골라주세요"}
-          </Btn>
-        </div>
-      </>
-    );
-  }
-
-  return (
-    <>
-    {/* 광고 자리. 지금은 아무것도 안 그립니다.
-        유료 전환 뒤 무료 사용자에게만 켤 자리이고, 여기 둔 이유는
-        복지 안내와 멀리 떨어뜨리기 위해서입니다.
-        (복지는 유용정보 탭에 있고, 여기는 영역 목록 위입니다.) */}
-    <AdSlot where="영역" />
-    <Section eyebrow="AREAS" title="우리 집 관리 영역" right="탭하면 놓친 것부터">
-      <div className="grid grid-cols-2 gap-2.5">
-        {allCats.map((c, i) => {
-          const n = st.tasks.filter((t) => t.category === c.id && !t.done).length;
-          /* 켜져 있는 것만 셉니다. 꺼둔 것까지 세면 "반복 23"이라고 해놓고
-             정작 아무것도 안 도는 화면이 됩니다 */
-          const rn = eligibleRoutines(st, true).filter((r) => (r.child ? `kid:${r.child.id}` : r.seed.cat) === c.id && (st.routines[r.key] || {}).on).length;
-          return (
-            <button key={c.id} className="press rise text-left" onClick={() => open(c)}
-              style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 18, padding: 15, boxShadow: SHADOW, animationDelay: `${i * 30}ms` }}>
-              <div style={{ fontSize: 23 }}>{c.emoji}</div>
-              <div style={{ fontSize: 14.5, fontWeight: 600, marginTop: 9, lineHeight: 1.3 }}>{c.label}</div>
-              <div className="mono" style={{ fontSize: 10.5, color: n || rn ? C.moss : C.ink3, marginTop: 6 }}>{rn ? `반복 ${rn}` : ""}{rn && n ? " · " : ""}{n ? `할 일 ${n}` : (rn ? "" : "비어 있음")}</div>
-            </button>
-          );
-        })}
-        <div style={{ border: `1px dashed ${C.line}`, borderRadius: 18, padding: 15 }}>
-          {adding ? (
-            <>
-              <input className="hae" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="예: 텃밭"
-                style={{ width: "100%", border: `1px solid ${C.line}`, borderRadius: 10, padding: "8px 10px", fontSize: 13, background: C.card, color: C.ink }} />
-              <button className="press w-full" onClick={() => {
-                const label = newName.trim(); if (!label) return setAdding(false);
-                setSt((s) => ({ ...s, customCats: [...(s.customCats || []), { id: uid("cc"), emoji: "✚", label }] }));
-                setNewName(""); setAdding(false); say("영역을 추가했어요");
-              }} style={{ marginTop: 9, background: C.moss, color: "#fff", border: "none", borderRadius: 10, padding: "8px 0", fontSize: 12.5, fontWeight: 600 }}>추가</button>
-            </>
-          ) : (
-            <button onClick={() => setAdding(true)} className="w-full text-left" style={{ background: "none", border: "none" }}>
-              <div style={{ fontSize: 23, color: C.ink3 }}>✚</div>
-              <div style={{ fontSize: 14.5, fontWeight: 600, marginTop: 9, color: C.ink2 }}>직접 추가</div>
-              <div style={{ fontSize: 10.5, color: C.ink3, marginTop: 6 }}>빠진 영역 만들기</div>
-            </button>
-          )}
-        </div>
-      </div>
-    </Section>
-    </>
-  );
-}
-
-
 /* 광고는 무료 사용자에게만, 유료 전환 뒤에 켭니다.
    지금은 자리만 잡아두고 아무것도 안 그립니다 —
    베타에 광고를 넣으면 유지율 숫자가 오염됩니다.
@@ -7925,7 +7681,6 @@ function TabBar() {
      복지는 오히려 혼자 사는 집에 더 필요하고, 미리 사두기도 여기에만 있습니다. */
   const items = [
     { id: "home", label: "오늘", icon: "◉" },
-    { id: "cat", label: "영역", icon: "▦" },
     { id: "speak", label: "말하기", icon: "✦", primary: true },
     { id: "call", label: "전화", icon: "☏" },
   ];
