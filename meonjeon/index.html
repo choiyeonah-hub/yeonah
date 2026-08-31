@@ -62,7 +62,7 @@ const ID_LISTS = ['tasks', 'shopping', 'pantry', 'toss', 'customRoutines', 'cust
 /* 새 맵을 여기 안 넣으면 합칠 때 통째로 덮어써집니다 —
    남편이 접어둔 항목을 내가 열면 남편 쪽이 사라집니다.
    welfareOff는 복지 화면을 지우면서 같이 없어진 이름이라 뺐습니다. */
-const KEY_MAPS = ['routines', 'prefs', 'duty', 'groupsOff', 'flags', 'petTypes', 'dismissedDiscover', 'routineTitles', 'wfOff', 'aheadDone', 'aheadWhen', 'shareSeen'];
+const KEY_MAPS = ['routines', 'prefs', 'duty', 'groupsOff', 'flags', 'petTypes', 'dismissedDiscover', 'routineTitles', 'wfOff', 'aheadDone', 'aheadWhen', 'shareSeen', 'callPlan', 'callToday', 'callLog', 'callChecked'];
 
 function mergeList(base, mine, theirs) {
   base = Array.isArray(base) ? base : []; mine = Array.isArray(mine) ? mine : []; theirs = Array.isArray(theirs) ? theirs : [];
@@ -127,7 +127,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0901-aj';
+const GATE_BUILD = '0901-ak';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1444,6 +1444,20 @@ const DEFAULT_STATE = {
   brief: null,
   /* 서로 넘긴 일 */
   toss: [],
+  /* ── 어른께 거는 전화 ──────────────────────────
+     조부모께 아이를 맡기는 집을 위한 것입니다.
+     전제가 하나 있고, 그 전제가 이 기능의 전부입니다 —
+     어른은 앱을 켜지 않으십니다. 문자도 안 읽으시고, 사진도 안 찍으십니다.
+     받으시는 것 말고는 아무것도 하지 않으십니다.
+     그래서 넣는 일은 전부 부모 몫이고, 요일별로 한 번만 넣으면 됩니다. */
+  callOn: false,
+  elders: [],        /* { id, label, phone } — 이름 대신 호칭으로 부릅니다 */
+  callAt: "07:50",   /* 어른께 전화가 나가는 시각 */
+  callPlan: {},      /* "1"~"5" (월~금) → [{ id, time, what }] */
+  callToday: {},     /* dateKey → { add: [...], skip: [id...] }  그날만 다른 것 */
+  callLog: {},       /* dateKey → { at, ok }  받으셨는지. 어른이 안 하셔도 남습니다 */
+  callChecked: {},   /* dateKey → 1  부모가 아침 확인을 눌렀는지 */
+  callOff: 0,        /* 안내 카드를 닫은 시각. 조부모께 안 맡기는 집도 많습니다 */
   notify: { on: false, hour: 8 },
   /* AI 사용량 — 달이 바뀌면 month가 갱신되며 0부터 다시 셉니다 */
   aiUsage: { month: "", talk: 0, photo: 0, find: 0 },
@@ -1461,6 +1475,60 @@ const todayKey = () => startOfDay(Date.now());
 /* 설정에 적어둔 "2027-01-15" 같은 날짜를 밀리초로 바꿉니다.
    안 적었거나 형식이 다르면 null — 그러면 예전처럼 시점 미정으로 둡니다. */
 const isoDay = (s) => (s && /^\d{4}-\d{2}-\d{2}$/.test(s) ? new Date(s + "T00:00:00").getTime() : null);
+
+/* ── 어른께 읽어드릴 말 ────────────────────────────
+   전화 한 통에 기본료 200원이 붙습니다. 나눠 걸수록 손해라서
+   그날 것을 한 통에 다 담습니다. 한 항목이 8~10초라 대여섯 개가 한계고,
+   그것보다 많으면 어른이 못 외우십니다. 그래서 여섯 개에서 끊습니다. */
+const CALL_MAX = 6;
+const DOW_KR = ["일", "월", "화", "수", "목", "금", "토"];
+
+/* 그날 어른께 갈 줄들. 요일 반복에서 가져와 그날 것만 더하고 뺍니다 */
+function callItemsFor(st, when) {
+  const day = startOfDay(when || Date.now());
+  const dow = String(new Date(day).getDay());
+  const base = ((st.callPlan || {})[dow] || []).slice();
+  const t = (st.callToday || {})[day] || {};
+  const skip = t.skip || [];
+  const rows = base.filter((r) => skip.indexOf(r.id) < 0).concat(t.add || []);
+  return rows
+    .filter((r) => r && r.what)
+    .sort((a, b) => String(a.time || "").localeCompare(String(b.time || "")))
+    .slice(0, CALL_MAX);
+}
+
+/* 시각을 어른이 들으시는 대로 읽습니다. "15:20"을 "십오 시"라고 하면
+   되물으십니다. "오후 세 시 이십 분"이 귀에 들어오는 말입니다. */
+const callTime = (t) => {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(t || ""));
+  if (!m) return "";
+  let h = Number(m[1]); const mm = Number(m[2]);
+  if (h > 23 || mm > 59) return "";
+  const ampm = h < 12 ? "오전" : "오후";
+  h = h % 12 || 12;
+  return mm ? `${ampm} ${h}시 ${mm}분` : `${ampm} ${h}시`;
+};
+
+/* 어른께 그대로 나갈 문장. 부모가 미리 볼 수 있어야 해서 따로 뺐습니다.
+   확인을 요구하지 않습니다 — 버튼을 누르시라고 하면 그 순간
+   어른이 이 앱의 사용자가 되어버립니다. 끊으시면 끝입니다. */
+function callScript(st, when) {
+  const rows = callItemsFor(st, when);
+  if (!rows.length) return "";
+  const elder = (st.elders || [])[0] || {};
+  const label = elder.label || "어르신";
+  const kid = (st.children || [])[0];
+  const who = kid && kid.name ? kid.name : "아이";
+  const body = rows.map((r) => (r.time ? `${callTime(r.time)} ${r.what}` : r.what)).join(", ");
+  return `${label}, ${who} 오늘 일정입니다. ${body}. 끊으셔도 됩니다.`;
+}
+
+/* 통화 길이와 값. 초당 4원에 기본료 200원 — 이 숫자가 요금제를 정합니다.
+   한글 한 글자를 0.18초로 잡았습니다(보통 TTS 속도) */
+function callCost(text) {
+  const sec = Math.max(10, Math.ceil(String(text || "").length * 0.18) + 3);
+  return { sec, won: 200 + sec * 4 };
+}
 
 function toFragments(text) {
   const words = String(text).split(/[\s.,!?]+/).filter(Boolean);
@@ -1722,7 +1790,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-aj";
+const BUILD = "0901-ak";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -3256,6 +3324,7 @@ function App() {
                 {tab === "meal" && <MealScreen />}
                 {tab === "news" && <NewsScreen />}
                 {tab === "share" && <Useful />}
+                {tab === "call" && <CallScreen />}
                 {tab === "set" && <Settings />}
                 </LinkClaims>
               </div>
@@ -4516,6 +4585,11 @@ function Home() {
   /* 카톡으로 그냥 전달하는 것과 뭐가 다른가 — 여기가 그 답입니다.
      전달은 매달 합니다. 정기로 만들어두면 다음부터는 공유조차 안 하셔도 됩니다. */
   const nudge = st.shareNudge && st.shareNudge.title ? st.shareNudge : null;
+  /* 어른께 나갈 말 — 아침에 한 번 보여드립니다.
+     이게 없으면 부모가 깜빡했을 때 "평소대로"가 나갑니다.
+     아무것도 안 간 것보다 틀린 말이 간 것이 나쁩니다. */
+  const callScr = st.callOn ? callScript(st, Date.now()) : "";
+  const callDone = !!(st.callChecked || {})[todayKey()];
 
   const recs = useMemo(() => buildRecommendations(st), [st]);
   const due = useMemo(() => dueRoutines(st), [st]);
@@ -4812,6 +4886,54 @@ function Home() {
               <button className="press" onClick={() => setSt((sv) => ({ ...sv, oneShotOff: 1 }))}
                 style={{ background: C.bg, color: C.ink2, border: `1px solid ${C.line}`, borderRadius: R.sm, padding: "11px 15px", fontSize: 12.5 }}>나중에</button>
             </div>
+          </div>
+        </Card>
+      )}
+
+      {/* 어른께 오늘 나갈 말. 전화가 나가기 전에 부모가 한 번 봅니다.
+          안 누르셔도 전화는 나갑니다 — 확인을 강요하면 부담이 되고,
+          부담이 되면 며칠 만에 앱을 안 엽니다. 보여드리는 것까지가 우리 몫입니다. */}
+      {callScr && !callDone && (
+        <Card style={{ marginTop: 14, borderColor: C.moss }}>
+          <div style={{ padding: 15 }}>
+            <div className="mono" style={{ fontSize: 10.5, letterSpacing: ".08em", color: C.moss }}>
+              오늘 {st.callAt || "07:50"} · {((st.elders || [])[0] || {}).label || "어른"}께
+            </div>
+            <div style={{ fontSize: 14, marginTop: 9, lineHeight: 1.8, color: C.ink }}>
+              “{callScr}”
+            </div>
+            <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 9, lineHeight: 1.7 }}>
+              달라진 게 있으면 지금 고쳐주세요. 그대로면 이대로 나갑니다.
+            </div>
+            <div className="flex gap-2" style={{ marginTop: 12 }}>
+              <button className="press" onClick={() => { setSt((sv) => ({ ...sv, callChecked: { ...(sv.callChecked || {}), [todayKey()]: 1 } })); log("call_confirm", {}); }}
+                style={{ background: C.moss, border: "none", borderRadius: R.pill, padding: "8px 16px", fontSize: 12.5, color: "#fff", fontWeight: 600 }}>
+                이대로 보내기
+              </button>
+              <button className="press" onClick={() => setTab("call")}
+                style={{ background: C.bg, border: `1px solid ${C.line}`, borderRadius: R.pill, padding: "8px 14px", fontSize: 12.5, color: C.ink2 }}>
+                고치기
+              </button>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* 처음 켜보시라는 안내. 조부모께 맡기는 집에만 뜹니다 */}
+      {!st.callOn && !st.callOff && (st.children || []).length > 0 && (
+        <Card style={{ marginTop: 14, borderColor: C.lineSoft }}>
+          <div style={{ padding: 15 }}>
+            <button className="press w-full text-left" onClick={() => setTab("call")} style={{ background: "transparent", border: "none", padding: 0 }}>
+              <div style={{ fontSize: 13.5, fontWeight: 600 }}>📞 어른께 아이 일정을 대신 전해드릴까요</div>
+              <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 7, lineHeight: 1.75 }}>
+                할머니·할아버지께 아이를 맡기신다면, 요일마다 한 번 넣어두시면 매일 아침 전화로 읽어드립니다.
+                <b style={{ color: C.ink }}> 어른은 받기만 하시면 됩니다.</b> 앱을 깔지 않으셔도 되고요.
+              </div>
+            </button>
+            <button className="press" onClick={() => setSt((sv) => ({ ...sv, callOff: Date.now() }))}
+              style={{ marginTop: 11, background: C.bg, border: `1px solid ${C.line}`, borderRadius: R.pill, padding: "7px 13px", fontSize: 12, color: C.ink3 }}>
+              저희는 안 맡깁니다
+            </button>
           </div>
         </Card>
       )}
@@ -7717,6 +7839,151 @@ function CarDates() {
         </div>
       )}
     </>
+  );
+}
+
+/* ── 어른께 전화 ───────────────────────────────────
+   부모가 보는 화면입니다. 어른은 이 화면을 못 보십니다 — 볼 필요도 없고요.
+   요일별로 한 번 넣어두면 앱이 매일 아침 대신 읽어드립니다. */
+function CallScreen() {
+  const { st, setSt, say, setTab, log } = use();
+  const [dow, setDow] = useState(String(new Date().getDay() || 1));
+  const [time, setTime] = useState("");
+  const [what, setWhat] = useState("");
+  const inp = { border: `1px solid ${C.line}`, borderRadius: 12, padding: "11px 12px", fontSize: 14.5, background: C.bg, color: C.ink, width: "100%" };
+  const elder = (st.elders || [])[0] || { label: "", phone: "" };
+  const rows = ((st.callPlan || {})[dow] || []).slice().sort((a, b) => String(a.time || "").localeCompare(String(b.time || "")));
+  const script = callScript(st, Date.now());
+  const cost = callCost(script);
+
+  const setElder = (k, v) => setSt((sv) => {
+    const list = (sv.elders || []).slice();
+    const cur = list[0] || { id: uid("e"), label: "", phone: "" };
+    list[0] = { ...cur, [k]: v };
+    return { ...sv, elders: list };
+  });
+
+  const add = () => {
+    const w = what.trim();
+    if (!w) return;
+    setSt((sv) => {
+      const plan = { ...(sv.callPlan || {}) };
+      plan[dow] = (plan[dow] || []).concat([{ id: uid("cl"), time: time.trim(), what: w.slice(0, 30) }]);
+      return { ...sv, callPlan: plan, callOn: true };
+    });
+    setTime(""); setWhat("");
+    log("call_plan_add", { dow });
+  };
+  const del = (id) => setSt((sv) => {
+    const plan = { ...(sv.callPlan || {}) };
+    plan[dow] = (plan[dow] || []).filter((r) => r.id !== id);
+    return { ...sv, callPlan: plan };
+  });
+  /* 한 요일을 짜두고 다른 요일에 복사 — 하원 시각처럼 매일 같은 것이 있습니다 */
+  const copyTo = (target) => setSt((sv) => {
+    const plan = { ...(sv.callPlan || {}) };
+    plan[target] = (plan[dow] || []).map((r) => ({ ...r, id: uid("cl") }));
+    return { ...sv, callPlan: plan };
+  });
+
+  return (
+    <div style={{ "--ac": C.moss }}>
+      <PageHead title="어른께 전화" onBack={() => setTab("home")} backLabel="오늘" />
+      <p style={{ fontSize: 13, color: C.ink3, marginTop: 8, lineHeight: 1.7 }}>
+        요일마다 한 번만 넣어두시면 됩니다. 매일 아침 앱이 어른께 전화를 걸어 읽어드립니다.<br />
+        <b style={{ color: C.ink2 }}>어른은 받기만 하시면 됩니다.</b> 앱을 깔지 않으셔도, 버튼을 누르지 않으셔도 됩니다.
+      </p>
+
+      <Section eyebrow="CALL-01" title="어느 분께 걸까요">
+        <div className="grid grid-cols-2 gap-2.5">
+          <input style={inp} placeholder="호칭 (예: 할머니)" value={elder.label || ""}
+            onChange={(e) => setElder("label", e.target.value.slice(0, 10))} />
+          <input style={inp} placeholder="전화번호" inputMode="tel" value={elder.phone || ""}
+            onChange={(e) => setElder("phone", e.target.value.replace(/[^\d-]/g, "").slice(0, 14))} />
+        </div>
+        <div className="flex items-center gap-2.5" style={{ marginTop: 10 }}>
+          <span style={{ fontSize: 13, color: C.ink2, flexShrink: 0 }}>전화 나가는 시각</span>
+          <input style={{ ...inp, width: 110 }} placeholder="07:50" value={st.callAt || ""}
+            onChange={(e) => setSt((sv) => ({ ...sv, callAt: e.target.value.slice(0, 5) }))} />
+        </div>
+        <div style={{ marginTop: 12, background: C.bgSoft || C.bg, border: `1px solid ${C.line}`, borderRadius: 12, padding: "12px 13px", fontSize: 12.5, color: C.ink2, lineHeight: 1.75 }}>
+          ⚠ <b>어른 폰에 이 번호를 저장해드려야 합니다.</b> 모르는 번호로 뜨면 어른들은 안 받으십니다.
+          직접 찾아뵙고 저장해드리고, <b>“앞으로 이 번호로 전화 갈 거야”</b>라고 한 번 말씀드리세요.
+          그 한마디가 이 기능이 되느냐 마느냐를 가릅니다.
+        </div>
+      </Section>
+
+      <Section eyebrow="CALL-02" title="요일마다 무엇을 알려드릴까요">
+        <div className="flex gap-1.5" style={{ marginBottom: 12 }}>
+          {["1", "2", "3", "4", "5"].map((d) => {
+            const n = ((st.callPlan || {})[d] || []).length;
+            return (
+              <button key={d} className="press" onClick={() => setDow(d)}
+                style={{ flex: 1, padding: "9px 0", borderRadius: 12, fontSize: 13, fontWeight: dow === d ? 600 : 400,
+                         border: `1px solid ${dow === d ? C.moss : C.line}`, background: dow === d ? C.moss : "transparent",
+                         color: dow === d ? "#fff" : (n ? C.ink2 : C.ink3) }}>
+                {DOW_KR[Number(d)]}{n ? <span style={{ fontSize: 10, marginLeft: 3, opacity: .8 }}>{n}</span> : null}
+              </button>
+            );
+          })}
+        </div>
+
+        {rows.length === 0 && (
+          <p style={{ fontSize: 12.5, color: C.ink3, padding: "6px 0 12px" }}>
+            {DOW_KR[Number(dow)]}요일에 넣은 것이 없습니다. 학원·하원 시각처럼 그날 어른이 아셔야 할 것을 넣으세요.
+          </p>
+        )}
+        {rows.map((r) => (
+          <div key={r.id} className="flex items-center gap-2.5"
+            style={{ padding: "10px 0", borderBottom: `1px solid ${C.lineSoft || C.line}` }}>
+            <span className="mono" style={{ fontSize: 12.5, color: C.moss, width: 46, flexShrink: 0 }}>{r.time || "—"}</span>
+            <span style={{ fontSize: 14, flex: 1, minWidth: 0 }}>{r.what}</span>
+            <button className="press" onClick={() => del(r.id)}
+              style={{ background: "transparent", border: "none", color: C.ink3, fontSize: 12, flexShrink: 0 }}>빼기</button>
+          </div>
+        ))}
+
+        <div className="flex gap-2" style={{ marginTop: 12 }}>
+          <input style={{ ...inp, width: 82, flexShrink: 0 }} placeholder="15:20" value={time}
+            onChange={(e) => setTime(e.target.value.slice(0, 5))} />
+          <input style={inp} placeholder="태권도 데려다주기" value={what}
+            onChange={(e) => setWhat(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") add(); }} />
+          <button className="press" onClick={add}
+            style={{ flexShrink: 0, padding: "0 16px", borderRadius: 12, background: C.moss, color: "#fff", border: "none", fontSize: 14, fontWeight: 600 }}>넣기</button>
+        </div>
+
+        {rows.length > 0 && (
+          <div className="flex items-center gap-1.5" style={{ marginTop: 12, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 11.5, color: C.ink3 }}>이 요일을 그대로 복사 →</span>
+            {["1", "2", "3", "4", "5"].filter((d) => d !== dow).map((d) => (
+              <button key={d} className="press" onClick={() => { copyTo(d); say(`${DOW_KR[Number(d)]}요일에 복사했습니다`); }}
+                style={{ padding: "5px 11px", borderRadius: 999, border: `1px solid ${C.line}`, background: "transparent", fontSize: 11.5, color: C.ink2 }}>
+                {DOW_KR[Number(d)]}
+              </button>
+            ))}
+          </div>
+        )}
+      </Section>
+
+      <Section eyebrow="CALL-03" title="오늘 이렇게 나갑니다">
+        {script ? (
+          <>
+            <div style={{ background: C.card, border: `1px solid ${C.moss}`, borderRadius: 14, padding: "15px 16px", fontSize: 14.5, lineHeight: 1.85, color: C.ink }}>
+              “{script}”
+            </div>
+            <p className="mono" style={{ fontSize: 11.5, color: C.ink3, marginTop: 9 }}>
+              약 {cost.sec}초 · {cost.won.toLocaleString()}원 · 평일 매일이면 한 달 {(cost.won * 22).toLocaleString()}원
+            </p>
+          </>
+        ) : (
+          <p style={{ fontSize: 13, color: C.ink3 }}>오늘({DOW_KR[new Date().getDay()]}요일)은 넣어둔 것이 없어서 전화가 나가지 않습니다.</p>
+        )}
+        <p style={{ fontSize: 12.5, color: C.ink3, marginTop: 12, lineHeight: 1.75 }}>
+          병원·준비물처럼 <b style={{ color: C.ink2 }}>오늘만 다른 것</b>은 오늘 화면에서 더하시면 됩니다.
+          아침에 전화가 나가기 전에 한 번 여쭤봅니다.
+        </p>
+      </Section>
+    </div>
   );
 }
 
