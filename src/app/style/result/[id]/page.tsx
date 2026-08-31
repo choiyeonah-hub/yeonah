@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import ResultView from "@/components/style/ResultView";
+import SaveProfileLocally from "@/components/style/SaveProfileLocally";
 import { loadProfile } from "@/lib/style/store";
 
 export const dynamic = "force-dynamic";
@@ -15,6 +16,7 @@ export default async function StyleResultPage({ params }: { params: { id: string
       <Link href="/style" className="text-sm text-neutral-500 hover:text-neutral-800">
         ← 새로 진단하기
       </Link>
+      <SaveProfileLocally result={result} />
       <div className="mt-4">
         <ResultView result={result} sharePath={`/style/result/${params.id}`} />
       </div>

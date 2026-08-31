@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 
 import ResultView from "@/components/style/ResultView";
+import { saveLastProfile } from "@/lib/style/closet";
 import { COLOR_QUIZ } from "@/lib/style/personalColor";
 import type { FrameAnswers, Gender, StyleProfileResult } from "@/lib/style/types";
 
@@ -238,7 +239,10 @@ export default function StylePage() {
       };
 
       const data = await post("/api/style/analyze", payload);
-      setResult(data.result as StyleProfileResult);
+      const analyzed = data.result as StyleProfileResult;
+      setResult(analyzed);
+      // 옷장 화면이 이 결과를 기준으로 판정하므로 브라우저에 남겨 둔다.
+      saveLastProfile(analyzed);
       setTimeout(() => resultRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
     } catch (err) {
       setError(err instanceof Error ? err.message : "진단에 실패했습니다.");

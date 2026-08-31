@@ -103,6 +103,13 @@ export default function ResultView({
           </div>
         </div>
 
+        <a
+          href="/style/closet"
+          className="mt-5 inline-block rounded-xl bg-neutral-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-neutral-700"
+        >
+          이 결과로 내 옷장 판정하기 →
+        </a>
+
         {sharePath && (
           <div className="mt-5">
             <p className="mb-2 text-xs text-neutral-500">이 결과 다시 열어보기 / 공유하기</p>

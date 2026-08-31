@@ -53,6 +53,8 @@ export type SizingNumbers = {
   skirtAboveKnee: number;
   skirtMidi: number;
   skirtLong: number;
+  /** 종아리가 가장 굵은 지점에서 끝나 다리가 짧아 보이는 총장 구간 (허리 기준) */
+  skirtAvoidBand: [number, number];
   topCrop: number;
   topRegular: number;
   topLong: number;
@@ -78,7 +80,11 @@ export function sizingNumbers(body: BodyDiagnosis): SizingNumbers {
 
   const waistHeight = h * 0.62; // 바닥 → 허리
   const kneeHeight = h * 0.285; // 바닥 → 무릎
-  const calfHeight = h * 0.245; // 바닥 → 종아리 가장 얇은 지점
+  // 종아리는 무릎 바로 아래(키의 20.5~25% 높이)가 가장 굵고, 그 아래로 다시 가늘어진다.
+  // 미디 기장은 굵은 구간을 지나 가늘어지는 지점(17%)에서 끝나야 다리가 길어 보인다.
+  const calfWidestLow = h * 0.205;
+  const calfWidestHigh = h * 0.25;
+  const calfSlimHeight = h * 0.17;
   const ankleHeight = h * 0.085;
   const hps = h * 0.855; // 바닥 → 목 옆 어깨점(총장 기준점)
 
@@ -86,8 +92,9 @@ export function sizingNumbers(body: BodyDiagnosis): SizingNumbers {
     heelRange,
     hemFromFloor: legBand === "low" ? 0.5 : 1.5,
     skirtAboveKnee: round(waistHeight - kneeHeight - 4),
-    skirtMidi: round(waistHeight - calfHeight),
+    skirtMidi: round(waistHeight - calfSlimHeight),
     skirtLong: round(waistHeight - ankleHeight),
+    skirtAvoidBand: [round(waistHeight - calfWidestHigh), round(waistHeight - calfWidestLow)],
     topCrop: round(hps - waistHeight - 3),
     topRegular: round(hps - waistHeight + 8),
     topLong: round(hps - waistHeight + 20),
@@ -169,7 +176,9 @@ export function buildRecommendation(
       .join(", ")}는 얼굴 근처에 두지 마세요. ${colorType.avoid[0].use}.`,
   ];
   if (legBand === "low")
-    avoidRules.push("종아리 중간에서 끊기는 기장(무릎 아래 5~10cm)과 발등을 덮는 스트랩 슈즈는 다리를 짧아 보이게 합니다.");
+    avoidRules.push(
+      `허리에서 ${sizing.skirtAvoidBand[0]}~${sizing.skirtAvoidBand[1]}cm에서 끝나는 기장(종아리가 가장 굵은 지점)과 발등을 덮는 스트랩 슈즈는 다리를 짧아 보이게 합니다.`,
+    );
   if (shape === "pear") avoidRules.push("밝고 광택 있는 하의, 엉덩이를 가로지르는 상의 밑단은 피하세요.");
   if (shape === "inverted") avoidRules.push("어깨 패드·볼륨 소매·큰 카라는 상체를 더 넓혀 보이게 합니다.");
   if (shape === "round") avoidRules.push("허리를 조이는 벨트와 배에 붙는 니트는 오히려 라인을 드러냅니다.");
@@ -279,7 +288,7 @@ export function buildRecommendation(
     why: `${body.shape.name}의 볼륨 분포에 맞춰 시선이 가장 좋은 곳에 머물도록 설계된 실루엣입니다.`,
     spec: [
       `총장: 무릎 위 ${sizing.skirtAboveKnee}cm 또는 미디 ${sizing.skirtMidi}cm`,
-      "종아리 가장 굵은 지점(무릎 아래 5~10cm)에서 끝나는 기장은 피하기",
+      `총장 ${sizing.skirtAvoidBand[0]}~${sizing.skirtAvoidBand[1]}cm(종아리가 가장 굵은 지점)는 피하기`,
       frame === "wave" ? "부드럽게 흐르는 소재" : frame === "natural" ? "린넨·워싱 등 텍스처 있는 소재" : "형태가 유지되는 매끈한 소재",
     ],
     colors: pick(colorType.best, "원피스", 3),
