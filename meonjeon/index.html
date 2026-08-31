@@ -127,7 +127,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0901-ah';
+const GATE_BUILD = '0901-ai';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1246,6 +1246,12 @@ const LINKS = [
     kw: ["놀이", "집놀이", "발달", "교구", "오감", "감각놀이", "비 오는 날"], g: ["놀이", "유아생활"] },
   { name: "키즈노트", desc: "알림장·공지 확인 (사진으로 올리면 준비물만 뽑습니다)", url: "https://www.kidsnote.com/", tag: "추천",
     kw: ["알림장", "준비물", "공지"], g: ["기관준비물", "보육정기"] },
+  /* "한 번에 채우기"에 모아둔 곳들을 각자 자리에도 놓습니다.
+     유용정보 탭에만 있으면, 정작 그 날짜를 적고 있는 사람에게는 안 보입니다. */
+  { name: "내보험찾아줌", desc: "가입한 보험이 회사 상관없이 한 화면에 · 무료", url: "https://cont.insure.or.kr/", tag: "정보",
+    kw: ["보험", "만기", "실손", "보험료", "갱신", "증권"], g: ["금융정기", "자동차"] },
+  { name: "홈택스 연말정산 간소화", desc: "빠진 공제 항목을 화면째 올려주세요", url: "https://www.hometax.go.kr/", tag: "정보",
+    kw: ["연말정산", "공제", "간소화", "의료비", "교육비", "소득공제"], g: ["세금", "금융정기"] },
   { name: "학교알리미", desc: "학사일정·방학 날짜 확인", url: "https://www.schoolinfo.go.kr/", tag: "정보",
     kw: ["학사일정", "방학", "개학"], g: ["학교일정"] },
   { name: "오피넷", desc: "한국석유공사 · 근처 싼 주유소", url: "https://www.opinet.co.kr/", tag: "정보",
@@ -1716,7 +1722,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.1";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-ah";
+const BUILD = "0901-ai";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -7604,7 +7610,17 @@ function CarOne({ car, idx, n }) {
         </button>
         <div style={{ fontSize: 11, color: C.ink3, marginTop: 6, lineHeight: 1.65 }}>
           보험 안내문·문자를 캡처해서 올리시면 날짜를 찾아 넣어드려요.
-          만기일을 모르시면 <b style={{ color: C.ink2 }}>내보험찾아줌</b>에 가입한 보험이 다 나옵니다 — 그 화면을 찍으셔도 됩니다.
+        </div>
+        {/* 만기일을 아예 모르는 사람이 제일 많습니다. 그 사람을 캡처 화면으로 보내봐야
+            찍을 게 없습니다. 먼저 볼 데로 데려다줘야 합니다. */}
+        <a className="press w-full" href="https://cont.insure.or.kr/" target="_blank" rel="noopener noreferrer"
+          style={{ display: "block", textAlign: "center", marginTop: 7, background: C.bg, color: C.ink2,
+                   border: `1px solid ${C.line}`, borderRadius: R.sm, padding: "11px 0", fontSize: 12.5, textDecoration: "none" }}>
+          만기일을 모르겠어요 · 내보험찾아줌 열기
+        </a>
+        <div style={{ fontSize: 11, color: C.ink3, marginTop: 6, lineHeight: 1.65 }}>
+          보험업계가 함께 운영하는 곳이고 무료입니다. 본인인증 한 번이면 가입한 보험이 회사 상관없이 다 나와요.
+          그 화면을 캡처해서 올리시면 날짜를 넣어드립니다.
         </div>
         <div className="grid grid-cols-6 gap-1.5" style={{ marginTop: 9 }}>
           {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => {
