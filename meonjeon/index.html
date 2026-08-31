@@ -57,7 +57,7 @@ let BASE = null, BASE_AT = null;
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const J = (x) => JSON.stringify(x === undefined ? null : x);
 /* id로 구분되는 목록들 */
-const ID_LISTS = ['tasks', 'shopping', 'pantry', 'toss', 'customRoutines', 'customCats', 'children', 'members', 'cars', 'discoverSnoozed'];
+const ID_LISTS = ['tasks', 'shopping', 'pantry', 'toss', 'customRoutines', 'customCats', 'children', 'members', 'cars', 'discoverSnoozed', 'elders'];
 /* 키마다 따로 판단해야 하는 사전들 */
 /* 새 맵을 여기 안 넣으면 합칠 때 통째로 덮어써집니다 —
    남편이 접어둔 항목을 내가 열면 남편 쪽이 사라집니다.
@@ -127,7 +127,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0901-aw';
+const GATE_BUILD = '0901-ax';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1895,7 +1895,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-aw";
+const BUILD = "0901-ax";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -3226,12 +3226,14 @@ function NewBuildBar({ build }) {
     <div style={{ position: "sticky", top: 0, zIndex: 60, background: C.moss, color: "#fff",
       padding: "10px 16px", display: "flex", alignItems: "center", gap: 12 }}>
       <span style={{ flex: 1, minWidth: 0, fontSize: 13, lineHeight: 1.5 }}>
-        새 버전이 있습니다 <span className="mono" style={{ opacity: .8, fontSize: 11 }}>{build}</span>
+        새 버전이 있습니다 <span className="mono" style={{ opacity: .8, fontSize: 11 }}>{BUILD} → {build}</span>
       </span>
-      <button className="press" onClick={() => location.reload(true)}
+      {/* location.reload() 로는 아이폰 홈 화면 앱이 옛 화면을 그대로 내줍니다.
+          주소에 시각을 붙여야 새로 받아옵니다. 설정의 "최신으로 받기"와 같은 방법입니다. */}
+      <button className="press" onClick={() => { window.location.href = window.location.pathname + "?v=" + Date.now(); }}
         style={{ flex: "none", background: "#fff", color: C.moss, border: "none",
           borderRadius: 999, padding: "7px 14px", fontSize: 12.5, fontWeight: 600 }}>
-        새로고침
+        새로 받기
       </button>
     </div>
   );
