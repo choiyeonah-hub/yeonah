@@ -18,6 +18,7 @@ const KEY_MAP: Record<string, InputName> = {
 };
 
 const SAVE_KEY = "honey-kingdoms:unlocked";
+const LOOK_KEY = "honey-kingdoms:pixel";
 
 function loadUnlocked(): string[] {
   try {
@@ -61,7 +62,10 @@ export function mount(root: HTMLElement): () => void {
   root.innerHTML = `
     <header class="bar">
       <h1>🐝 왕벌의 비행 <span id="regionTag">— 마누카 계곡</span></h1>
-      <button id="mute" class="ghost">🔊 소리</button>
+      <div class="hbtns">
+        <button id="look" class="ghost">✨ 부드럽게</button>
+        <button id="mute" class="ghost">🔊 소리</button>
+      </div>
     </header>
 
     <section class="panel">
@@ -156,6 +160,12 @@ export function mount(root: HTMLElement): () => void {
 
   let started = false;
   let muted = false;
+  let pixel = false;
+  try {
+    pixel = localStorage.getItem(LOOK_KEY) === "1";
+  } catch {
+    pixel = false;
+  }
 
   const render = (s: BeeState) => {
     const st = STAGES[Math.min(s.stage, STAGES.length - 1)];
@@ -250,6 +260,7 @@ export function mount(root: HTMLElement): () => void {
     game.resize(VIEW_W, Math.max(260, Math.min(700, Math.round((VIEW_W * cssH) / cssW))), cssW);
   }
   fit();
+  if (pixel) game.setPixelArt(true);
 
   // ── 조작 ────────────────────────────────────────────────────────────
   function onKey(e: KeyboardEvent) {
@@ -298,6 +309,22 @@ export function mount(root: HTMLElement): () => void {
     b.addEventListener("pointerleave", () => set(false));
     b.addEventListener("contextmenu", (e) => e.preventDefault());
   });
+
+  function paintLook() {
+    $("#look").textContent = pixel ? "🎮 픽셀아트" : "✨ 부드럽게";
+    $("#look").title = pixel ? "눌러서 부드럽게 보기" : "눌러서 픽셀아트로 보기";
+  }
+  $("#look").addEventListener("click", () => {
+    pixel = !pixel;
+    game.setPixelArt(pixel);
+    try {
+      localStorage.setItem(LOOK_KEY, pixel ? "1" : "0");
+    } catch {
+      // 저장이 막혀도 이번 판에는 적용된다
+    }
+    paintLook();
+  });
+  paintLook();
 
   $("#mute").addEventListener("click", () => {
     muted = !muted;

@@ -270,6 +270,9 @@ export class BeeGame {
   private vh = VIEW_H;
   /** 게임 좌표 → 화면 픽셀 배율 */
   private scale = 1;
+  /** 픽셀아트 모드 — 저해상도로 그린 뒤 그대로 확대한다 */
+  private pixelArt = false;
+  private lastCssWidth = 0;
   private bgCache: HTMLCanvasElement | null = null;
   private bgCacheKey = "";
   private onState: (s: BeeState) => void;
@@ -561,24 +564,39 @@ export class BeeGame {
    * vw/vh 는 게임이 쓰는 좌표계, 캔버스는 화면 픽셀만큼 크게 잡는다.
    * 저해상도로 그려 뻥튀기하면 옛날 오락실 화면이 된다.
    */
-  resize(width: number, height: number, cssWidth?: number) {
+  resize(width: number, height: number, cssWidth?: number, force = false) {
     const w = Math.max(240, Math.round(width));
     const h = Math.max(200, Math.round(height));
+    if (cssWidth && cssWidth > 0) this.lastCssWidth = cssWidth;
     const dpr = Math.min(2.5, typeof window === "undefined" ? 1 : window.devicePixelRatio || 1);
-    const target = cssWidth && cssWidth > 0 ? (cssWidth * dpr) / w : this.scale;
-    const scale = Math.max(1, Math.min(4, target));
-    if (w === this.vw && h === this.vh && Math.abs(scale - this.scale) < 0.01) return;
+    const css = this.lastCssWidth;
+    const target = css > 0 ? (css * dpr) / w : this.scale;
+    // 픽셀아트는 저해상도 그대로 두고 CSS 가 확대하게 둔다
+    const scale = this.pixelArt ? 1 : Math.max(1, Math.min(4, target));
+    if (!force && w === this.vw && h === this.vh && Math.abs(scale - this.scale) < 0.01) return;
     this.vw = w;
     this.vh = h;
     this.scale = scale;
     this.canvas.width = Math.round(w * scale);
     this.canvas.height = Math.round(h * scale);
-    this.ctx.imageSmoothingEnabled = true;
+    this.canvas.style.imageRendering = this.pixelArt ? "pixelated" : "auto";
+    this.ctx.imageSmoothingEnabled = !this.pixelArt;
     this.ctx.imageSmoothingQuality = "high";
     this.combCache.clear();
     this.bgCache = null;
     this.updateCamera(true);
     this.draw();
+  }
+
+  get isPixelArt() {
+    return this.pixelArt;
+  }
+
+  /** 픽셀아트 ↔ 부드럽게 전환. 게임 진행에는 영향이 없다. */
+  setPixelArt(on: boolean) {
+    if (this.pixelArt === on) return;
+    this.pixelArt = on;
+    this.resize(this.vw, this.vh, undefined, true);
   }
 
   start() {

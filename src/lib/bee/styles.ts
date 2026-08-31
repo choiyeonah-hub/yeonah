@@ -51,6 +51,7 @@ export const STYLES = String.raw`
   }
   .bar h1 span { font-size: 13px; font-weight: 400; color: var(--muted); }
 
+  .hbtns { display: flex; gap: 6px; }
   .ghost {
     font: inherit; font-size: 12px;
     color: var(--muted);
@@ -206,7 +207,8 @@ export const STYLES = String.raw`
   }
 
   @media (max-width: 420px) {
-    .bar h1 { font-size: 17px; }
+    .bar h1 { font-size: 15px; }
+    .ghost { padding: 4px 9px; font-size: 11px; }
     .track { width: 96px; }
   }
   @media (prefers-reduced-motion: reduce) {
