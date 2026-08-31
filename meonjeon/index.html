@@ -127,7 +127,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0901-au';
+const GATE_BUILD = '0901-av';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1893,7 +1893,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-au";
+const BUILD = "0901-av";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -2271,7 +2271,14 @@ function LinkClaims({ children }) {
   return <ClaimCtx.Provider value={ref}>{children}</ClaimCtx.Provider>;
 }
 
+/* 조부모께 전달하는 앱에는 바깥으로 나가는 링크가 필요 없습니다.
+   아자스쿨·키즈노트 같은 추천이 할 일 밑에 붙어 있으면 화면이 지저분해지고,
+   무엇보다 "이것도 하세요"가 됩니다. 이 앱은 전달만 합니다.
+   자리는 남겨둡니다 — 저점역산 앱을 만들 때 그대로 씁니다. */
+const LINKS_OFF = true;
+
 function LinkCards({ group, text, compact, exclude, noAd }) {
+  if (LINKS_OFF) return null;
   const { st, setSt, log } = use();
   /* 눌렀다고 깐 것도, 예매한 것도 아닙니다. 앱은 알 수가 없습니다.
      그래서 클릭으로 숨기지 않고 90일간 그대로 둡니다.
