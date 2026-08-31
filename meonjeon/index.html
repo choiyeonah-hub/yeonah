@@ -127,7 +127,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0901-ba';
+const GATE_BUILD = '0901-bb';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1914,7 +1914,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-ba";
+const BUILD = "0901-bb";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -7013,7 +7013,6 @@ function Settings() {
   const [routineCat, setRoutineCat] = useState(null);
   const [pickKey, setPickKey] = useState(null);
   const [newRoutine, setNewRoutine] = useState("");
-  const [moveDuty, setMoveDuty] = useState(null);  /* 기본 분담을 바꿀 때 이미 있는 것도 옮길지 */
   const routineGroups = useMemo(() => {
     const g = {};
     eligibleRoutines(st, true).forEach((r) => {
@@ -7203,7 +7202,6 @@ function Settings() {
         </div></Card>
       </Section>
 
-      {/* 기본 분담 — 이미 정해져 있는 일은 매번 안 물어봅니다 */}
       <Section eyebrow="AI" title="이번 달 AI 사용량" right={!CHARGING() ? (PHASE === "beta" ? "베타" : "무료 기간") : st.plan === "paid" ? "유료" : "무료"}>
         <Card>
           <div style={{ padding: "13px 15px", fontSize: 12.5, color: C.ink2, lineHeight: 1.7, borderBottom: `1px solid ${C.lineSoft}` }}>

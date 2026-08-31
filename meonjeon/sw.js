@@ -31,3 +31,19 @@ self.addEventListener("notificationclick", (event) => {
     return self.clients.openWindow("/");
   })());
 });
+
+/* ── 옛 화면을 붙들지 않게 ──────────────────────────
+   이 일꾼은 아무것도 저장하지 않습니다. 그런데 홈 화면에 담은 앱은
+   브라우저가 아니라 iOS가 들고 있어서, 한 번 받은 화면을 며칠씩 붙들 때가 있습니다.
+   그래서 화면(HTML)과 version.json만은 이 일꾼이 가로채서
+   iOS 창고를 건너뛰고 늘 새로 받아옵니다.
+   못 받아오면(비행기 안 같은 때) 원래대로 돌려보냅니다 — 안 열리는 것보다는 낫습니다. */
+self.addEventListener("fetch", (event) => {
+  const req = event.request;
+  if (req.method !== "GET") return;
+  const fresh = req.mode === "navigate" || req.destination === "document" || req.url.includes("/version.json");
+  if (!fresh) return;
+  event.respondWith(
+    fetch(req.url, { cache: "reload", credentials: "same-origin" }).catch(() => fetch(req))
+  );
+});
