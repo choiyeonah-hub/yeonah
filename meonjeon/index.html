@@ -127,7 +127,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0901-ao';
+const GATE_BUILD = '0901-ap';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1541,7 +1541,14 @@ function callBatches(st, when) {
   const rest = rows.filter((r) => !(r.solo && r.time));
   const out = [];
   if (rest.length) out.push({ at: st.callAt || "07:50", rows: rest, kind: "아침" });
-  solo.forEach((r) => out.push({ at: minus30(r.time), rows: [r], kind: "따로" }));
+  /* 30분 전이냐 그 시각이냐는 몸을 움직여야 하느냐로 갈립니다.
+     하원·학원은 나가셔야 하니 30분 전이 맞고,
+     안약·연고는 그 자리에서 하시는 것이라 30분 전에 알려드리면 또 잊으십니다. */
+  solo.forEach((r) => out.push({
+    at: r.solo === "at" ? r.time : minus30(r.time),
+    rows: [r],
+    kind: r.solo === "at" ? "그때" : "따로",
+  }));
   return out.sort((a, b) => String(a.at).localeCompare(String(b.at)));
 }
 
@@ -1587,6 +1594,9 @@ function callScript(st, when, rows) {
 
 /* 약은 이름·용량·때를 따로 받습니다. 자유롭게 적게 두면
    "약 먹이기"라고만 적고 마는데, 어른께는 그 말이 아무 소용이 없습니다. */
+/* 먹는 약은 밥에 붙어 있어서 시각을 따로 알려드릴 일이 아닙니다.
+   그런데 안약·연고·흡입기는 밥과 무관하고, 그래서 제일 잘 빠뜨립니다.
+   그런 것만 그 시각에 따로 겁니다. */
 const MED_WHEN = ["아침 먹고", "점심 먹고", "저녁 먹고", "자기 전", "정한 시각에"];
 const MED_HOW = ["먹는 약", "물약", "가루약", "바르는 약", "붙이는 약", "코에 넣는 약"];
 function medLine(m) {
@@ -1861,7 +1871,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-ao";
+const BUILD = "0901-ap";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -4981,6 +4991,26 @@ function Home() {
         </Card>
       )}
 
+      {/* 반복은 이미 들어가 있으니, 부모가 저녁에 할 일은 "다른 것만 말하기"뿐입니다.
+          칸을 하나씩 채우는 것보다 말이 빠릅니다. */}
+      {st.callOn && !callDone && (
+        <button className="press w-full text-left" onClick={() => setTab("call")}
+          style={{ marginTop: 12, background: C.card, border: `1px solid ${C.lineSoft}`, borderRadius: R.lg, padding: "14px 16px", boxShadow: SHADOW }}>
+          <span className="flex items-center gap-3">
+            <span style={{ fontSize: 19 }}>🗣</span>
+            <span className="flex-1 min-w-0">
+              <span style={{ display: "block", fontSize: 14, fontWeight: 600 }}>
+                {callTomorrow ? "내일" : "오늘"} 다른 것만 말씀하세요
+              </span>
+              <span style={{ display: "block", fontSize: 12, color: C.ink3, marginTop: 3, lineHeight: 1.6 }}>
+                병원·준비물처럼 평소와 다른 것만. 매일 같은 건 이미 들어가 있어요
+              </span>
+            </span>
+            <span style={{ fontSize: 14, color: C.moss }}>›</span>
+          </span>
+        </button>
+      )}
+
       {/* 처음 켜보시라는 안내. 조부모께 맡기는 집에만 뜹니다 */}
       {!st.callOn && !st.callOff && (st.children || []).length > 0 && (
         <Card style={{ marginTop: 14, borderColor: C.lineSoft }}>
@@ -6901,8 +6931,11 @@ function CallScreen() {
   const [time, setTime] = useState("");
   const [what, setWhat] = useState("");
   const [kind, setKind] = useState("sked");   /* sked 일정 · med 약 · bag 준비물 */
-  const [solo, setSolo] = useState(false);    /* 그 시각 30분 전에 따로 전화 */
+  const [solo, setSolo] = useState("");       /* "" 안 함 · before 30분 전 · at 그 시각에 */
   const [med, setMed] = useState({ when: MED_WHEN[0], name: "", dose: "", how: MED_HOW[0] });
+  const [say1, setSay1] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [sayErr, setSayErr] = useState("");
   const inp = { border: `1px solid ${C.line}`, borderRadius: 12, padding: "11px 12px", fontSize: 14.5, background: C.bg, color: C.ink, width: "100%" };
   const elder = (st.elders || [])[0] || { label: "", phone: "" };
   const rows = ((st.callPlan || {})[dow] || []).slice().sort((a, b) => String(a.time || "").localeCompare(String(b.time || "")));
@@ -6929,10 +6962,10 @@ function CallScreen() {
       const plan = { ...(sv.callPlan || {}) };
       plan[dow] = (plan[dow] || []).concat([{
         id: uid("cl"), time: kind === "bag" ? "" : time.trim(),
-        what: w.slice(0, 30), kind, solo: kind === "sked" && solo }]);
+        what: w.slice(0, 30), kind, solo: kind === "sked" ? solo : "" }]);
       return { ...sv, callPlan: plan, callOn: true };
     });
-    setTime(""); setWhat(""); setSolo(false);
+    setTime(""); setWhat(""); setSolo("");
     log("call_plan_add", { dow, kind });
   };
   /* 약은 이름만 적고 마는 일이 많습니다. 때·용량을 따로 받습니다 */
@@ -6943,7 +6976,9 @@ function CallScreen() {
       const plan = { ...(sv.callPlan || {}) };
       plan[dow] = (plan[dow] || []).concat([{
         id: uid("cl"), time: med.when === "정한 시각에" ? time.trim() : "",
-        what: line.slice(0, 40), kind: "med", solo: false }]);
+        what: line.slice(0, 40), kind: "med",
+        /* 시각을 정한 약(안약·연고)만 그 시각에 따로 겁니다 */
+        solo: med.when === "정한 시각에" && time.trim() ? "at" : "" }]);
       return { ...sv, callPlan: plan, callOn: true };
     });
     setMed({ when: MED_WHEN[0], name: "", dose: "", how: MED_HOW[0] });
@@ -6961,6 +6996,51 @@ function CallScreen() {
     plan[target] = (plan[dow] || []).map((r) => ({ ...r, id: uid("cl") }));
     return { ...sv, callPlan: plan };
   });
+
+  /* 말로 넣기 — 칸을 하나씩 채우는 것보다 말이 빠릅니다.
+     다만 반복 일정은 건드리지 않습니다. 그날 것만 더합니다. */
+  const runSay = async () => {
+    const text = say1.trim();
+    if (!text || busy) return;
+    setBusy(true); setSayErr("");
+    const kid = (st.children || [])[0];
+    try {
+      const r = await askClaude(`한국 가정의 살림을 돕는 AI '${BRAND}'입니다.
+부모가 조부모께 전할 말을 말로 불렀습니다. ${tomorrow ? "내일" : "오늘"} 것만 정리하세요.
+
+부모의 말: "${text}"
+아이 이름: ${kid && kid.name ? kid.name : "아이"}
+
+규칙
+· 조부모께 전화로 읽어드릴 것만 뽑습니다. 훈수·부탁은 넣지 마세요.
+· 준비물은 부모가 챙긴 것입니다. kind를 "bag"으로 하고 물건 이름만 적으세요.
+· 약은 kind를 "med"로 하고 "언제 이름 용량" 순으로 적으세요.
+· 나머지 일정은 kind를 "sked"로 하고 time을 "HH:MM"으로 적으세요. 모르면 빈 문자열.
+· what은 15자 이내, 어른이 들으실 말투로.
+
+출력은 JSON 배열만: [{"kind":"sked|med|bag","time":"HH:MM","what":"…"}]`);
+      const rows = (Array.isArray(r) ? r : []).filter((x) => x && x.what).slice(0, 6);
+      if (!rows.length) { setSayErr("넣을 것을 못 찾았어요. 조금 더 자세히 말씀해주세요."); setBusy(false); return; }
+      setSt((sv) => {
+        const t = { ...(sv.callToday || {}) };
+        const cur = t[day] || {};
+        t[day] = { ...cur, add: (cur.add || []).concat(rows.map((x) => ({
+          id: uid("cl"),
+          time: /^\d{1,2}:\d{2}$/.test(String(x.time || "")) ? x.time : "",
+          what: String(x.what).slice(0, 40),
+          kind: ["sked", "med", "bag"].includes(x.kind) ? x.kind : "sked",
+          solo: "",
+        }))) };
+        return { ...sv, callToday: t, callOn: true };
+      });
+      setSay1("");
+      say(`${rows.length}개 넣었어요`);
+      log("call_say", { n: rows.length });
+    } catch (e) {
+      setSayErr("잘 안 됐어요. 다시 한 번 눌러주세요.");
+    }
+    setBusy(false);
+  };
 
   return (
     <div style={{ "--ac": C.moss }}>
@@ -7017,7 +7097,7 @@ function CallScreen() {
             </span>
             <span style={{ fontSize: 14, flex: 1, minWidth: 0 }}>
               {r.what}
-              {r.solo && r.time ? <b style={{ color: C.moss, fontSize: 11, marginLeft: 6, fontWeight: 500 }}>· 30분 전 따로</b> : null}
+              {r.solo && r.time ? <b style={{ color: C.moss, fontSize: 11, marginLeft: 6, fontWeight: 500 }}>· {r.solo === "at" ? "그 시각에" : "30분 전"} 따로</b> : null}
             </span>
             <button className="press" onClick={() => del(r.id)}
               style={{ background: "transparent", border: "none", color: C.ink3, fontSize: 12, flexShrink: 0 }}>빼기</button>
@@ -7045,15 +7125,23 @@ function CallScreen() {
                 <button className="press" onClick={add}
                   style={{ flexShrink: 0, padding: "0 16px", borderRadius: 12, background: C.moss, color: "#fff", border: "none", fontSize: 14, fontWeight: 600 }}>넣기</button>
               </div>
-              <button className="press flex items-center gap-2" onClick={() => setSolo((v) => !v)}
-                style={{ marginTop: 10, background: "transparent", border: "none", padding: 0, textAlign: "left" }}>
-                <span style={{ width: 15, height: 15, borderRadius: 4, flexShrink: 0,
-                               border: `1.5px solid ${solo ? C.moss : C.line}`, background: solo ? C.moss : "transparent",
-                               color: "#fff", fontSize: 10, lineHeight: "13px", textAlign: "center" }}>{solo ? "✓" : ""}</span>
-                <span style={{ fontSize: 12.5, color: solo ? C.ink2 : C.ink3 }}>
-                  이건 <b style={{ color: C.ink2 }}>30분 전에 따로</b> 전화 (한 통 더 나갑니다)
-                </span>
-              </button>
+              <div className="flex items-center gap-1.5" style={{ marginTop: 10, flexWrap: "wrap" }}>
+                <span style={{ fontSize: 12, color: C.ink3, marginRight: 2 }}>따로 전화</span>
+                {[["", "안 함"], ["before", "30분 전"], ["at", "그 시각에"]].map(([v, lab]) => (
+                  <button key={v} className="press" onClick={() => setSolo(v)}
+                    style={{ padding: "5px 11px", borderRadius: 999, fontSize: 11.5,
+                             border: `1px solid ${solo === v ? C.moss : C.line}`,
+                             background: solo === v ? C.mossSoft : "transparent",
+                             color: solo === v ? C.moss : C.ink3 }}>{lab}</button>
+                ))}
+              </div>
+              {solo ? (
+                <p style={{ fontSize: 11.5, color: C.ink3, marginTop: 7, lineHeight: 1.7 }}>
+                  한 통 더 나갑니다. {solo === "before"
+                    ? "하원·학원처럼 나가셔야 하는 것은 30분 전이 맞습니다."
+                    : "안약·연고처럼 그 자리에서 하시는 것은 그 시각에 걸어야 합니다 — 미리 알려드리면 또 잊으십니다."}
+                </p>
+              ) : null}
             </>
           )}
 
@@ -7126,13 +7214,29 @@ function CallScreen() {
         )}
       </Section>
 
+      <Section eyebrow="CALL-025" title={tomorrow ? "내일 다른 것만 말씀하세요" : "오늘 다른 것만 말씀하세요"}>
+        <p style={{ fontSize: 12.5, color: C.ink3, marginBottom: 10, lineHeight: 1.75 }}>
+          매일 같은 것은 위에 넣어두셨으니 다시 안 하셔도 됩니다.
+          <b style={{ color: C.ink2 }}>{tomorrow ? "내일" : "오늘"}만 다른 것</b>만 편하게 말씀하세요 —
+          병원, 준비물, 하루만 다른 하원 시각 같은 것들이요.
+        </p>
+        <textarea value={say1} onChange={(e) => setSay1(e.target.value)}
+          placeholder={`${tomorrow ? "내일" : "오늘"} 3시에 소아과 가야 해. 물통이랑 체육복 챙겨뒀고, 하원은 한 시간 이르대`}
+          style={{ ...inp, minHeight: 76, resize: "vertical", lineHeight: 1.7 }} />
+        <Btn kind="accent" disabled={busy || !say1.trim()} onClick={runSay}
+          style={{ marginTop: 10, padding: "13px 0", fontSize: 14 }}>
+          {busy ? "읽는 중…" : "넣기"}
+        </Btn>
+        {sayErr ? <p style={{ fontSize: 12, color: C.persim, marginTop: 8 }}>{sayErr}</p> : null}
+      </Section>
+
       <Section eyebrow="CALL-03" title={tomorrow ? "내일 이렇게 나갑니다" : "오늘 이렇게 나갑니다"}>
         {batches.length ? (
           <>
             {batches.map((b, i) => (
               <div key={i} style={{ marginTop: i ? 10 : 0 }}>
                 <div className="mono" style={{ fontSize: 11, color: C.moss, marginBottom: 5 }}>
-                  {b.at} · {b.kind === "따로" ? "그 시각 30분 전" : "아침 한 통"}
+                  {b.at} · {b.kind === "따로" ? "그 시각 30분 전" : b.kind === "그때" ? "그 시각에" : "아침 한 통"}
                 </div>
                 <div style={{ background: C.card, border: `1px solid ${C.moss}`, borderRadius: 14, padding: "14px 15px", fontSize: 14, lineHeight: 1.85, color: C.ink }}>
                   “{b.text}”
