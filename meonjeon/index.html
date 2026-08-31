@@ -127,7 +127,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0901-at';
+const GATE_BUILD = '0901-au';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1534,20 +1534,29 @@ const callTime = (t) => {
    약도 그때 하십니다. 시각을 따로 알려드릴 일이 아니라,
    달라졌을 때만 말씀드리면 됩니다.
    하원과 이어지는 학원도 한 흐름이라 한 통에 들어갑니다. */
+/* 어른이 앱을 쓰시면 전화를 안 걸어도 됩니다.
+   60대는 스마트폰을 잘 쓰십니다. 70~80대가 어렵고요.
+   앱으로 가면 알림이 공짜라 일정마다 30분 전에 보내드려도 값이 안 듭니다.
+   전화는 통마다 220원이라 묶어야 했지만, 알림은 묶을 이유가 없습니다. */
+const elderByApp = (st) => (((st.elders || [])[0] || {}).how === "app");
+
 function callBatches(st, when) {
   const rows = callItemsFor(st, when);
   if (!rows.length) return [];
-  const solo = rows.filter((r) => r.solo && r.time);
-  const rest = rows.filter((r) => !(r.solo && r.time));
+  /* 앱으로 받으시면 값이 안 드니 시각이 있는 것은 다 따로 보냅니다.
+     아침에 몰아 들으시면 오후 3시까지 기억하셔야 하는데, 그럴 이유가 없습니다. */
+  const byApp = elderByApp(st);
+  const solo = byApp ? rows.filter((r) => r.time) : rows.filter((r) => r.solo && r.time);
+  const rest = byApp ? rows.filter((r) => !r.time) : rows.filter((r) => !(r.solo && r.time));
   const out = [];
   if (rest.length) out.push({ at: st.callAt || "07:50", rows: rest, kind: "아침" });
   /* 30분 전이냐 그 시각이냐는 몸을 움직여야 하느냐로 갈립니다.
      하원·학원은 나가셔야 하니 30분 전이 맞고,
      안약·연고는 그 자리에서 하시는 것이라 30분 전에 알려드리면 또 잊으십니다. */
   solo.forEach((r) => out.push({
-    at: r.solo === "at" ? r.time : minus30(r.time),
+    at: (byApp ? (r.kind === "med" ? "at" : "before") : r.solo) === "at" ? r.time : minus30(r.time),
     rows: [r],
-    kind: r.solo === "at" ? "그때" : "따로",
+    kind: (byApp ? (r.kind === "med" ? "at" : "before") : r.solo) === "at" ? "그때" : "따로",
   }));
   return out.sort((a, b) => String(a.at).localeCompare(String(b.at)));
 }
@@ -1619,9 +1628,9 @@ function medLine(m) {
 
 /* 통화 길이와 값. 초당 4원에 기본료 200원 — 이 숫자가 요금제를 정합니다.
    한글 한 글자를 0.18초로 잡았습니다(보통 TTS 속도) */
-function callCost(text) {
+function callCost(text, byApp) {
   const sec = Math.max(10, Math.ceil(String(text || "").length * 0.18) + 3);
-  return { sec, won: 200 + sec * 4 };
+  return { sec, won: byApp ? 0 : 220 + sec * 4 };
 }
 
 function toFragments(text) {
@@ -1884,7 +1893,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-at";
+const BUILD = "0901-au";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -6624,9 +6633,10 @@ function CallScreen() {
   const rows = ((st.callPlan || {})[dow] || []).slice().sort((a, b) => String(a.time || "").localeCompare(String(b.time || "")));
   const day = nextCallDay(st);
   const tomorrow = day > todayKey();
+  const byApp = elderByApp(st);
   const batches = callBatches(st, day).map((b) => {
     const text = callScript(st, day, b.rows);
-    return { ...b, text, cost: callCost(text) };
+    return { ...b, text, cost: callCost(text, byApp) };
   });
   const dayWon = batches.reduce((a, b) => a + b.cost.won, 0);
 
@@ -6963,12 +6973,16 @@ function CallScreen() {
             ))}
             <div style={{ marginTop: 14, background: C.mossSoft, borderRadius: 12, padding: "13px 15px" }}>
               <div style={{ fontSize: 13.5, fontWeight: 600, color: C.moss }}>
-                하루 {batches.length}통 · {dayWon.toLocaleString()}원
+                하루 {batches.length}{byApp ? "번" : "통"} · {byApp ? "0원" : dayWon.toLocaleString() + "원"}
               </div>
               <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 5, lineHeight: 1.7 }}>
-                평일 매일이면 한 달 <b style={{ color: C.ink }}>{(dayWon * 22).toLocaleString()}원</b>입니다.
-                통 수가 곧 돈입니다 — 기본료 220원이 통마다 붙습니다.
-                “30분 전에 따로”를 켤 때마다 한 통씩 늘어납니다.
+                {byApp
+                  ? <>어른이 앱으로 받으시니 <b style={{ color: C.ink }}>값이 들지 않습니다.</b>
+                      그래서 시각이 있는 것은 다 그 시각 30분 전에 따로 보내드립니다 —
+                      아침에 몰아 들으시고 오후까지 기억하실 이유가 없으니까요.</>
+                  : <>평일 매일이면 한 달 <b style={{ color: C.ink }}>{(dayWon * 22).toLocaleString()}원</b>입니다.
+                      통 수가 곧 돈입니다 — 기본료 220원이 통마다 붙습니다.
+                      “30분 전에 따로”를 켤 때마다 한 통씩 늘어납니다.</>}
               </div>
             </div>
           </>
@@ -7072,7 +7086,14 @@ function Settings() {
             <div key={m.id} className="flex items-center gap-3" style={{ marginTop: i ? 10 : 0 }}>
               <Avatar member={{ ...m, name: m.name || "?" }} size={34} />
               <input className="hae" value={m.name} onChange={(e) => setD((s) => ({ ...s, members: s.members.map((x) => x.id === m.id ? { ...x, name: e.target.value } : x) }))} style={inp} />
-              <span className="mono" style={{ fontSize: 10, color: C.ink3, whiteSpace: "nowrap" }}>{m.role === "admin" ? "관리자" : "가족"}</span>
+              <button className="press" onClick={() => setD((v) => ({
+                ...v, members: v.members.map((x) => x.id === m.id
+                  ? { ...x, role: x.role === "admin" ? "admin" : x.role === "helper" ? "member" : "helper" } : x) }))}
+                style={{ background: "transparent", border: "none", padding: 0 }}>
+                <span className="mono" style={{ fontSize: 10, color: m.role === "helper" ? C.moss : C.ink3, whiteSpace: "nowrap" }}>
+                  {m.role === "admin" ? "관리자" : m.role === "helper" ? "도우미" : "가족"}
+                </span>
+              </button>
             </div>
           ))}
           {d.members.length < 4 && <button className="press w-full" onClick={() => setD((s) => ({ ...s, members: [...s.members, { id: uid("m"), name: "", role: "member", color: MEMBER_COLORS[s.members.length] }] }))}
@@ -7150,8 +7171,31 @@ function Settings() {
                 return { ...v, elders: l };
               })} />
           </div>
-          <div className="flex items-center gap-2.5" style={{ marginTop: 10 }}>
-            <span style={{ fontSize: 13, color: C.ink2, flexShrink: 0 }}>전화 나가는 시각</span>
+          <div className="flex gap-1.5" style={{ marginTop: 12, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 12.5, color: C.ink3, alignSelf: "center", marginRight: 2 }}>어떻게 받으실까요</span>
+            {[["call", "전화로"], ["app", "앱 알림으로"]].map(([v, lab]) => {
+              const on = (((d.elders || [])[0] || {}).how || "call") === v;
+              return (
+                <button key={v} className="press" onClick={() => setD((w) => {
+                  const l = (w.elders || []).slice();
+                  l[0] = { ...(l[0] || { id: uid("e") }), how: v };
+                  return { ...w, elders: l };
+                })}
+                  style={{ padding: "6px 13px", borderRadius: 999, fontSize: 12.5,
+                           border: `1px solid ${on ? C.moss : C.line}`,
+                           background: on ? C.mossSoft : "transparent", color: on ? C.moss : C.ink3 }}>{lab}</button>
+              );
+            })}
+          </div>
+          <p style={{ fontSize: 12, color: C.ink3, marginTop: 9, lineHeight: 1.75 }}>
+            {(((d.elders || [])[0] || {}).how || "call") === "app"
+              ? <>어른이 앱을 쓰시면 <b style={{ color: C.ink2 }}>알림은 공짜</b>라, 일정마다 그 시각 30분 전에 하나씩 보내드립니다. 아침에 몰아 들으실 이유가 없으니까요. 어른도 초대해서 앱을 깔아드려야 합니다.</>
+              : <>어른께 <b style={{ color: C.ink2 }}>전화</b>가 갑니다. 한 통에 220원이라 하루치를 묶어 아침에 한 번 겁니다. 어른은 받기만 하시면 됩니다.</>}
+          </p>
+          <div className="flex items-center gap-2.5" style={{ marginTop: 12 }}>
+            <span style={{ fontSize: 13, color: C.ink2, flexShrink: 0 }}>
+              {(((d.elders || [])[0] || {}).how || "call") === "app" ? "아침 알림 시각" : "전화 나가는 시각"}
+            </span>
             <input style={{ ...inp, width: 110 }} value={d.callAt || "07:50"}
               onChange={(e) => setD((v) => ({ ...v, callAt: e.target.value.slice(0, 5) }))} />
           </div>
