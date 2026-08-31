@@ -62,7 +62,7 @@ const ID_LISTS = ['tasks', 'shopping', 'pantry', 'toss', 'customRoutines', 'cust
 /* 새 맵을 여기 안 넣으면 합칠 때 통째로 덮어써집니다 —
    남편이 접어둔 항목을 내가 열면 남편 쪽이 사라집니다.
    welfareOff는 복지 화면을 지우면서 같이 없어진 이름이라 뺐습니다. */
-const KEY_MAPS = ['routines', 'prefs', 'duty', 'groupsOff', 'flags', 'petTypes', 'dismissedDiscover', 'routineTitles', 'wfOff', 'aheadDone', 'aheadWhen'];
+const KEY_MAPS = ['routines', 'prefs', 'duty', 'groupsOff', 'flags', 'petTypes', 'dismissedDiscover', 'routineTitles', 'wfOff', 'aheadDone', 'aheadWhen', 'shareSeen'];
 
 function mergeList(base, mine, theirs) {
   base = Array.isArray(base) ? base : []; mine = Array.isArray(mine) ? mine : []; theirs = Array.isArray(theirs) ? theirs : [];
@@ -127,7 +127,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0901-ab';
+const GATE_BUILD = '0901-ac';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1374,6 +1374,9 @@ const DEFAULT_STATE = {
   inAppOff: 0,
   /* 기본 분담: 카테고리 → 담당자. 여기 있는 건 매번 정하지 않아도 됩니다 */
   duty: {}, dutyAsk: true,
+  /* 공유하기로 들어온 글에서 뽑힌 제목 → 몇 번째인지.
+     두 번째부터 "매번 공유 안 하셔도 됩니다"를 말해줄 수 있습니다. */
+  shareSeen: {},
   /* 휴일 날씨 브리핑 */
   place: { label: "서울", lat: 37.5665, lon: 126.978 },
   brief: null,
@@ -1629,7 +1632,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-ab";
+const BUILD = "0901-ac";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -1714,6 +1717,36 @@ async function authHeaders() {
   } catch {}
   return window.__TOKEN ? { Authorization: "Bearer " + window.__TOKEN } : {};
 }
+
+/* ── 카톡·문자에서 "공유하기"로 들어온 글 ─────────────────
+   앱이 카톡을 읽는 게 아닙니다. 카카오는 받은 메시지를 읽는 길을 안 줍니다.
+   여기로 오는 것은 사용자가 공유 버튼을 눌러 보내준 것뿐입니다.
+
+   share_target을 GET으로 둔 이유:
+   POST로 받으려면 서비스워커에 fetch 가로채기를 넣어야 하는데,
+   그걸 넣으면 새 판이 안 내려오는 문제가 다시 생깁니다. 그 문제로 이미 한 번 고생했습니다.
+   문자 한 통은 주소창에 넉넉히 들어가므로 GET으로 충분합니다.
+
+   ⚠ 안드로이드에서 앱을 홈에 설치했을 때만 공유 목록에 뜹니다.
+   아이폰은 이 규격 자체를 지원하지 않아서, 붙여넣기 버튼을 따로 뒀습니다. */
+const SHARED = (() => {
+  try {
+    const q = new URLSearchParams(window.location.search);
+    const t = [q.get("title"), q.get("text"), q.get("url")].filter(Boolean).join("\n").trim();
+    if (!t) return "";
+    /* 새로고침해도 또 들어오지 않게 주소에서 지웁니다. join 같은 다른 값은 그대로 둡니다 */
+    const keep = new URLSearchParams(window.location.search);
+    ["title", "text", "url"].forEach((k) => keep.delete(k));
+    const rest = keep.toString();
+    window.history.replaceState(null, "", window.location.pathname + (rest ? "?" + rest : ""));
+    return t.slice(0, 4000);
+  } catch { return ""; }
+})();
+
+/* 공유로 들어온 글이 몇 번째인지 세는 열쇠.
+   학원비 문자는 달마다 금액과 날짜가 달라서 원문으로는 못 셉니다.
+   AI가 뽑은 제목("학원비 납부")은 달이 바뀌어도 같으므로 그것으로 셉니다. */
+const shareKey = (t) => String(t || "").replace(/\s+/g, "").slice(0, 12);
 
 /* search를 켜면 서버가 웹 검색 도구를 붙입니다.
    검색은 한 번마다 따로 과금되므로 주 2회 "미리 찾아보기"에서만 켭니다. */
@@ -3097,6 +3130,17 @@ function App() {
     log("routine_" + action, { key });
   };
 
+  /* 공유로 들어온 글은 말하기 화면으로 넘겨 바로 정리합니다.
+     한 번만 합니다 — 화면을 다시 그릴 때마다 또 넣으면 같은 글이 쌓입니다. */
+  const sharedUsed = useRef(false);
+  useEffect(() => {
+    if (!ready || !SHARED || sharedUsed.current) return;
+    sharedUsed.current = true;
+    setSt((sv) => ({ ...sv, draft: SHARED, draftRun: true, draftFrom: "share" }));
+    setTab("speak");
+    log("share_in", { chars: SHARED.length });
+  }, [ready]);
+
   if (!ready) return (
     <div className="hae" style={{ background: C.bg, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: C.ink3, fontSize: 13 }}>
       <style dangerouslySetInnerHTML={{ __html: FONTS }} />불러오는 중…
@@ -4351,6 +4395,10 @@ function Home() {
   const [loadingDisc, setLoadingDisc] = useState(false);
   const asked = useRef(false);
 
+  /* 카톡으로 그냥 전달하는 것과 뭐가 다른가 — 여기가 그 답입니다.
+     전달은 매달 합니다. 정기로 만들어두면 다음부터는 공유조차 안 하셔도 됩니다. */
+  const nudge = st.shareNudge && st.shareNudge.title ? st.shareNudge : null;
+
   const recs = useMemo(() => buildRecommendations(st), [st]);
   const due = useMemo(() => dueRoutines(st), [st]);
   /* 기준 날짜를 아는 것만 오늘 화면에 올립니다 */
@@ -4630,6 +4678,27 @@ function Home() {
       </div>
 
 
+      {/* 공유하기로 같은 글이 두 번째 들어왔을 때.
+          토스트로는 못 알립니다 — 3초면 사라지니까요. */}
+      {nudge && (
+        <Card style={{ marginTop: 14, borderColor: C.moss }}>
+          <div style={{ padding: 15 }}>
+            <div style={{ fontSize: 13.5, fontWeight: 600, lineHeight: 1.6 }}>
+              「{nudge.title}」은 이번이 두 번째예요.
+            </div>
+            <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 7, lineHeight: 1.75 }}>
+              매달 오는 것 같으면 <b style={{ color: C.ink }}>정기 일정</b>으로 바꿔두세요.
+              그러면 다음부터는 <b style={{ color: C.ink }}>공유하지 않으셔도 알아서 올라옵니다.</b>
+              할 일에서 이 항목을 누르면 “반복”이 있습니다.
+            </div>
+            <button className="press" onClick={() => setSt((sv) => ({ ...sv, shareNudge: null }))}
+              style={{ marginTop: 11, background: C.bg, border: `1px solid ${C.line}`, borderRadius: R.pill, padding: "7px 13px", fontSize: 12, color: C.ink2 }}>
+              알겠어요
+            </button>
+          </div>
+        </Card>
+      )}
+
       {/* 보기 전환: 다 같이 / 내 몫만 */}
       {st.members.length > 1 && (
         <>
@@ -4867,6 +4936,9 @@ function Speak() {
   const [failed, setFailed] = useState(false);
   const [ex, setEx] = useState(0);
   const [edit, setEdit] = useState(null);
+  /* 공유하기로 들어온 글인지. 결과 화면에서 "몇 번째인지"를 말해주려고 들고 있습니다 */
+  const [fromShare, setFromShare] = useState(false);
+  const [seenAgain, setSeenAgain] = useState(0);
   const rec = useRef(null);
 
   /* 영역 화면에서 예시 질문을 눌러 넘어온 경우 */
@@ -4875,7 +4947,8 @@ function Speak() {
     const joined = (text ? text + " " : "") + st.draft;
     const run = st.draftRun;
     setText(joined);
-    setSt((sv) => ({ ...sv, draft: "", draftRun: false }));
+    if (st.draftFrom === "share") setFromShare(true);
+    setSt((sv) => ({ ...sv, draft: "", draftRun: false, draftFrom: "" }));
     /* 예시 질문을 눌러서 넘어온 것이면 한 번 더 누르게 하지 않고 바로 답합니다 */
     if (run) analyze(joined);
   }, [st.draft]);
@@ -5103,6 +5176,21 @@ ${web ? `
   /* 담기 — 화면 아래 고정 버튼과 맨 끝 버튼이 같은 동작을 씁니다 */
   const commit = () => {
     const n = addTasks(result, me);
+    /* 공유로 들어온 것이면 제목별로 셉니다.
+       두 번째부터는 "정기로 만들어두면 다음부터 공유 안 하셔도 됩니다"를 말해줍니다 —
+       그게 카톡으로 그냥 전달하는 것과 다른 점입니다. */
+    if (fromShare && result.length) {
+      const keys = [...new Set(result.map((r) => shareKey(r.title)).filter(Boolean))];
+      let most = 0;
+      setSt((sv) => {
+        const seen = { ...(sv.shareSeen || {}) };
+        keys.forEach((k) => { seen[k] = (seen[k] || 0) + 1; most = Math.max(most, seen[k]); });
+        /* 오래 쌓이면 저장이 커집니다. 많이 온 것부터 60개만 둡니다 */
+        const trimmed = Object.entries(seen).sort((a, b) => b[1] - a[1]).slice(0, 60);
+        return { ...sv, shareSeen: Object.fromEntries(trimmed) };
+      });
+      setSeenAgain(most);
+    }
     const reps = result.filter((r) => r.repeatDays);
     if (reps.length) {
       setSt((sv) => {
@@ -5129,7 +5217,11 @@ ${web ? `
     say(reps.length ? `${n}개를 담고 ${reps.length}개는 정기로 등록했어요`
       : far ? `${n}개를 담았어요 · ${far.getMonth() + 1}/${far.getDate()}부터 올라와요`
       : `${n}개를 담았어요`);
-    setSt((sv) => ({ ...sv, showAll: Date.now() }));
+    /* 같은 글이 두 번째로 들어왔으면 첫 화면에 한 번 남깁니다.
+       토스트는 3초면 사라져서, 정작 알려줘야 할 것을 못 알립니다. */
+    const twice = fromShare && result.find((r) => (st.shareSeen || {})[shareKey(r.title)] >= 1);
+    setSt((sv) => ({ ...sv, showAll: Date.now(),
+      shareNudge: twice ? { title: twice.title, at: Date.now() } : sv.shareNudge }));
     setTab("home");
   };
 
@@ -5430,6 +5522,12 @@ ${web ? `
             <button className="press" onClick={listening ? stopMic : startMic} aria-label={listening ? "멈추기" : "말하기"}
               style={{ width: 80, height: 80, borderRadius: 999, marginTop: 8, background: listening ? C.persim : C.moss, color: "#fff", border: "none", fontSize: 26, boxShadow: SHADOW_LIFT }}>{listening ? "■" : "🎙"}</button>
           </div>
+          {fromShare && (
+            <div style={{ marginTop: 12, background: C.mossSoft, color: C.moss, borderRadius: 12, padding: "11px 13px", fontSize: 12.5, lineHeight: 1.7 }}>
+              <b>카톡·문자에서 받은 글입니다.</b> 날짜와 마감을 뽑아 담아둘게요.
+              담당이 정해진 영역이면 그 사람 몫으로 바로 갑니다.
+            </div>
+          )}
           <textarea className="hae" value={text} onChange={(e) => setText(e.target.value)} rows={4}
             placeholder="여기에 적어도 됩니다. 띄어쓰기는 안 맞아도 됩니다. 알림장·안내문자 캡처는 붙여넣기 해도 돼요."
             style={{ width: "100%", border: `1px solid ${C.line}`, borderRadius: R.md, padding: 14, fontSize: 14.5, lineHeight: 1.65, resize: "none", background: C.bg, color: C.ink }} />
@@ -5458,6 +5556,18 @@ ${web ? `
           <div className="rail" style={{ marginTop: 12 }}>
             <button className="press" onClick={pickPhoto}
               style={{ background: C.bg, border: `1px solid ${C.line}`, borderRadius: R.pill, padding: "9px 14px", fontSize: 12, color: C.ink2 }}>📄 알림장·안내문자 캡처</button>
+            {/* 아이폰은 공유 목록에 앱이 못 뜹니다(애플이 규격을 지원하지 않습니다).
+                그래서 카톡에서 글을 복사해 오는 길을 따로 둡니다. */}
+            <button className="press" onClick={async () => {
+              try {
+                const t = await navigator.clipboard.readText();
+                if (!t || !t.trim()) return setNote("복사해둔 글이 없어요. 카톡에서 메시지를 길게 눌러 복사한 뒤 다시 눌러주세요.");
+                setText((v) => (v ? v + "\n" : "") + t.trim().slice(0, 4000));
+                setFromShare(true); setNote("");
+              } catch {
+                setNote("붙여넣기 권한이 막혀 있어요. 위 칸을 길게 눌러 붙여넣기 하셔도 결과는 같습니다.");
+              }
+            }} style={{ background: C.bg, border: `1px solid ${C.line}`, borderRadius: R.pill, padding: "9px 14px", fontSize: 12, color: C.ink2 }}>📋 카톡 글 붙여넣기</button>
             <button className="press" onClick={() => setText(DEMO_SPEECH)}
               style={{ background: C.bg, border: `1px solid ${C.line}`, borderRadius: R.pill, padding: "9px 14px", fontSize: 12, color: C.ink2 }}>시연용 예시</button>
           </div>
