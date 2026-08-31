@@ -127,7 +127,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0901-bf';
+const GATE_BUILD = '0901-bg';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1492,6 +1492,29 @@ function callBatches(st, when) {
   return out.concat(sms).sort((a2, b2) => String(a2.at).localeCompare(String(b2.at)));
 }
 
+/* 부모가 말한 것 중 "어른께 갈 것"과 "내가 챙길 것"을 갈라주는 지시문.
+   자리를 둘로 두면 부모가 어디에 말할지를 매번 정해야 합니다.
+   그건 앱이 할 일이지 부모가 할 일이 아닙니다. */
+function CALL_SPLIT(st, today) {
+  if (!st.callOn || !(st.elders || []).length) return "";
+  const label = ((st.elders || [])[0] || {}).label || "어른";
+  return `
+- **${label}께 전화로 갈 것은 call 배열에 따로 담으세요.** items에는 넣지 마세요.
+  아이를 그날 맡기시는 집이라, 부모가 "내일 3시 소아과"라고 하면
+  그건 내 할 일이 아니라 ${label}께 알려드릴 말입니다.
+  · 시각이 있는 일정은 kind "sked", time "HH:MM".
+  · 약은 kind "med", "언제 이름 용량" 순으로.
+  · 부모가 챙겨둔 준비물은 kind "bag", 물건 이름만.
+  · 심부름 부탁(세탁소 찾기·택배 받아두기)은 kind "ask", 말한 그대로 다듬지 말고.
+  · what은 15자 이내, ${label}이 들으실 말투로. 아이 이름은 what이 아니라 who에.
+  · 아이를 어떻게 키우라는 말(배변훈련·훈육·수면교육)은 만들지 마세요.
+  · 매주 똑같이 반복되는 것은 call에 넣지 마세요 — 그건 전화 탭에 한 번만 넣는 것입니다.
+    call은 **그날만 다른 것**입니다.
+- 휴지 사기·보험 만기처럼 부모 혼자 챙길 일은 그대로 items로.
+- 오늘은 ${today}입니다. 날짜가 오늘이나 내일이 아니면 call이 아니라 items로 보내세요.
+`;
+}
+
 /* 부탁 문자. 부모가 적은 말을 그대로 두고, 보내는 사람 이름만 답니다.
    앱이 다듬으면 앱의 말투가 되고, 그 순간 부탁이 아니라 지시가 됩니다. */
 function askText(st, rows) {
@@ -1842,7 +1865,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-bf";
+const BUILD = "0901-bg";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -4952,9 +4975,10 @@ ${web ? `
 - **뽑을 게 없으면 하나도 안 만들어도 됩니다.** 억지로 채우지 마세요.
   "정리할 게 없었어요"가 잘못된 할 일 네 개보다 낫습니다.
 
-출력은 JSON 객체만: {"answer":"질문이 아니면 빈 문자열","items":[{"title":"12자 이내","category":"...","status":"...","note":"20자 이내","event":"YYYY-MM-DD 또는 빈 문자열","lead":숫자,"when":"YYYY-MM-DD 또는 빈 문자열","newCategory":"","cycle":""}]}`;
+${CALL_SPLIT(st, todayStr())}
+출력은 JSON 객체만: {"answer":"질문이 아니면 빈 문자열","call":[{"kind":"sked|med|bag|ask","time":"HH:MM","what":"…","who":"…"}],"items":[{"title":"12자 이내","category":"...","status":"...","note":"20자 이내","event":"YYYY-MM-DD 또는 빈 문자열","lead":숫자,"when":"YYYY-MM-DD 또는 빈 문자열","newCategory":"","cycle":""}]}`;
 
-    /* 사진이 있으면 무엇을 읽어야 하는지 알려줍니다 */
+        /* 사진이 있으면 무엇을 읽어야 하는지 알려줍니다 */
     const shotPrompt = !shots.length ? "" : `\n\n[사진] 무언가를 알려주는 문서나 화면 캡처입니다. 다음 중 하나일 수 있습니다.
 - 어린이집·유치원·학교 알림장, 가정통신문 (종이 사진 또는 이알리미·키즈노트·하이클래스·아이엠스쿨 캡처)
 - 보험 만기 안내, 자동차 검사 안내, 관리비 고지서, 학원 등록 안내 같은 문자·카톡 캡처
@@ -4989,11 +5013,13 @@ ${web ? `
     let items = [];
     let gotAnswer = "";
     let lastErr = "";
-    for (let i = 0; i < 2 && !items.length && !gotAnswer; i++) {
+    let callRows = [];   /* 어른께 갈 것 — items와 갈라서 받습니다 */
+    for (let i = 0; i < 2 && !items.length && !gotAnswer && !callRows.length; i++) {
       try {
         const raw = await askClaude((i === 0 ? prompt : prompt + "\n\n(직전 응답이 비어 있었습니다. 반드시 2개 이상 추출하세요.)") + shotPrompt, shots.length ? shots : null, web);
         if (raw && !Array.isArray(raw)) {
           if (raw.answer) gotAnswer = String(raw.answer).slice(0, 400);
+          if (Array.isArray(raw.call)) callRows = raw.call.filter((x) => x && x.what).slice(0, 6);
         }
         items = normalize(Array.isArray(raw) ? raw : (raw && (raw.items || raw.tasks)) || []);
       } catch (e) {
@@ -5007,7 +5033,31 @@ ${web ? `
     }
     setAnswer(gotAnswer);
     /* 아무것도 못 건졌으면 이번 시도는 없던 일로 하고 횟수를 돌려줍니다 */
-    if (!items.length && !gotAnswer) { refundAI(kind, 1); setFailed(lastErr || true); items = normalize([{ title: "두부 소진", category: "food", status: "now", note: "유통기한 임박" }, { title: "휴지 구매", category: "home", status: "buy", note: "떨어지기 전에" }]); }
+    /* 어른께 갈 것이 있으면 그날 것으로 담습니다.
+       부모는 한 군데에만 말하고, 갈래는 앱이 정합니다 —
+       "어디에 말해야 하지"를 매번 정하게 하면 그게 다시 부모 일입니다. */
+    if (callRows.length) {
+      const cday = nextCallDay(st);
+      setSt((sv) => {
+        const t = { ...(sv.callToday || {}) };
+        const cur = t[cday] || {};
+        t[cday] = { ...cur, add: (cur.add || []).concat(callRows.map((x) => ({
+          id: uid("cl"),
+          time: /^\d{1,2}:\d{2}$/.test(String(x.time || "")) ? x.time : "",
+          what: String(x.what).slice(0, 40),
+          kind: ["sked", "med", "bag", "ask"].includes(x.kind) ? x.kind : "sked",
+          kid: ((sv.children || []).find((k) => k.name && k.name === String(x.who || "")) || {}).id
+               || ((sv.children || []).length === 1 ? (sv.children[0] || {}).id : ""),
+          alert: false,
+        }))) };
+        return { ...sv, callToday: t, callOn: true };
+      });
+      const lab = ((st.elders || [])[0] || {}).label || "어른";
+      const when = nextCallDay(st) > todayKey() ? "내일" : "오늘";
+      say(`${when} ${lab}께 갈 것 ${callRows.length}개를 넣었어요`);
+      log("talk_to_call", { n: callRows.length });
+    }
+    if (!items.length && !gotAnswer && !callRows.length) { refundAI(kind, 1); setFailed(lastErr || true); items = normalize([{ title: "두부 소진", category: "food", status: "now", note: "유통기한 임박" }, { title: "휴지 구매", category: "home", status: "buy", note: "떨어지기 전에" }]); }
     else setFailed(false);
     setShots([]);
     setResult(items); setPhase("result");
@@ -5390,9 +5440,11 @@ ${web ? `
               그러면 전화로 대신 말해주기로 한 뜻이 없어집니다.
               병명을 적는 칸은 안 만들었지만 말로는 들어옵니다. 안 적어도 된다는 것만 알립니다. */}
           <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 9, lineHeight: 1.7 }}>
-            <b style={{ color: C.ink2 }}>들은 대로 말하시면 돼요.</b> "내일 피아노 5시로 바뀌었대" 하면
-            날짜를 잡아 <b style={{ color: C.ink2 }}>내일 어른께 갈 말</b>에 넣습니다.
-            <br />매주 똑같은 것은 여기가 아니라 <b style={{ color: C.ink2 }}>전화 탭</b>에 한 번만 넣으시면 됩니다.
+            <b style={{ color: C.ink2 }}>들은 대로 말하시면 돼요.</b> 한 번에 섞어 말씀하셔도 됩니다 —
+            <b style={{ color: C.ink2 }}>어른께 갈 것과 내가 챙길 것을 앱이 갈라 담습니다.</b>
+            <br />“내일 3시 소아과” 는 어른께 갈 말로, “휴지 사야 해” 는 내 할 일로 갑니다.
+            어디에 말할지 고르지 않으셔도 돼요.
+            <br />매주 똑같은 것만 <b style={{ color: C.ink2 }}>전화 탭</b>에 한 번 넣어두시면 됩니다.
             여기는 <b style={{ color: C.ink2 }}>그날 달라진 것</b>만요.
             <br />약 이름·병명은 안 적으셔도 돼요 — <b style={{ color: C.ink2 }}>"내일 점심 약 한 봉지 더"</b>면 충분합니다.
           </div>
@@ -6316,13 +6368,10 @@ function CallScreen() {
   const [dow, setDow] = useState(String(new Date().getDay() || 1));
   const [time, setTime] = useState("");
   const [what, setWhat] = useState("");
-  const [kind, setKind] = useState("sked");   /* sked 일정 · med 약 · bag 준비물 */
+  const [kind, setKind] = useState("sked");   /* sked 일정 · med 약 · bag 준비물 · ask 부탁 */
   const [alert, setAlert] = useState(false);  /* 그 시각 30분 전과 정각, 두 번 울릴지 */
   const [med, setMed] = useState({ when: MED_WHEN[0], name: "", dose: "", how: MED_HOW[0] });
   const [kid, setKid] = useState(((st.children || [])[0] || {}).id || "");
-  const [say1, setSay1] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [sayErr, setSayErr] = useState("");
   const inp = { border: `1px solid ${C.line}`, borderRadius: 12, padding: "11px 12px", fontSize: 14.5, background: C.bg, color: C.ink, width: "100%" };
   const elder = (st.elders || [])[0] || { label: "", phone: "" };
   const rows = ((st.callPlan || {})[dow] || []).slice().sort((a, b) => String(a.time || "").localeCompare(String(b.time || "")));
@@ -6407,68 +6456,6 @@ function CallScreen() {
 
   /* 말로 넣기 — 칸을 하나씩 채우는 것보다 말이 빠릅니다.
      다만 반복 일정은 건드리지 않습니다. 그날 것만 더합니다. */
-  const runSay = async () => {
-    const text = say1.trim();
-    if (!text || busy) return;
-    setBusy(true); setSayErr("");
-    try {
-      const r = await askClaude(`한국 가정의 살림을 돕는 AI '${BRAND}'입니다.
-부모가 조부모께 전할 말을 말로 불렀습니다. ${tomorrow ? "내일" : "오늘"} 것만 정리하세요.
-
-부모의 말: "${text}"
-아이: ${(st.children || []).map((k) => k.name).filter(Boolean).join(", ") || "아이"}
-
-규칙
-· 조부모께 전화로 읽어드릴 것만 뽑습니다. 훈수·부탁은 넣지 마세요.
-· 준비물은 부모가 챙긴 것입니다. kind를 "bag"으로 하고 물건 이름만 적으세요.
-· 약은 kind를 "med"로 하고 "언제 이름 용량" 순으로 적으세요.
-· 어른께 드리는 심부름 부탁(세탁소 찾기, 택배 받아두기, 약 타오기 같은 것)은
-  kind를 "ask"로 하고, 부모가 말한 그대로 적으세요. 다듬지 마세요.
-  이건 전화가 아니라 문자로 나가서, 앱이 고치면 앱의 말투가 됩니다.
-· 아이를 어떻게 키우라는 말(배변훈련·훈육·수면교육)은 어느 kind로도 만들지 마세요.
-· 나머지 일정은 kind를 "sked"로 하고 time을 "HH:MM"으로 적으세요. 모르면 빈 문자열.
-· what은 15자 이내, 어른이 들으실 말투로. 아이 이름은 what에 넣지 마세요.
-· 아이가 여럿이면 누구 것인지 "who"에 이름을 그대로 적으세요. 한 명이면 빈 문자열.
-
-출력은 JSON 배열만: [{"kind":"sked|med|bag","time":"HH:MM","what":"…","who":"…"}]`);
-      /* AI가 배열이 아니라 {items:[…]} 로 감싸 보내는 일이 있습니다.
-         한 줄만 있으면 객체 하나로 오기도 하고요. 셋 다 받습니다. */
-      const arr = Array.isArray(r) ? r
-        : (r && Array.isArray(r.items)) ? r.items
-        : (r && Array.isArray(r.rows)) ? r.rows
-        : (r && r.what) ? [r] : [];
-      const rows = arr.filter((x) => x && x.what).slice(0, 6);
-      if (!rows.length) {
-        setSayErr("넣을 것을 못 찾았어요. 시각과 무엇을 하실지 같이 말씀해 보세요 — 예: “내일 3시에 소아과”");
-        setBusy(false); return;
-      }
-      setSt((sv) => {
-        const t = { ...(sv.callToday || {}) };
-        const cur = t[day] || {};
-        t[day] = { ...cur, add: (cur.add || []).concat(rows.map((x) => ({
-          id: uid("cl"),
-          time: /^\d{1,2}:\d{2}$/.test(String(x.time || "")) ? x.time : "",
-          what: String(x.what).slice(0, 40),
-          kind: ["sked", "med", "bag", "ask"].includes(x.kind) ? x.kind : "sked",
-          kid: ((st.children || []).find((k) => k.name && k.name === String(x.who || "")) || {}).id
-               || ((st.children || []).length === 1 ? (st.children[0] || {}).id : ""),
-          alert: false,
-        }))) };
-        return { ...sv, callToday: t, callOn: true };
-      });
-      setSay1("");
-      say(`${rows.length}개 넣었어요`);
-      log("call_say", { n: rows.length });
-    } catch (e) {
-      /* 무슨 일인지 감추면 고칠 수가 없습니다.
-         로그인이 풀렸는지, 한도를 다 썼는지, AI가 이상한 답을 줬는지
-         화면에서 바로 보여야 합니다. */
-      const m = (e && e.message) ? String(e.message) : "";
-      setSayErr(m || "잘 안 됐어요. 다시 한 번 눌러주세요.");
-      log("call_say_fail", { why: m.slice(0, 80) });
-    }
-    setBusy(false);
-  };
 
   return (
     <div style={{ "--ac": C.moss }}>
@@ -6689,21 +6676,6 @@ function CallScreen() {
         )}
       </Section>
 
-      <Section eyebrow="CALL-025" title={tomorrow ? "내일 다른 것만 말씀하세요" : "오늘 다른 것만 말씀하세요"}>
-        <p style={{ fontSize: 12.5, color: C.ink3, marginBottom: 10, lineHeight: 1.75 }}>
-          매일 같은 것은 앱이 알아서 챙깁니다. 다시 안 하셔도 됩니다.
-          <b style={{ color: C.ink2 }}>{tomorrow ? "내일" : "오늘"}만 다른 것</b>만 편하게 말씀하세요 —
-          병원, 준비물, 약이 바뀐 것, 학원 시간이 옮겨진 것 같은 것들이요.
-        </p>
-        <textarea value={say1} onChange={(e) => setSay1(e.target.value)}
-          placeholder={`${tomorrow ? "내일" : "오늘"} 3시에 소아과 가야 해. 물통이랑 체육복 챙겨뒀고, 하원은 한 시간 이르대`}
-          style={{ ...inp, minHeight: 76, resize: "vertical", lineHeight: 1.7 }} />
-        <Btn kind="accent" disabled={busy || !say1.trim()} onClick={runSay}
-          style={{ marginTop: 10, padding: "13px 0", fontSize: 14 }}>
-          {busy ? "읽는 중…" : "넣기"}
-        </Btn>
-        {sayErr ? <p style={{ fontSize: 12, color: C.persim, marginTop: 8 }}>{sayErr}</p> : null}
-      </Section>
 
       <Section eyebrow="CALL-03" title={tomorrow ? "내일 이렇게 나갑니다" : "오늘 이렇게 나갑니다"}>
         {batches.length ? (
@@ -6742,8 +6714,9 @@ function CallScreen() {
         )}
         <p style={{ fontSize: 12.5, color: C.ink3, marginTop: 12, lineHeight: 1.75 }}>
           매일 같은 것은 위에 한 번 넣어두시면 알아서 나갑니다.
-          병원·준비물처럼 <b style={{ color: C.ink2 }}>그날만 다른 것</b>만 챙기시면 됩니다 —
-          <b style={{ color: C.ink2 }}>전날 저녁에</b> 오늘 화면에서 여쭤봅니다.
+          병원·준비물처럼 <b style={{ color: C.ink2 }}>그날만 다른 것</b>은
+          <b style={{ color: C.ink2 }}>말하기</b>에서 그냥 말씀하시면 됩니다 — 어른께 갈 것만 골라 여기에 담깁니다.
+          <b style={{ color: C.ink2 }}>전날 저녁에</b> 오늘 화면에서 한 번 여쭤봅니다.
           아침에 알면 준비물은 이미 늦으니까요.
         </p>
       </Section>
