@@ -127,7 +127,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0901-ax';
+const GATE_BUILD = '0901-ay';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1895,7 +1895,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-ax";
+const BUILD = "0901-ay";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -3609,7 +3609,7 @@ function Onboarding({ preview }) {
               </div>
             ))}
             <div className="flex gap-2" style={{ marginTop: 12 }}>
-              <input style={{ ...inp, width: 82, flexShrink: 0 }} placeholder="15:20" value={time}
+              <input style={{ ...inp, width: 82, flexShrink: 0 }} placeholder="15:20 (꼭)" value={time}
                 onChange={(e) => setTime(e.target.value.slice(0, 5))} />
               <input style={inp} placeholder="태권도 데려다주기" value={what}
                 onChange={(e) => setWhat(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addRow(); }} />
@@ -6662,6 +6662,12 @@ function CallScreen() {
     const w = what.trim();
     if (kind === "med") { addMed(); return; }
     if (!w) return;
+    /* 시각 없는 일정은 어른께 "태권도"라고만 읽힙니다. 언제인지 모르십니다.
+       준비물은 시각이 필요 없으니 일정에만 막습니다. */
+    if (kind === "sked" && !/^\d{1,2}:\d{2}$/.test(time.trim())) {
+      say("몇 시인지 같이 넣어주세요. 시각이 없으면 어른이 언제인지 모르십니다");
+      return;
+    }
     setSt((sv) => {
       const plan = { ...(sv.callPlan || {}) };
       plan[dow] = (plan[dow] || []).concat([{
@@ -7142,33 +7148,6 @@ function Settings() {
 
       {/* 반려동물 종류 — 켜면 그 종류에 맞는 일만 뜹니다 */}
       {/* 자동차 — 차마다 종류·검사·보험을 따로 받습니다 */}
-      {moveDuty && (() => {
-        const who = st.members.find((m) => m.id === moveDuty.to) || {};
-        const n = moveDuty.tasks.length + moveDuty.routs.length;
-        return (
-          <Sheet onClose={() => setMoveDuty(null)}>
-            <div className="disp" style={{ fontSize: 20, fontWeight: 600 }}>이미 있는 것도 같이 옮길까요?</div>
-            <p style={{ fontSize: 13.5, color: C.ink2, marginTop: 9, lineHeight: 1.7 }}>
-              앞으로 <b>{moveDuty.cat.emoji} {moveDuty.cat.label}</b>에 담기는 일은 {who.name} 몫이 됩니다.
-              지금 이 영역에 이미 있는 <b>{n}개</b>는 아직 예전 담당자 그대로예요.
-            </p>
-            <div style={{ marginTop: 14, background: C.bg, borderRadius: R.sm, padding: "12px 14px", fontSize: 12.5, color: C.ink2, lineHeight: 1.75 }}>
-              {moveDuty.tasks.length > 0 && <div>담아둔 일 {moveDuty.tasks.length}개 · {moveDuty.tasks.slice(0, 3).map((t) => t.title).join(", ")}{moveDuty.tasks.length > 3 ? " 외" : ""}</div>}
-              {moveDuty.routs.length > 0 && <div>정기 일정 {moveDuty.routs.length}개 · {moveDuty.routs.slice(0, 3).map((r) => r.seed.t).join(", ")}{moveDuty.routs.length > 3 ? " 외" : ""}</div>}
-            </div>
-            <Btn kind="accent" style={{ marginTop: 18 }} onClick={() => {
-              setSt((sv) => ({
-                ...sv,
-                tasks: sv.tasks.map((t) => moveDuty.tasks.some((x) => x.id === t.id) ? { ...t, owner: moveDuty.to } : t),
-                routines: moveDuty.routs.reduce((acc, r) => ({ ...acc, [r.key]: { ...(acc[r.key] || {}), owner: moveDuty.to } }), { ...sv.routines }),
-              }));
-              say(`${n}개를 ${who.name} 몫으로 옮겼어요`);
-              setMoveDuty(null);
-            }}>{n}개 모두 {who.name} 몫으로</Btn>
-            <Btn kind="ghost" onClick={() => setMoveDuty(null)}>앞으로 담기는 것만</Btn>
-          </Sheet>
-        );
-      })()}
 
       {/* 어른은 앱을 안 켜시니, 이 칸이 어른과 앱 사이의 유일한 자리입니다.
           전화 화면까지 안 들어가도 여기서 고칠 수 있어야 합니다. */}
@@ -7232,45 +7211,6 @@ function Settings() {
       </Section>
 
       {/* 기본 분담 — 이미 정해져 있는 일은 매번 안 물어봅니다 */}
-      {st.members.length > 1 && (
-        <Section eyebrow="SHARE" title="기본 분담" right="새로 담기는 일에 자동 적용">
-          <Card>
-            <div style={{ padding: "13px 15px", fontSize: 12.5, color: C.ink2, lineHeight: 1.65, borderBottom: `1px solid ${C.lineSoft}` }}>
-              음식·청소는 한 사람, 화분·쓰레기는 다른 사람처럼 이미 정해진 게 있으면 여기서 한 번만 정해두세요.
-              앞으로 그 영역에 담기는 일은 자동으로 그 사람 몫이 됩니다. (개별 항목은 언제든 바꿀 수 있어요)
-            </div>
-            {cats.map((c, i, arr) => {
-              const cur = (st.duty || {})[c.id];
-              return (
-                <div key={c.id} className="flex items-center gap-2" style={{ padding: "11px 15px", borderBottom: i === arr.length - 1 ? "none" : `1px solid ${C.lineSoft}` }}>
-                  <span className="flex-1 min-w-0" style={{ fontSize: 13.5 }}>{c.emoji} {c.label}</span>
-                  <div className="flex gap-1.5">
-                    {st.members.map((m) => (
-                      <button key={m.id} className="press" onClick={() => {
-                        const next = cur === m.id ? null : m.id;
-                        setSt((sv) => ({ ...sv, duty: { ...(sv.duty || {}), [c.id]: next } }));
-                        /* 앞으로 담기는 것만 바뀌므로, 이미 있는 것도 옮길지 물어봅니다 */
-                        if (next) {
-                          const tasks = st.tasks.filter((t) => !t.done && t.category === c.id && t.owner !== next);
-                          const routs = eligibleRoutines(st, true)
-                            .filter((r) => (r.child ? `kid:${r.child.id}` : r.seed.cat) === c.id)
-                            .filter((r) => { const cfg = st.routines[r.key]; return cfg && cfg.on !== false && cfg.owner !== next; });
-                          if (tasks.length + routs.length > 0) setMoveDuty({ cat: c, to: next, tasks, routs });
-                        }
-                      }}
-                        style={{ background: cur === m.id ? m.color : C.bg, color: cur === m.id ? "#fff" : C.ink3, border: `1px solid ${cur === m.id ? m.color : C.line}`, borderRadius: R.pill, padding: "6px 11px", fontSize: 11.5, fontWeight: 600 }}>
-                        {m.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </Card>
-        </Section>
-      )}
-
-      {/* 이번 달 AI 사용량 — 얼마나 썼는지 스스로 보이게 */}
       <Section eyebrow="AI" title="이번 달 AI 사용량" right={!CHARGING() ? (PHASE === "beta" ? "베타" : "무료 기간") : st.plan === "paid" ? "유료" : "무료"}>
         <Card>
           <div style={{ padding: "13px 15px", fontSize: 12.5, color: C.ink2, lineHeight: 1.7, borderBottom: `1px solid ${C.lineSoft}` }}>
