@@ -2,6 +2,7 @@
 // 실제 꿀벌의 일령별 직무(temporal polyethism)를 그대로 스테이지로 삼는다.
 // 청소벌 → 육아벌 → 건축벌 → 경비벌 → 채집벌 → (내가 기른 왕대에서 나온) 처녀왕.
 import { BeeAudio } from "./music";
+import { REGIONS, Region, nextRegion, regionById } from "./regions";
 import {
   BOX,
   GROUND_Y,
@@ -130,6 +131,12 @@ export type BeeState = {
   elapsed: number;
   fact: { title: string; body: string } | null;
   dizzy: boolean;
+  regionId: string;
+  regionName: string;
+  regionCountry: string;
+  climate: string;
+  /** 다음 왕국이 열렸는가 (엔딩에서 분봉 안내) */
+  nextRegionName: string | null;
 };
 
 export type InputName = "left" | "right" | "up" | "down" | "boost";
@@ -222,6 +229,33 @@ function unstick(hive: Hive, box: Box) {
   return false;
 }
 
+function hexToRgb(hex: string) {
+  const h = hex.replace("#", "");
+  return [
+    parseInt(h.slice(0, 2), 16),
+    parseInt(h.slice(2, 4), 16),
+    parseInt(h.slice(4, 6), 16),
+  ] as [number, number, number];
+}
+
+/** 두 색을 t 만큼 섞는다 */
+function mixHex(a: string, b: string, t: number) {
+  const [r1, g1, b1] = hexToRgb(a);
+  const [r2, g2, b2] = hexToRgb(b);
+  const k = Math.max(0, Math.min(1, t));
+  return `rgb(${Math.round(r1 + (r2 - r1) * k)},${Math.round(g1 + (g2 - g1) * k)},${Math.round(
+    b1 + (b2 - b1) * k
+  )})`;
+}
+
+/** 밝기만 올리거나 내린다 (-1 ~ 1) */
+function shade(hex: string, amount: number) {
+  const [r, g, b] = hexToRgb(hex);
+  const f = (v: number) =>
+    Math.max(0, Math.min(255, Math.round(amount >= 0 ? v + (255 - v) * amount : v * (1 + amount))));
+  return `rgb(${f(r)},${f(g)},${f(b)})`;
+}
+
 function hash2(x: number, y: number) {
   let h = x * 374761393 + y * 668265263;
   h = (h ^ (h >> 13)) * 1274126177;
@@ -237,6 +271,7 @@ export class BeeGame {
   readonly audio = new BeeAudio();
 
   private hive!: Hive;
+  private region: Region = REGIONS[0];
   private seed: number;
   private raf = 0;
   private last = 0;
@@ -284,12 +319,16 @@ export class BeeGame {
   private particles: Particle[] = [];
   private drones: Drone[] = [];
   private weddingTime = 0;
+  private climateNoted = false;
 
   private camX = 0;
   private camY = 0;
   private combCache = new Map<string, HTMLCanvasElement>();
 
-  constructor(canvas: HTMLCanvasElement, opts: { onState: (s: BeeState) => void; seed?: number }) {
+  constructor(
+    canvas: HTMLCanvasElement,
+    opts: { onState: (s: BeeState) => void; seed?: number; regionId?: string }
+  ) {
     this.canvas = canvas;
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("canvas 2d context unavailable");
@@ -299,12 +338,18 @@ export class BeeGame {
     this.vh = canvas.height || VIEW_H;
     this.onState = opts.onState;
     this.seed = opts.seed ?? Math.floor(Math.random() * 1e9);
-    this.reset(this.seed);
+    this.region = regionById(opts.regionId ?? REGIONS[0].id);
+    this.reset(this.seed, this.region.id);
   }
 
-  reset(seed = Math.floor(Math.random() * 1e9)) {
+  get currentRegion() {
+    return this.region;
+  }
+
+  reset(seed = Math.floor(Math.random() * 1e9), regionId = this.region.id) {
     this.seed = seed;
-    this.hive = generateHive(seed);
+    this.region = regionById(regionId);
+    this.hive = generateHive(seed, this.region);
     this.combCache.clear();
     this.box = { x: this.hive.spawn.x, y: this.hive.spawn.y, w: BEE_W, h: BEE_H };
     this.vx = 0;
@@ -324,15 +369,167 @@ export class BeeGame {
     this.particles = [];
     this.drones = [];
     this.weddingTime = 0;
+    this.climateNoted = false;
     this.pendingFact = null;
     this.factTimer = 0;
     this.zoneTimer = 0;
     this.lastZone = "";
     this.audio.stopFlight();
-    this.say("나는 방금 방에서 나온 일벌. 첫 일은 청소다.", 4);
+    this.say(`${this.region.country} · ${this.region.name}. 나는 방금 방에서 나온 일벌이다.`, 4.5);
     this.updateCamera(true);
     this.emit();
     this.draw();
+  }
+
+  /** 분봉 — 무리를 데리고 다음 꿀 왕국으로 옮겨 간다. */
+  swarm(): Region | null {
+    const next = nextRegion(this.region.id);
+    if (!next) return null;
+    this.clearInput();
+    this.reset(Math.floor(Math.random() * 1e9), next.id);
+    return next;
+  }
+
+  /** 공유 카드에 쓸 한 판의 기록 */
+  summary() {
+    return {
+      region: this.region,
+      seconds: Math.floor(this.elapsed),
+      cleaned: this.hive.brood.filter((c) => !c.dirty).length,
+      fed: this.hive.brood.filter((c) => c.fed).length,
+      built: this.hive.honey.filter((c) => c.built).length,
+      filled: this.hive.honey.filter((c) => c.filled).length,
+      predators: this.hive.hornets.filter((h) => !h.alive).length,
+      predatorName: this.region.predator.name,
+      done: this.status === "ending",
+    };
+  }
+
+  /**
+   * 공유용 결과 카드를 PNG 데이터 URL 로 그린다.
+   * 꿀단지 라벨처럼 — 어디에 올려도 한눈에 무슨 게임인지 읽히게.
+   */
+  shareCard(): string {
+    const S = 1080;
+    const cv = document.createElement("canvas");
+    cv.width = S;
+    cv.height = S;
+    const c = cv.getContext("2d");
+    if (!c) return "";
+    const r = this.region;
+    const sum = this.summary();
+
+    // 바탕 — 그 지역의 하늘에서 밀랍색으로
+    const bg = c.createLinearGradient(0, 0, 0, S);
+    bg.addColorStop(0, r.sky[0]);
+    bg.addColorStop(0.42, r.sky[1]);
+    bg.addColorStop(0.42, "#1b1408");
+    bg.addColorStop(1, "#0f0b04");
+    c.fillStyle = bg;
+    c.fillRect(0, 0, S, S);
+
+    // 능선
+    c.fillStyle = r.hills[1];
+    c.beginPath();
+    c.moveTo(0, S * 0.42);
+    for (let x = 0; x <= S; x += 24) {
+      c.lineTo(x, S * 0.42 - 60 - Math.sin(x * 0.006) * 46 - Math.sin(x * 0.017) * 18);
+    }
+    c.lineTo(S, S * 0.42);
+    c.closePath();
+    c.fill();
+
+    // 육각 격자 (아래쪽 밀랍 영역)
+    c.save();
+    c.beginPath();
+    c.rect(0, S * 0.42, S, S * 0.58);
+    c.clip();
+    const hr = 46;
+    c.strokeStyle = "rgba(243,201,105,0.09)";
+    c.lineWidth = 2;
+    for (let row = 0; row * hr * 1.5 < S * 0.62; row++) {
+      for (let col = -1; col * hr * 1.74 < S + hr * 2; col++) {
+        const hx = col * hr * 1.74 + (row % 2 ? hr * 0.87 : 0);
+        const hy = S * 0.42 + row * hr * 1.5;
+        c.beginPath();
+        for (let i = 0; i < 6; i++) {
+          const a = (Math.PI / 3) * i - Math.PI / 2;
+          const px = hx + Math.cos(a) * hr;
+          const py = hy + Math.sin(a) * hr;
+          if (i === 0) c.moveTo(px, py);
+          else c.lineTo(px, py);
+        }
+        c.closePath();
+        c.stroke();
+      }
+    }
+    c.restore();
+
+    // 여왕벌 — 엔진의 벌 그리기를 그대로 빌려 쓴다
+    const beeY = S * 0.3;
+    const keep = this.ctx;
+    this.ctx = c;
+    c.save();
+    c.translate(S / 2, beeY);
+    c.scale(7.4, 7.4);
+    c.translate(-S / 2, -beeY);
+    this.drawBee(S / 2, beeY, 1, 1, 0.8, sum.done ? "queen" : "player");
+    c.restore();
+    this.ctx = keep;
+
+    c.textAlign = "center";
+    // 위쪽에 게임 이름
+    c.fillStyle = "rgba(24,16,4,0.5)";
+    c.font = "700 34px 'Gowun Batang', serif";
+    c.fillText("왕벌의 비행", S / 2, 78);
+    c.fillStyle = "rgba(24,16,4,0.34)";
+    c.font = "400 21px 'IBM Plex Sans KR', system-ui, sans-serif";
+    c.fillText("다섯 개의 꿀 왕국", S / 2, 112);
+    // 왕국 이름
+    c.fillStyle = "#f3c969";
+    c.font = "700 74px 'Gowun Batang', serif";
+    c.fillText(r.name, S / 2, S * 0.585);
+    c.fillStyle = "rgba(240,224,190,0.7)";
+    c.font = "500 30px 'IBM Plex Sans KR', system-ui, sans-serif";
+    c.fillText(`${r.country} · ${r.honey}`, S / 2, S * 0.63);
+
+    // 성적
+    const stats: Array<[string, string]> = [
+      ["청소한 방", `${sum.cleaned}`],
+      ["돌본 애벌레", `${sum.fed}`],
+      ["지은 방", `${sum.built}`],
+      ["채운 꿀", `${sum.filled}`],
+      [`${sum.predatorName} 격퇴`, `${sum.predators}`],
+      ["걸린 시간", `${Math.floor(sum.seconds / 60)}:${String(sum.seconds % 60).padStart(2, "0")}`],
+    ];
+    const cols = 3;
+    const x0 = S * 0.5 - (cols - 1) * 150;
+    stats.forEach(([label, val], i) => {
+      const cx = x0 + (i % cols) * 300;
+      const cy = S * 0.71 + Math.floor(i / cols) * 108;
+      c.fillStyle = "#f6ecd8";
+      c.font = "600 46px 'IBM Plex Sans KR', system-ui, sans-serif";
+      c.fillText(val, cx, cy);
+      c.fillStyle = "rgba(200,180,140,0.72)";
+      c.font = "400 24px 'IBM Plex Sans KR', system-ui, sans-serif";
+      c.fillText(label, cx, cy + 32);
+    });
+
+    // 아래 띠 — 제목과 한 줄
+    c.fillStyle = "rgba(243,201,105,0.14)";
+    c.fillRect(0, S - 118, S, 118);
+    c.fillStyle = "#f3c969";
+    c.font = "700 40px 'Gowun Batang', serif";
+    c.fillText(
+      sum.done ? "👑 새 여왕이 태어났다" : `${r.name}에서 일하는 중`,
+      S / 2,
+      S - 66
+    );
+    c.fillStyle = "rgba(240,224,190,0.66)";
+    c.font = "400 25px 'IBM Plex Sans KR', system-ui, sans-serif";
+    c.fillText("왕벌의 비행 — 꿀벌 한 마리의 일생을 사는 게임", S / 2, S - 28);
+
+    return cv.toDataURL("image/png");
   }
 
   setInput(name: InputName, down: boolean) {
@@ -401,6 +598,12 @@ export class BeeGame {
     this.messageTimer = seconds;
   }
 
+  /** 벌통 밖(들판·하늘)에 있는가 */
+  private isOutdoors() {
+    const tx = this.cx / TILE;
+    return tx < BOX.x || tx > BOX.x + BOX.w;
+  }
+
   private get cx() {
     return this.box.x + this.box.w / 2;
   }
@@ -445,6 +648,11 @@ export class BeeGame {
       elapsed: this.elapsed,
       fact: this.pendingFact,
       dizzy: this.dizzy > 0,
+      regionId: this.region.id,
+      regionName: this.region.name,
+      regionCountry: this.region.country,
+      climate: this.region.climate.label,
+      nextRegionName: nextRegion(this.region.id)?.name ?? null,
     });
   }
 
@@ -513,8 +721,23 @@ export class BeeGame {
       this.vy = (this.vy / speed) * max;
     }
 
-    if (thrusting) this.wing = Math.max(0, this.wing - (boosting ? 24 : 10) * dt);
-    else this.wing = Math.min(100, this.wing + 26 * dt);
+    const outside = this.isOutdoors();
+    const climate = this.region.climate.kind;
+    // 혹서: 바깥에 있으면 날개 힘이 빨리 마른다
+    const heat = outside && climate === "heat" ? 2.3 : 1;
+    if (thrusting) this.wing = Math.max(0, this.wing - (boosting ? 24 : 10) * heat * dt);
+    else this.wing = Math.min(100, this.wing + (outside && climate === "heat" ? 14 : 26) * dt);
+
+    // 해풍: 바깥에서는 옆으로 계속 밀린다
+    if (outside && climate === "wind") {
+      this.vx += (Math.sin(this.elapsed * 0.55) * 0.5 + 0.28) * 0.34;
+    }
+
+    // 바깥에 처음 나갔을 때 그 땅의 기후를 한 번 알려 준다
+    if (outside && !this.climateNoted) {
+      this.climateNoted = true;
+      this.say(`${this.region.climate.label} — ${this.region.climate.note}`, 5);
+    }
 
     // 건축벌은 날개 힘을 밀랍으로 바꾼다
     if (this.stage === 2 && !thrusting) this.wax = Math.min(6, this.wax + 1.1 * dt);
@@ -589,7 +812,7 @@ export class BeeGame {
       hn.vx *= 0.94;
       hn.vy *= 0.94;
       const sp = Math.hypot(hn.vx, hn.vy);
-      const cap = chase ? 2.1 : 1;
+      const cap = (chase ? 2.1 : 1) * this.region.predator.speed;
       if (sp > cap) {
         hn.vx = (hn.vx / sp) * cap;
         hn.vy = (hn.vy / sp) * cap;
@@ -608,7 +831,7 @@ export class BeeGame {
     for (const f of this.hive.flowers) {
       f.sway += dt;
       if (f.used) {
-        f.regrow -= dt;
+        f.regrow -= dt * (this.region.climate.kind === "shortBloom" ? 0.55 : 1);
         if (f.regrow <= 0) f.used = false;
       }
     }
@@ -907,7 +1130,7 @@ export class BeeGame {
     }
     if (this.status === "wedding" && t > 11) {
       this.status = "ending";
-      this.pendingFact = STAGES[5].fact;
+      this.pendingFact = this.region.fact;
       this.factTimer = 9;
       this.emit();
     }
@@ -950,7 +1173,7 @@ export class BeeGame {
     const id = z ? z.id : this.cy < GROUND_Y * TILE ? "meadow" : "";
     if (id && id !== this.lastZone) {
       this.lastZone = id;
-      this.zoneLabel = z ? z.name : "마누카 계곡";
+      this.zoneLabel = z ? z.name : this.region.name;
       this.zoneTimer = 2.2;
     } else if (!id) this.lastZone = "";
   }
@@ -1052,14 +1275,9 @@ export class BeeGame {
     const ctx = this.ctx;
     const high = Math.max(0, Math.min(1, -camY / 640));
     const g = ctx.createLinearGradient(0, 0, 0, this.vh);
-    g.addColorStop(
-      0,
-      `rgb(${Math.round(96 - high * 62)},${Math.round(164 - high * 84)},${Math.round(228 - high * 62)})`
-    );
-    g.addColorStop(
-      1,
-      `rgb(${Math.round(192 - high * 96)},${Math.round(224 - high * 74)},${Math.round(238 - high * 44)})`
-    );
+    // 높이 오를수록 하늘이 짙어진다
+    g.addColorStop(0, mixHex(this.region.sky[0], "#0d2246", high * 0.72));
+    g.addColorStop(1, mixHex(this.region.sky[1], "#20406e", high * 0.62));
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, this.vw, this.vh);
 
@@ -1100,7 +1318,7 @@ export class BeeGame {
       const p = 0.55 + layer * 0.2;
       const amp = 46 - layer * 16;
       const off = camX * (1 - p);
-      ctx.fillStyle = layer === 0 ? "rgba(108,142,116,0.55)" : "rgba(84,118,96,0.7)";
+      ctx.fillStyle = this.region.hills[layer];
       ctx.beginPath();
       ctx.moveTo(camX - 20, baseY + 10);
       for (let x = camX - 20; x < camX + this.vw + 20; x += 12) {
@@ -1143,27 +1361,35 @@ export class BeeGame {
         const py = y * TILE;
         const n = hash2(x, y);
         if (v === GRASS) {
-          ctx.fillStyle = `rgb(${(92 + n * 22) | 0},${(150 + n * 28) | 0},${(64 + n * 18) | 0})`;
+          ctx.fillStyle = shade(this.region.grass, (n - 0.5) * 0.16);
           ctx.fillRect(px, py, TILE, TILE);
-          ctx.fillStyle = "rgba(164,216,116,0.6)";
+          ctx.fillStyle = shade(this.region.grass, 0.24);
           ctx.fillRect(px, py, TILE, 4);
         } else if (v === WOOD) {
-          const b = n * 14;
-          ctx.fillStyle = `rgb(${(160 + b) | 0},${(112 + b) | 0},${(64 + b * 0.7) | 0})`;
+          const hv = this.region.hive;
+          ctx.fillStyle = shade(hv.wall, (n - 0.5) * 0.13);
           ctx.fillRect(px, py, TILE, TILE);
-          ctx.strokeStyle = "rgba(96,62,30,0.35)";
+          ctx.strokeStyle = hv.wallDark + "66";
           ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.moveTo(px, py + 4 + n * 8);
-          ctx.lineTo(px + TILE, py + 3 + n * 9);
-          ctx.stroke();
+          if (hv.material === "stone") {
+            // 바위는 결이 아니라 금이 간다
+            ctx.strokeRect(px + 0.5, py + 0.5, TILE - 1, TILE - 1);
+          } else if (hv.material === "clay") {
+            ctx.beginPath();
+            ctx.arc(px + 8, py + 8, 5 + n * 2, 0, Math.PI * 2);
+            ctx.stroke();
+          } else {
+            ctx.beginPath();
+            ctx.moveTo(px, py + 4 + n * 8);
+            ctx.lineTo(px + TILE, py + 3 + n * 9);
+            ctx.stroke();
+          }
         } else if (v === WAX) {
           const b = n * 16;
           ctx.fillStyle = `rgb(${(214 + b * 0.4) | 0},${(166 + b) | 0},${(76 + b) | 0})`;
           ctx.fillRect(px, py, TILE, TILE);
         } else {
-          const b = n * 16;
-          ctx.fillStyle = `rgb(${(92 + b) | 0},${(68 + b * 0.8) | 0},${(46 + b * 0.6) | 0})`;
+          ctx.fillStyle = shade(this.region.soil, (n - 0.5) * 0.16);
           ctx.fillRect(px, py, TILE, TILE);
         }
       }
@@ -1228,38 +1454,82 @@ export class BeeGame {
     }
   }
 
+  /** 지역마다 꽃송이가 달린 모양이 다르다. [x, y, 크기, 꽃잎 수] */
+  private flowerHeads(): Array<[number, number, number, number]> {
+    switch (this.region.flower.form) {
+      case "almond": // 가지에 큼직하게 두어 송이
+        return [
+          [0, -2, 1.5, 5],
+          [-11, 8, 1.25, 5],
+        ];
+      case "sidr": // 자잘한 꽃이 뭉쳐 핀다
+        return [
+          [0, 0, 0.6, 5],
+          [-7, 4, 0.55, 5],
+          [7, 3, 0.55, 5],
+          [-3, 10, 0.5, 5],
+          [4, 11, 0.5, 5],
+        ];
+      case "thyme": // 이삭처럼 위로 층층이
+        return [
+          [0, -6, 0.7, 5],
+          [-3, 2, 0.75, 5],
+          [3, 9, 0.7, 5],
+        ];
+      case "acacia": // 아래로 늘어지는 송이
+        return [
+          [0, 0, 0.85, 4],
+          [-4, 9, 0.8, 4],
+          [3, 17, 0.75, 4],
+          [-2, 25, 0.65, 4],
+        ];
+      default: // 마누카 — 잔가지에 작은 꽃 여럿
+        return [
+          [0, 0, 1, 5],
+          [-8, 6, 0.9, 5],
+          [8, 5, 0.9, 5],
+        ];
+    }
+  }
+
   private drawFlowers(camX: number, camY: number) {
     const ctx = this.ctx;
+    const fl = this.region.flower;
+    const heads = this.flowerHeads();
+    const droop = fl.form === "acacia";
     for (const f of this.hive.flowers) {
       if (f.x < camX - 40 || f.x > camX + this.vw + 40) continue;
-      if (f.y < camY - 70 || f.y > camY + this.vh + 40) continue;
+      if (f.y < camY - 80 || f.y > camY + this.vh + 40) continue;
       const sway = Math.sin(f.sway) * 3;
-      const topY = f.y - 32;
-      ctx.strokeStyle = f.sprayed ? "#6b7a52" : "#4f7a3c";
-      ctx.lineWidth = 2.4;
+      const topY = f.y - (droop ? 44 : 32);
+
+      ctx.strokeStyle = f.sprayed ? "#6b7a52" : fl.stem;
+      ctx.lineWidth = fl.form === "almond" ? 3.2 : 2.4;
       ctx.beginPath();
       ctx.moveTo(f.x, f.y);
-      ctx.quadraticCurveTo(f.x + sway * 0.5, f.y - 17, f.x + sway, topY);
+      ctx.quadraticCurveTo(f.x + sway * 0.5, f.y - 18, f.x + sway, topY);
       ctx.stroke();
-      // 마누카는 잔가지에 작은 흰 꽃이 여러 송이 달린다
-      const heads = [
-        [0, 0],
-        [-8, 6],
-        [8, 5],
-      ];
-      for (const [ox, oy] of heads) {
+      if (fl.form === "acacia" || fl.form === "almond") {
+        // 잎 한 장
+        ctx.fillStyle = f.sprayed ? "#8fa06a" : fl.stem;
+        ctx.beginPath();
+        ctx.ellipse(f.x + sway + 7, topY + 20, 6, 2.6, -0.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      for (const [ox, oy, scale, petals] of heads) {
         const hx = f.x + sway + ox;
         const hy = topY + oy;
-        const open = f.used ? 0.55 : 1;
-        for (let i = 0; i < 5; i++) {
-          const a = (i / 5) * Math.PI * 2 + f.sway * 0.2;
+        const open = (f.used ? 0.55 : 1) * scale;
+        for (let i = 0; i < petals; i++) {
+          const a = (i / petals) * Math.PI * 2 + f.sway * 0.2;
           ctx.fillStyle = f.sprayed
             ? "#cfe0c0"
             : f.used
               ? "#d8d2c4"
               : i % 2
-                ? "#ffffff"
-                : "#ffeef2";
+                ? fl.petal
+                : fl.petal2;
           ctx.beginPath();
           ctx.ellipse(
             hx + Math.cos(a) * 4.4 * open,
@@ -1272,24 +1542,31 @@ export class BeeGame {
           );
           ctx.fill();
         }
-        ctx.fillStyle = f.sprayed ? "#8fa06a" : f.used ? "#b9ac8a" : "#5a3b2a";
+        ctx.fillStyle = f.sprayed ? "#8fa06a" : f.used ? "#b9ac8a" : fl.center;
         ctx.beginPath();
-        ctx.arc(hx, hy, 2.1, 0, Math.PI * 2);
+        ctx.arc(hx, hy, 2.1 * scale, 0, Math.PI * 2);
         ctx.fill();
       }
+
       if (f.sprayed) {
         ctx.fillStyle = `rgba(150,235,140,${0.16 + Math.sin(this.elapsed * 3 + f.sway) * 0.06})`;
         ctx.beginPath();
-        ctx.arc(f.x + sway, topY + 3, 17, 0, Math.PI * 2);
+        ctx.arc(f.x + sway, topY + 6, 19, 0, Math.PI * 2);
         ctx.fill();
-        ctx.fillStyle = "rgba(190,255,180,0.85)";
+        ctx.fillStyle = "rgba(190,255,180,0.9)";
         ctx.font = "9px system-ui, sans-serif";
         ctx.textAlign = "center";
         ctx.fillText("농약", f.x + sway, topY - 14);
       } else if (!f.used) {
         ctx.fillStyle = "rgba(255,240,190,0.2)";
         ctx.beginPath();
-        ctx.arc(f.x + sway, topY + 3, 14 + Math.sin(this.elapsed * 3 + f.sway) * 1.6, 0, Math.PI * 2);
+        ctx.arc(
+          f.x + sway,
+          topY + 6,
+          15 + Math.sin(this.elapsed * 3 + f.sway) * 1.6,
+          0,
+          Math.PI * 2
+        );
         ctx.fill();
       }
     }
@@ -1491,9 +1768,9 @@ export class BeeGame {
     ctx.translate(x, y);
     ctx.scale(dir * scale, scale);
 
-    const body = kind === "hornet" ? "#e2861f" : "#f6c343";
-    const dark = kind === "hornet" ? "#3a2408" : "#3d2c10";
-    const fuzz = kind === "hornet" ? "#b96412" : "#e8b13a";
+    const body = kind === "hornet" ? this.region.predator.body : "#f6c343";
+    const dark = kind === "hornet" ? this.region.predator.dark : "#3d2c10";
+    const fuzz = kind === "hornet" ? mixHex(this.region.predator.body, "#000000", 0.22) : "#e8b13a";
     const abdomen = kind === "queen" ? 15 : kind === "hornet" ? 14 : 10;
 
     const flap = Math.sin(wingPhase) * 0.55 + 0.6;

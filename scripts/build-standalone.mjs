@@ -6,7 +6,7 @@ import { dirname, resolve } from "node:path";
 const out = process.argv[2] ?? "dist/manuka.html";
 
 const result = await build({
-  entryPoints: [resolve("src/lib/bee/standalone.ts")],
+  entryPoints: [resolve("src/lib/bee/entry.ts")],
   bundle: true,
   minify: true,
   format: "iife",

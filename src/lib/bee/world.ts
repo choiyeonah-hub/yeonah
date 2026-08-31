@@ -1,6 +1,7 @@
-// 「마누카 계곡」 — 뉴질랜드 양봉장의 벌통 한 채.
+// 꿀 왕국의 벌통 한 채. 지역이 달라도 벌통의 구조는 같다.
 // 실제 벌통 구조를 따른다: 아래가 입구·경비 구역, 가운데가 육아권,
 // 위가 꿀 저장권(계상). 왕대는 육아권 소비의 아래 가장자리에 매달린다.
+import { Region } from "./regions";
 
 export const TILE = 16;
 export const WORLD_W = 130;
@@ -81,6 +82,7 @@ export type QueenCellState = {
 };
 
 export type Hive = {
+  regionId: string;
   tiles: Uint8Array;
   zones: Zone[];
   brood: BroodCell[];
@@ -148,11 +150,12 @@ function fill(tiles: Uint8Array, x: number, y: number, w: number, h: number, v: 
   }
 }
 
-export function generateHive(seed: number): Hive {
+export function generateHive(seed: number, region: Region): Hive {
   const rng = mulberry32(seed);
   const tiles = new Uint8Array(WORLD_W * WORLD_H);
 
   const h: Hive = {
+    regionId: region.id,
     tiles,
     zones: ZONES.map((z) => ({ ...z })),
     brood: [],
@@ -208,9 +211,13 @@ export function generateHive(seed: number): Hive {
       regrow: 0,
     });
   }
-  // 농약이 뿌려진 꽃 두 송이 (실제 벌 감소 원인 중 하나)
-  const sprayIdx = [2 + Math.floor(rng() * 2), 6 + Math.floor(rng() * 3)];
-  for (const i of sprayIdx) if (h.flowers[i]) h.flowers[i].sprayed = true;
+  // 농약이 뿌려진 꽃. 단일 재배 지역은 유난히 많다.
+  const sprayCount = region.climate.kind === "monoculture" ? 4 : 2;
+  const picked = new Set<number>();
+  while (picked.size < sprayCount && picked.size < h.flowers.length - 4) {
+    picked.add(Math.floor(rng() * h.flowers.length));
+  }
+  for (const i of picked) h.flowers[i].sprayed = true;
 
   // 육아권: 방 8칸 (처음엔 더러운 상태)
   const brood = h.zones.find((z) => z.id === "brood")!;
@@ -265,9 +272,9 @@ export function generateHive(seed: number): Hive {
       homeY: wy,
     });
   }
-  for (let i = 0; i < 2; i++) {
-    const hx = (ent.x + ent.w - 8 + i * 4) * TILE;
-    const hy = (ent.y + 2 + i * 2) * TILE;
+  for (let i = 0; i < region.predator.count; i++) {
+    const hx = (ent.x + ent.w - 9 + i * 4) * TILE;
+    const hy = (ent.y + 2 + (i % 2) * 2) * TILE;
     h.hornets.push({
       x: hx,
       y: hy,
