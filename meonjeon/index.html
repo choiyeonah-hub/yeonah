@@ -127,7 +127,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0901-af';
+const GATE_BUILD = '0901-ag';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1716,7 +1716,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-af";
+const BUILD = "0901-ag";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -7461,7 +7461,7 @@ function Useful() {
    최초등록 연월과 보험 갱신월만 한 번 받고, 날짜는 법정 주기로 계산합니다. */
 /* 차마다 검사일도 보험 갱신 달도 다릅니다. 한 대씩 따로 받습니다. */
 function CarOne({ car, idx, n }) {
-  const { st, setSt, say } = use();
+  const { st, setSt, say, setTab } = use();
   const insp = nextCarInspection(car.firstReg);
   const ins = nextInsuranceMonth(car.insMonth, null, car.insDay);
   const fmt = (t) => t ? new Date(t).toLocaleDateString("ko-KR", { year: "numeric", month: "long" }) : null;
@@ -7549,7 +7549,8 @@ function CarOne({ car, idx, n }) {
         </div>
 
         <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 16 }}>최초 등록</div>
-        <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 4 }}>자동차등록증이나 보험 안내문에 적혀 있어요.</div>
+        <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 4, lineHeight: 1.65 }}>자동차등록증이나 보험 안내문에 적혀 있어요.
+          찾기 번거로우시면 <b style={{ color: C.ink2 }}>등록증을 찍어서 올리셔도</b> 됩니다 — 아래 “캡처로 대신 넣기”로요.</div>
         <div className="flex gap-2" style={{ marginTop: 8 }}>
           <select className="hae" value={ry} onChange={(e) => setReg(e.target.value, rm)}
             style={{ flex: 1.3, border: `1px solid ${C.line}`, borderRadius: 11, padding: "11px 10px", fontSize: 14, background: C.bg, color: C.ink }}>
@@ -7572,6 +7573,17 @@ function CarOne({ car, idx, n }) {
         <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 4, lineHeight: 1.6 }}>
           보험증권이나 문자에 적힌 <b style={{ color: C.ink2 }}>만기일</b>이에요.
           하루만 넘겨도 무보험이라 <b style={{ color: C.ink2 }}>5일 전부터</b> 매일 올립니다.
+        </div>
+        {/* 날짜를 넣는 자리마다 "캡처로 대신 넣기"가 있어야 합니다.
+            유용정보 탭에만 두면, 정작 손으로 적고 있는 사람에게는 안 보입니다.
+            여기가 그 사람이 지금 서 있는 자리입니다. */}
+        <button className="press w-full" onClick={() => { setTab("speak"); say("📄 사진 버튼을 눌러 보험 안내문이나 내보험찾아줌 화면을 올려주세요"); }}
+          style={{ marginTop: 9, background: C.mossSoft, color: C.moss, border: `1px solid ${C.moss}`, borderRadius: R.sm, padding: "11px 0", fontSize: 12.5, fontWeight: 600 }}>
+          📄 캡처로 대신 넣기
+        </button>
+        <div style={{ fontSize: 11, color: C.ink3, marginTop: 6, lineHeight: 1.65 }}>
+          보험 안내문·문자를 캡처해서 올리시면 날짜를 찾아 넣어드려요.
+          만기일을 모르시면 <b style={{ color: C.ink2 }}>내보험찾아줌</b>에 가입한 보험이 다 나옵니다 — 그 화면을 찍으셔도 됩니다.
         </div>
         <div className="grid grid-cols-6 gap-1.5" style={{ marginTop: 9 }}>
           {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => {
