@@ -239,6 +239,7 @@ export function buildRecommendation(
         : frame === "natural"
           ? "적당히 오버된 셔츠 · 두께감 있는 니트"
           : "군더더기 없는 라운드·V넥 니트 / 코튼 셔츠",
+    searchTerm: frame === "wave" ? "퍼프 블라우스" : frame === "natural" ? "오버핏 셔츠" : "베이직 니트",
     why:
       `${body.frame.name}에 맞는 소재와 ${
         faceBand === "high" ? "가로로 열리는 넥라인" : faceBand === "low" ? "세로로 열리는 넥라인" : "넥라인"
@@ -262,6 +263,12 @@ export function buildRecommendation(
           : shape === "round"
             ? "배를 누르지 않는 하이웨이스트 테이퍼드 팬츠"
             : "하이웨이스트 스트레이트 팬츠",
+    searchTerm:
+      shape === "inverted"
+        ? "하이웨이스트 와이드 팬츠"
+        : shape === "round"
+          ? "하이웨이스트 테이퍼드 팬츠"
+          : "하이웨이스트 슬랙스",
     why:
       legBand === "low"
         ? "허리선을 올리고 밑단까지 라인을 끊지 않아 다리 비율을 시각적으로 늘립니다."
@@ -285,6 +292,12 @@ export function buildRecommendation(
           : shape === "pear"
             ? "상체에 디테일이 있는 A라인 원피스"
             : "허리 턱·벨트로 라인을 만드는 원피스",
+    searchTerm:
+      shape === "hourglass"
+        ? "랩 원피스"
+        : shape === "round"
+          ? "엠파이어 원피스"
+          : "A라인 원피스",
     why: `${body.shape.name}의 볼륨 분포에 맞춰 시선이 가장 좋은 곳에 머물도록 설계된 실루엣입니다.`,
     spec: [
       `총장: 무릎 위 ${sizing.skirtAboveKnee}cm 또는 미디 ${sizing.skirtMidi}cm`,
@@ -302,6 +315,8 @@ export function buildRecommendation(
         : frame === "natural"
           ? "오버사이즈 셋업 재킷 · 발마칸 코트"
           : "어깨선이 맞는 테일러드 재킷 · 스트레이트 코트",
+    searchTerm:
+      headBand === "low" ? "노카라 코트" : frame === "natural" ? "오버핏 발마칸 코트" : "테일러드 재킷",
     why: "아우터는 전체 실루엣의 세로선을 결정합니다. 어깨선이 맞고 앞이 길게 트이는 형태가 가장 안전합니다.",
     spec: [
       `재킷 ${sizing.jacket}cm / 하프 ${sizing.halfCoat}cm / 롱 ${sizing.longCoat}cm`,
@@ -316,6 +331,7 @@ export function buildRecommendation(
     {
       slot: "shoes",
       category: `${sizing.heelRange[0]}~${sizing.heelRange[1]}cm 아몬드 토 펌프스`,
+      searchTerm: `${sizing.heelRange[1]}cm 펌프스`,
       why:
         legBand === "low"
           ? "발등을 넓게 드러내고 앞코가 살짝 길어 다리 라인이 발끝까지 이어집니다. 굽 높이는 부족한 다리 비율을 정확히 메우는 값입니다."
@@ -330,6 +346,7 @@ export function buildRecommendation(
     {
       slot: "shoes",
       category: frame === "natural" ? "투박한 로퍼 · 첼시 부츠" : "슬림한 로퍼 · 플랫",
+      searchTerm: frame === "natural" ? "첼시 부츠" : "로퍼",
       why: `${body.frame.name}은 신발의 두께감도 몸의 뼈대와 맞아야 균형이 잡힙니다.`,
       spec: [
         frame === "natural" ? "밑창 두께 2.5cm 이상, 볼륨 있는 라스트" : "밑창 1.5cm 이하, 얇은 라스트",
@@ -340,6 +357,7 @@ export function buildRecommendation(
     {
       slot: "shoes",
       category: "스니커즈 (데일리)",
+      searchTerm: "스니커즈",
       why: "캐주얼에서도 팔레트를 유지하면 전체 톤이 흐트러지지 않습니다.",
       spec: [
         legBand === "low" ? "발목이 드러나는 로우탑 (하이탑은 다리를 끊음)" : "로우탑·하이탑 모두 가능",
@@ -354,6 +372,7 @@ export function buildRecommendation(
     {
       slot: "bag",
       category: "구조감 있는 미니 숄더백",
+      searchTerm: "미니 숄더백",
       why:
         legBand === "low"
           ? "가방을 허리선 위에 두면 허리 위치가 올라가 보여 다리 비율이 좋아집니다."
@@ -368,6 +387,7 @@ export function buildRecommendation(
     {
       slot: "bag",
       category: "세로형 토트백 (출근·수납용)",
+      searchTerm: "세로형 토트백",
       why: "세로가 긴 형태는 몸에 세로선을 더해 전체를 길어 보이게 합니다.",
       spec: [
         `가로 ${sizing.bagWidth[1]}cm 내외, 세로가 가로보다 길 것`,
@@ -379,6 +399,7 @@ export function buildRecommendation(
     {
       slot: "bag",
       category: "포인트 컬러 클러치·미니백",
+      searchTerm: "미니백",
       why: `무채색 옷차림일 때 ${colorType.name}의 베스트 컬러를 가방으로 얹으면 얼굴빛이 살아납니다.`,
       spec: ["가로 20cm 내외", "옷에는 쓰기 부담스러운 채도 높은 색을 가방으로 소화"],
       colors: pointColors.slice(0, 2),

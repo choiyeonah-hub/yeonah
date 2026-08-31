@@ -103,12 +103,26 @@ export default function ResultView({
           </div>
         </div>
 
-        <a
-          href="/style/closet"
-          className="mt-5 inline-block rounded-xl bg-neutral-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-neutral-700"
-        >
-          이 결과로 내 옷장 판정하기 →
-        </a>
+        <div className="mt-5 flex flex-wrap gap-2">
+          <a
+            href="/style/closet"
+            className="rounded-xl bg-neutral-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-neutral-700"
+          >
+            내 옷장 판정하기 →
+          </a>
+          <a
+            href="/style/shop"
+            className="rounded-xl border border-neutral-300 px-4 py-2.5 text-sm font-semibold text-neutral-800 hover:bg-neutral-50"
+          >
+            이 색으로 쇼핑하기 →
+          </a>
+          <a
+            href="/style/tryon"
+            className="rounded-xl border border-neutral-300 px-4 py-2.5 text-sm font-semibold text-neutral-800 hover:bg-neutral-50"
+          >
+            가상 피팅 →
+          </a>
+        </div>
 
         {sharePath && (
           <div className="mt-5">

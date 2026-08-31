@@ -134,6 +134,8 @@ export type SizingHint = {
 export type RecommendedItem = {
   slot: "top" | "bottom" | "outer" | "dress" | "shoes" | "bag";
   category: string; // 예: "하이웨이스트 와이드 슬랙스"
+  /** 쇼핑몰 검색창에 그대로 넣을 짧은 명사. category는 설명문이라 검색어로는 못 쓴다. */
+  searchTerm: string;
   why: string;
   spec: string[]; // 길이/폭/소재 등 구체 스펙
   colors: PaletteColor[];

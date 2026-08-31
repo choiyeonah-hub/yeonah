@@ -125,9 +125,17 @@ export default function ClosetPage() {
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-10">
-      <Link href="/style" className="text-sm text-neutral-500 hover:text-neutral-800">
-        ← 진단 결과로
-      </Link>
+      <div className="flex flex-wrap gap-3 text-sm">
+        <Link href="/style" className="text-neutral-500 hover:text-neutral-800">
+          ← 진단 결과로
+        </Link>
+        <Link href="/style/shop" className="text-neutral-500 hover:text-neutral-800">
+          쇼핑 추천 →
+        </Link>
+        <Link href="/style/tryon" className="text-neutral-500 hover:text-neutral-800">
+          가상 피팅 →
+        </Link>
+      </div>
 
       <header className="mt-3">
         <h1 className="text-2xl font-bold text-neutral-900 sm:text-3xl">내 옷장</h1>

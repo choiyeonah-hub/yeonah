@@ -79,3 +79,14 @@ model StyleProfile {
   bodyShape   String
   payload     Json
 }
+
+// 어필리에이트 상품 검색 결과 캐시.
+// 쿠팡 파트너스 검색 API는 "시간당 10회"라서, 캐시가 없으면 기능 자체가 성립하지 않는다.
+// fetchedAt으로 최근 1시간 호출 수를 세어 호출 제한도 함께 지킨다.
+model ProductCache {
+  key       String   @id
+  payload   Json
+  fetchedAt DateTime @default(now())
+
+  @@index([fetchedAt])
+}
