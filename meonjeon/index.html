@@ -127,7 +127,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0901-bc';
+const GATE_BUILD = '0901-bd';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1244,7 +1244,7 @@ function dueLabel(t) {
 const todayKey0 = (t) => startOfDay(t);
 
 const DEMO_SPEECH =
-  "아 맞다. 다음 주 화요일 단수래. 휴지도 사야 되고 애 운동화 작아진 것 같아. 토요일에 시부모님 오실 수도 있고 자동차 엔진오일 언제 갈았는지도 모르겠다. 냉장고 두부도 먹어야 해.";
+  "내일 피아노 5시로 바뀌었대. 목요일은 하교가 12시 반이고, 금요일 소풍이라 도시락 싸야 해. 아 그리고 감기약 내일 점심 한 봉지 더 드려야 돼.";
 
 /* "반복으로"를 누를 때마다 정기 일정을 새로 만들던 시절에, 같은 일정이
    여러 개 쌓인 집이 있습니다. 읽을 때 한 번 정리합니다.
@@ -1807,7 +1807,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-bc";
+const BUILD = "0901-bd";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -4828,17 +4828,17 @@ ${web ? `사는 곳: ${String(st.region || "").trim() || (st.place && st.place.l
 
 규칙
 - 입력에 띄어쓰기가 전혀 없거나 오타·줄임말·구어체일 수 있습니다. 의미 단위로 직접 끊어 해석하세요.
-  예: "두부먹어야하고휴지사야돼애운동화작아진듯" → 두부 소진 / 휴지 구매 / 발 사이즈 확인
+  예: "내일피아노5시로바뀌었대목요일하교12시반" → 내일 피아노 5시 / 목요일 하교 12시 반
 - 애매해도 빈 배열을 내지 말고 최소 2개는 뽑으세요.
 - category는 다음 id 중 하나: ${catList} etc(기타)
   어디에도 맞지 않으면 etc로 보내고 newCategory에 새 카테고리 이름을 한글 4자 이내로 제안하세요.
 - status는 하나: now / week / conditional / check / buy / decide / remember / repeat
   반복해서 해야 하는 일이면 repeat으로 두고 cycle에 권장 주기를 적으세요.
-- event: 단수·소풍·마감·만기처럼 **"그날"이 정해진 일**이면 그 날짜를 YYYY-MM-DD로 적으세요.
+- event: 소풍·현장학습·병원·마감처럼 **"그날"이 정해진 일**이면 그 날짜를 YYYY-MM-DD로 적으세요.
   lead에는 며칠 전에 알려야 하는지 숫자로 적으세요 (당일이면 0).
-  예: "다음 주 화요일 단수래" → event: 그 화요일, lead: 1 (전날 물을 받아둬야 하니까)
-      "9월 20일 보험 만기" → event: "2026-09-20", lead: 14 (비교할 시간이 필요하니까)
-      "10일 소풍" → event: 그날, lead: 1 (전날 도시락 준비물을 사야 하니까)
+  예: "10일 소풍" → event: 그날, lead: 1 (전날 도시락과 준비물을 챙겨야 하니까)
+      "금요일 학교 공개수업" → event: 그 금요일, lead: 3 (평일 낮이라 연차를 내야 하니까)
+      "다음 주 수요일 소아과 예약" → event: 그 수요일, lead: 1
   그날이 없는 일이면 event는 빈 문자열로 두세요.
 - when: event가 없을 때만 씁니다. 언제 하면 되는지를 YYYY-MM-DD로.
   오늘은 ${todayStr()}입니다. 말에 시점이 전혀 없으면 빈 문자열로 두세요.
@@ -4847,18 +4847,19 @@ ${web ? `사는 곳: ${String(st.region || "").trim() || (st.place && st.place.l
 - 다만 돌잔치·백일·결혼식·이사처럼 전문 앱/업체가 따로 있는 준비는 세부로 쪼개지 마세요.
   "돌잔치 기획하기" 같은 한 줄로만 만들고, 장소·답례품·의상 같은 하위 항목은 만들지 마세요.
 
-- **계획을 대신 짜주지 마세요.** 여행 일정, 코스, 몇 박 며칠 스케줄, 데이트 코스 같은 것은
-  전용 앱과 사이트가 훨씬 잘합니다. 이 앱은 할 일을 정리하고 찾아주는 곳입니다.
-  그런 요청이면 answer에 한 줄로 "일정 짜기는 여행 앱이 나아요"라고만 쓰고,
-  items에는 그 여행 때문에 **까먹으면 손해인 것**만 넣으세요 —
-  예: 숙소 예약 마감일, 여권 유효기간 확인, 렌터카 예약, 상비약 챙기기.
-  코스·맛집·볼거리는 넣지 마세요.
+- **계획을 대신 짜주지 마세요.** 여행 코스, 몇 박 며칠 스케줄, 식단표 같은 것은
+  전용 앱이 훨씬 잘합니다. 이 앱은 아이를 어른께 맡기는 부모가
+  **까먹으면 곤란한 것**만 붙들어두는 곳입니다.
+  그런 요청이면 answer에 한 줄로 "그건 전용 앱이 나아요"라고만 쓰고,
+  items에는 날짜가 있어 놓치면 손해인 것만 넣으세요.
+
+- **훈육·보육 방법은 만들지 마세요.** 배변훈련·떼쓸 때 대처·수면교육·성교육 같은 것은
+  집집마다 다르고 어른과 따로 상의할 일입니다. 앱이 정할 일이 아닙니다.
 
 - 사용자의 말이 질문이면 (물음표로 끝나거나 "있을까 / 어때 / 뭐가 / 어떻게 / 추천 / 짜줘 / 알려줘 / 봐줘 / 괜찮을까 / 놓친 / 빠진 / 챙길 게" 등이 들어가면)
   answer를 반드시 채우세요. 비워두면 안 됩니다.
-- 답을 원하는 질문("식단 짜줘", "추천해줘")이면:
-  answer에 실제 답(식단표·추천 목록·설명)을 300자 이내로 쓰고, 그 답을 실행하는 데 필요한 일을 items로 뽑으세요.
-  예: "이번 주 식단 짜줘" → answer에 요일별 메뉴, items에 [장보기, 재료 손질].
+- 답을 원하는 질문("추천해줘", "알려줘")이면:
+  answer에 실제 답을 300자 이내로 쓰고, 그 답을 실행하는 데 필요한 일을 items로 뽑으세요.
 - 점검을 요청하는 질문("이번 주 아이 관련해서 놓친 거 있을까?", "뭐 챙겨야 해?", "확인해줘")이면:
   ① 위 '이미 챙기고 있는 일'에 이미 있는 것은 절대 다시 제안하지 마세요.
   ② 이 가구의 아이 나이·계절·이번 달 시기를 근거로, 빠져 있을 법한 일만 고르세요.
@@ -5345,16 +5346,20 @@ ${web ? `
             </div>
           )}
           <textarea className="hae" value={text} onChange={(e) => setText(e.target.value)} rows={4}
-            placeholder="여기에 적어도 됩니다. 띄어쓰기는 안 맞아도 됩니다. 알림장·안내문자 캡처는 붙여넣기 해도 돼요."
+            placeholder="내일 달라지는 것을 말씀하세요. 띄어쓰기는 안 맞아도 됩니다. 알림장 캡처는 붙여넣기 해도 돼요."
             style={{ width: "100%", border: `1px solid ${C.line}`, borderRadius: R.md, padding: 14, fontSize: 14.5, lineHeight: 1.65, resize: "none", background: C.bg, color: C.ink }} />
           {note && <div style={{ fontSize: 12.5, color: C.persim, marginTop: 9 }}>{note}</div>}
 
-          {/* 앱에는 병명을 적는 칸을 안 만들었습니다. 그런데 말로는 들어옵니다.
-              막을 수는 없으니, 안 적어도 된다는 것만 알립니다. */}
+          {/* 매주 같은 것은 전화 탭에 한 번 넣으면 끝입니다. 여기는 그날 어긋난 것만 받습니다.
+              그 선을 흐리면 부모가 매일 여기에 들어와 다시 적게 되고,
+              그러면 전화로 대신 말해주기로 한 뜻이 없어집니다.
+              병명을 적는 칸은 안 만들었지만 말로는 들어옵니다. 안 적어도 된다는 것만 알립니다. */}
           <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 9, lineHeight: 1.7 }}>
-            <b style={{ color: C.ink2 }}>들은 대로 말하시면 돼요.</b> "월요일 단수래" 하면 날짜와 알림까지 알아서 잡습니다.
-            까먹으면 손해인 것을 찾아드리는 곳이라, 여행 코스나 일정 짜기는 전용 앱이 낫습니다.
-            <br />약 이름·병명은 안 적으셔도 돼요 — <b style={{ color: C.ink2 }}>"약 떨어지기 전에 알려줘"</b>면 충분합니다.
+            <b style={{ color: C.ink2 }}>들은 대로 말하시면 돼요.</b> "내일 피아노 5시로 바뀌었대" 하면
+            날짜를 잡아 <b style={{ color: C.ink2 }}>내일 어른께 갈 말</b>에 넣습니다.
+            <br />매주 똑같은 것은 여기가 아니라 <b style={{ color: C.ink2 }}>전화 탭</b>에 한 번만 넣으시면 됩니다.
+            여기는 <b style={{ color: C.ink2 }}>그날 달라진 것</b>만요.
+            <br />약 이름·병명은 안 적으셔도 돼요 — <b style={{ color: C.ink2 }}>"내일 점심 약 한 봉지 더"</b>면 충분합니다.
           </div>
 
           {shots.length > 0 && (
@@ -5371,7 +5376,7 @@ ${web ? `
 
           <div className="rail" style={{ marginTop: 12 }}>
             <button className="press" onClick={pickPhoto}
-              style={{ background: C.bg, border: `1px solid ${C.line}`, borderRadius: R.pill, padding: "9px 14px", fontSize: 12, color: C.ink2 }}>📄 알림장·안내문자 캡처</button>
+              style={{ background: C.bg, border: `1px solid ${C.line}`, borderRadius: R.pill, padding: "9px 14px", fontSize: 12, color: C.ink2 }}>📄 알림장·학원 문자 캡처</button>
             {/* 아이폰은 공유 목록에 앱이 못 뜹니다(애플이 규격을 지원하지 않습니다).
                 그래서 카톡에서 글을 복사해 오는 길을 따로 둡니다. */}
             <button className="press" onClick={async () => {
@@ -5389,13 +5394,12 @@ ${web ? `
           </div>
           <input ref={fileRef} type="file" accept="image/*" multiple style={{ display: "none" }} onChange={onFiles} />
           <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 9, lineHeight: 1.65 }}>
-            알림장·가정통신문·안내문자 캡처를 읽어 <b style={{ color: C.ink2 }}>할 일과 마감일</b>만 뽑습니다.<br />
+            알림장·가정통신문·학원 문자 캡처를 읽어 <b style={{ color: C.ink2 }}>날짜와 준비물</b>만 뽑습니다.
+            그게 그대로 어른께 갈 말이 됩니다.<br />
             {/* 종이를 찍으면 그림자와 각도 때문에 글자가 뭉갭니다.
                 화면 캡처는 글자가 그대로라 훨씬 잘 읽힙니다. */}
             <b style={{ color: C.ink2 }}>화면 캡처가 사진보다 잘 읽힙니다.</b> 종이를 찍으면 그림자와 각도 때문에 글자가 뭉개져요.
-            키즈노트·문자는 캡처하시고, 종이만 있을 때는 평평하게 펴서 위에서 찍어주세요.<br />
-            노트북이면 캡처해서 <b style={{ color: C.ink2 }}>붙여넣기(Ctrl+V)</b>가 빨라요. 휴대폰은 버튼을 누르면 카메라가 열립니다.
-            장 본 영수증은 <b style={{ color: C.ink2 }}>식단 화면</b>에서 찍어주세요.
+            키즈노트·문자는 캡처하시고, 종이만 있을 때는 평평하게 펴서 위에서 찍어주세요.
           </div>
           {st.plan !== "paid" && leftOf(st, "talk") <= 5 && (
             <div style={{ fontSize: 11.5, color: leftOf(st, "talk") ? C.ink3 : C.persim, marginTop: 10, lineHeight: 1.65 }}>
