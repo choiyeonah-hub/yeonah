@@ -1,0 +1,1069 @@
+<title>말이음</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&display=swap">
+<style>
+  :root{
+    --paper:#EEF0EC; --surface:#FBFCFA; --surface-2:#E3E8E2;
+    --ink:#17211D; --ink-2:#47554F; --ink-3:#78857E;
+    --line:#D3D9D2; --line-strong:#B9C2B8;
+    --pine:#235B4E; --pine-soft:#DCE8E2;
+    --brass:#7E6120; --brass-soft:#EFE6CE;
+    --sky:#2F5A87; --sky-soft:#E2EAF3;
+    --flag:#A0452A; --flag-soft:#F2E0DA;
+    --shadow:0 1px 2px rgba(23,33,29,.06), 0 12px 32px rgba(23,33,29,.08);
+    --device-shell:#20282A; --device-edge:#39423F;
+    --serif:"Gowun Batang", "Nanum Myeongjo", serif;
+    --sans:"IBM Plex Sans KR", system-ui, -apple-system, sans-serif;
+    --mono:"IBM Plex Mono", ui-monospace, monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#0F1513; --surface:#18211D; --surface-2:#212C27;
+      --ink:#E7EBE7; --ink-2:#A8B5AE; --ink-3:#7B887F;
+      --line:#2B3733; --line-strong:#3C4A45;
+      --pine:#74BCA4; --pine-soft:#1B322B;
+      --brass:#D0AB5B; --brass-soft:#2E2716;
+      --sky:#87ADDB; --sky-soft:#182534;
+      --flag:#DB8A6D; --flag-soft:#331E18;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 16px 40px rgba(0,0,0,.45);
+      --device-shell:#050807; --device-edge:#242C29;
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#0F1513; --surface:#18211D; --surface-2:#212C27;
+    --ink:#E7EBE7; --ink-2:#A8B5AE; --ink-3:#7B887F;
+    --line:#2B3733; --line-strong:#3C4A45;
+    --pine:#74BCA4; --pine-soft:#1B322B;
+    --brass:#D0AB5B; --brass-soft:#2E2716;
+    --sky:#87ADDB; --sky-soft:#182534;
+    --flag:#DB8A6D; --flag-soft:#331E18;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 16px 40px rgba(0,0,0,.45);
+    --device-shell:#050807; --device-edge:#242C29;
+  }
+
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:var(--sans); font-weight:400; font-size:15px; line-height:1.65;
+    word-break:keep-all; overflow-wrap:break-word;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,h4{margin:0; text-wrap:balance; font-weight:400}
+  p{margin:0}
+  ul,ol{margin:0; padding:0; list-style:none}
+  button{font:inherit; color:inherit; background:none; border:0; padding:0; cursor:pointer}
+  :focus-visible{outline:2px solid var(--pine); outline-offset:3px; border-radius:3px}
+
+  .wrap{max-width:1240px; margin:0 auto; padding:0 24px}
+  .eyebrow{
+    font-family:var(--sans); font-size:11.5px; font-weight:500; letter-spacing:.06em;
+    text-transform:uppercase; color:var(--ink-3);
+  }
+
+  /* ---------- masthead ---------- */
+  .masthead{border-bottom:1px solid var(--line); background:var(--surface)}
+  .masthead-in{
+    display:flex; flex-wrap:wrap; gap:28px 40px; align-items:flex-end;
+    justify-content:space-between; padding:38px 24px 30px;
+    max-width:1240px; margin:0 auto;
+  }
+  .mark{display:flex; align-items:center; gap:14px}
+  .glyph{
+    width:46px; height:46px; border-radius:13px; flex:none;
+    background:var(--pine); color:var(--surface);
+    display:grid; place-items:center;
+    font-family:var(--serif); font-size:21px; line-height:1;
+  }
+  .wordmark{font-family:var(--serif); font-size:30px; line-height:1.1; letter-spacing:.01em}
+  .tagline{color:var(--ink-2); font-size:13.5px; margin-top:2px}
+  .masthead-note{max-width:44ch; font-size:13.5px; color:var(--ink-2)}
+  .stamp{
+    display:inline-flex; align-items:center; gap:8px; margin-bottom:8px;
+    font-size:11.5px; font-weight:500; letter-spacing:.02em;
+    color:var(--flag); background:var(--flag-soft);
+    border:1px solid color-mix(in srgb, var(--flag) 35%, transparent);
+    border-radius:999px; padding:4px 11px;
+  }
+
+  /* ---------- stage ---------- */
+  .stage{
+    display:grid; grid-template-columns:250px minmax(0,1fr) 320px;
+    gap:44px; align-items:start; padding:44px 24px 56px;
+    max-width:1240px; margin:0 auto;
+  }
+  .col-head{
+    font-family:var(--sans); font-size:11.5px; font-weight:500; letter-spacing:.06em;
+    text-transform:uppercase; color:var(--ink-3);
+    padding-bottom:10px; margin-bottom:14px; border-bottom:1px solid var(--line);
+  }
+
+  /* flow rail */
+  .rail{position:sticky; top:24px}
+  .rail-group{margin-bottom:22px}
+  .rail-label{
+    font-size:11.5px; color:var(--ink-3); letter-spacing:.02em;
+    margin-bottom:7px; padding-left:2px;
+  }
+  .rail-item{
+    display:grid; grid-template-columns:26px 1fr; gap:10px; align-items:baseline;
+    width:100%; text-align:left; padding:8px 10px; border-radius:8px;
+    color:var(--ink-2); font-size:14px; transition:background .15s, color .15s;
+  }
+  .rail-item:hover{background:var(--surface-2); color:var(--ink)}
+  .rail-item .n{font-family:var(--mono); font-size:11.5px; color:var(--ink-3)}
+  .rail-item[aria-current="true"]{background:var(--pine); color:#fff}
+  .rail-item[aria-current="true"] .n{color:color-mix(in srgb,#fff 72%, var(--pine))}
+
+  .rail-strip{display:none}
+
+  /* device */
+  .device-col{display:flex; flex-direction:column; align-items:center; gap:16px}
+  .device{
+    position:relative; width:min(392px, 100%);
+    background:var(--device-shell); border:1px solid var(--device-edge);
+    border-radius:44px; padding:12px; box-shadow:var(--shadow);
+  }
+  .device::after{
+    content:""; position:absolute; left:50%; transform:translateX(-50%);
+    bottom:19px; width:118px; height:4px; border-radius:99px;
+    background:rgba(255,255,255,.34); pointer-events:none; z-index:6;
+  }
+  .viewport{
+    position:relative; border-radius:33px; overflow:hidden;
+    height:clamp(600px, 74vh, 786px); background:var(--app-bg);
+    --app-bg:#FAF9F5; --app-card:#FFFFFF; --app-ink:#1A211E; --app-ink2:#5B6762;
+    --app-ink3:#8B9691; --app-line:#E5E3DB; --app-pine:#1F5B4C; --app-pine-soft:#E3EFE9;
+    --app-brass:#7E6120; --app-brass-soft:#F4EBD6; --app-sky:#2F5F91; --app-sky-soft:#E5EDF6;
+    color:var(--app-ink);
+  }
+  .screen{
+    position:absolute; inset:0; display:flex; flex-direction:column;
+    background:var(--app-bg); opacity:0; visibility:hidden;
+    transition:opacity .28s ease;
+  }
+  .screen[data-active="true"]{opacity:1; visibility:visible}
+  @media (prefers-reduced-motion: reduce){ .screen{transition:none} }
+
+  .statusbar{
+    flex:none; display:flex; justify-content:space-between; align-items:center;
+    padding:14px 24px 6px; font-size:12.5px; font-weight:600; color:var(--app-ink);
+  }
+  .statusbar .sig{display:flex; gap:6px; align-items:center; font-size:11.5px}
+  .statusbar .bars{display:flex; gap:1.5px; align-items:flex-end; height:9px}
+  .statusbar .bars i{width:2.5px; background:var(--app-ink); border-radius:1px}
+  .statusbar .bars i:nth-child(1){height:3px}
+  .statusbar .bars i:nth-child(2){height:5px}
+  .statusbar .bars i:nth-child(3){height:7px}
+  .statusbar .bars i:nth-child(4){height:9px}
+  .statusbar .batt{
+    width:20px; height:10px; border:1px solid var(--app-ink); border-radius:3px;
+    position:relative; padding:1.5px;
+  }
+  .statusbar .batt::after{
+    content:""; position:absolute; right:-3px; top:3px; width:2px; height:4px;
+    background:var(--app-ink); border-radius:0 1px 1px 0;
+  }
+  .statusbar .batt i{display:block; height:100%; background:var(--app-ink); border-radius:1px}
+  .appbar{
+    flex:none; display:flex; align-items:center; gap:10px;
+    padding:8px 20px 12px; border-bottom:1px solid var(--app-line);
+  }
+  .appbar .back{font-size:17px; color:var(--app-ink2); line-height:1}
+  .appbar h3{font-size:15px; font-weight:600}
+  .appbar .step{margin-left:auto; font-family:var(--mono); font-size:11px; color:var(--app-ink3)}
+  .body{flex:1; overflow-y:auto; padding:18px 20px 24px; display:flex; flex-direction:column; gap:14px}
+  .body > *{flex:0 0 auto}
+  .body::-webkit-scrollbar{width:0}
+
+  .tabbar{
+    flex:none; display:grid; grid-template-columns:repeat(4,1fr);
+    border-top:1px solid var(--app-line); padding:9px 0 20px; background:var(--app-card);
+  }
+  .tabbar div{text-align:center; font-size:10.5px; color:var(--app-ink3); display:grid; gap:3px}
+  .tabbar div span{font-size:15px; line-height:1}
+  .tabbar div.on{color:var(--app-pine); font-weight:600}
+
+  .card{
+    background:var(--app-card); border:1px solid var(--app-line);
+    border-radius:14px; padding:15px 16px; display:flex; flex-direction:column; gap:9px;
+  }
+  .card.tap{cursor:pointer; text-align:left; width:100%; transition:border-color .15s, transform .1s}
+  .card.tap:hover{border-color:var(--app-pine)}
+  .card.tap:active{transform:scale(.99)}
+  .kicker{
+    font-family:var(--sans); font-size:10.5px; font-weight:500; letter-spacing:.05em;
+    text-transform:uppercase; color:var(--app-ink3);
+  }
+  .lead{font-size:19px; font-weight:600; line-height:1.4; letter-spacing:-.01em}
+  .sub{font-size:13px; color:var(--app-ink2); line-height:1.6}
+  .tiny{font-size:11.5px; color:var(--app-ink3); line-height:1.55}
+
+  .cta{
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    background:var(--app-pine); color:#fff; border-radius:11px;
+    padding:13px; font-size:14.5px; font-weight:600; width:100%;
+  }
+  .cta.ghost{background:transparent; color:var(--app-pine); border:1px solid var(--app-pine)}
+
+  .situations{display:flex; flex-direction:column; gap:9px}
+  .sit{
+    display:grid; grid-template-columns:34px 1fr auto; align-items:center; gap:12px;
+    background:var(--app-card); border:1px solid var(--app-line); border-radius:12px;
+    padding:12px 14px; width:100%; text-align:left;
+  }
+  .sit .ic{
+    width:34px; height:34px; border-radius:9px; display:grid; place-items:center;
+    background:var(--app-pine-soft); font-size:15px;
+  }
+  .sit b{font-size:14px; font-weight:600; display:block}
+  .sit i{font-style:normal; font-size:11.5px; color:var(--app-ink3)}
+  .sit em{font-style:normal; font-family:var(--mono); font-size:10.5px; color:var(--app-ink3)}
+
+  .chips{display:flex; flex-wrap:wrap; gap:6px}
+  .chip{
+    font-size:12px; padding:4px 10px; border-radius:999px;
+    background:var(--app-pine-soft); color:var(--app-pine); font-weight:500;
+  }
+  .chip.b{background:var(--app-brass-soft); color:var(--app-brass)}
+  .chip.s{background:var(--app-sky-soft); color:var(--app-sky)}
+
+  /* dialogue */
+  .turn{display:flex; gap:9px; align-items:flex-end}
+  .turn .who{
+    width:30px; height:30px; border-radius:50%; flex:none; display:grid; place-items:center;
+    background:var(--app-sky-soft); color:var(--app-sky); font-size:11px; font-weight:600;
+  }
+  .bubble{
+    background:var(--app-card); border:1px solid var(--app-line);
+    border-radius:14px 14px 14px 4px; padding:11px 13px; font-size:14px; line-height:1.62;
+  }
+  .bubble mark{background:var(--app-brass-soft); color:var(--app-brass); padding:0 2px; border-radius:3px; font-weight:600}
+  .voice{
+    display:flex; align-items:center; gap:9px; font-size:11.5px; color:var(--app-ink3);
+    padding-left:39px;
+  }
+  .wave{display:flex; gap:2px; align-items:flex-end; height:14px}
+  .wave i{width:2px; background:var(--app-pine); border-radius:2px; opacity:.55}
+  .choices{display:flex; flex-direction:column; gap:8px; margin-top:2px}
+  .choice{
+    text-align:left; background:var(--app-card); border:1px solid var(--app-line);
+    border-radius:11px; padding:12px 13px; font-size:13.5px; line-height:1.5; width:100%;
+  }
+  .choice:hover{border-color:var(--app-pine)}
+  .choice.key{border-color:var(--app-pine); background:var(--app-pine-soft); font-weight:500}
+  .choice small{display:block; font-size:11px; color:var(--app-ink3); margin-top:3px; font-weight:400}
+
+  /* word pair */
+  .pair{display:grid; grid-template-columns:1fr 1fr; gap:0; border:1px solid var(--app-line); border-radius:12px; overflow:hidden}
+  .pair > div{padding:11px 13px; background:var(--app-card)}
+  .pair > div + div{border-left:1px solid var(--app-line)}
+  .pair .lb{font-size:10px; font-weight:500; letter-spacing:.04em; color:var(--app-ink3); margin-bottom:4px}
+  .pair .w{font-size:15px; font-weight:600}
+  .pair .south .w{color:var(--app-pine)}
+  .pair .north .w{color:var(--app-brass)}
+  .pair .north{background:var(--app-brass-soft)}
+  .pair .south{background:var(--app-pine-soft)}
+
+  .note-row{display:grid; grid-template-columns:auto 1fr; gap:9px; align-items:baseline; font-size:13px; line-height:1.6}
+  .note-row b{font-weight:600; color:var(--app-pine); white-space:nowrap; font-size:12.5px}
+  .note-row.s b{color:var(--app-sky)}
+
+  .flagline{
+    display:flex; gap:7px; align-items:center; font-size:11.5px;
+    color:#A0452A; background:#F6E7E1; border:1px solid #E4C4B8;
+    border-radius:9px; padding:8px 10px; line-height:1.45;
+  }
+
+  .memo{border-left:2px solid var(--app-pine); padding-left:12px; font-size:13px; line-height:1.65; color:var(--app-ink2)}
+  .memo b{color:var(--app-ink); font-weight:600}
+
+  .quiz-opt{
+    display:grid; grid-template-columns:20px 1fr; gap:10px; align-items:start;
+    text-align:left; background:var(--app-card); border:1px solid var(--app-line);
+    border-radius:11px; padding:12px 13px; font-size:13.5px; line-height:1.5; width:100%;
+  }
+  .quiz-opt .num{font-family:var(--mono); font-size:11px; color:var(--app-ink3); padding-top:2px}
+  .quiz-opt.right{border-color:var(--app-pine); background:var(--app-pine-soft)}
+  .quiz-opt.right .num{color:var(--app-pine)}
+
+  .meter{display:flex; flex-direction:column; gap:6px}
+  .meter .top{display:flex; justify-content:space-between; align-items:baseline; font-size:12.5px}
+  .meter .top b{font-family:var(--mono); font-weight:500; font-size:12px; color:var(--app-ink2)}
+  .track{height:7px; border-radius:99px; background:var(--app-line); position:relative; overflow:hidden}
+  .track i{position:absolute; inset:0 auto 0 0; border-radius:99px; background:var(--app-pine)}
+  .track i.pre{background:transparent; border-right:2px solid var(--app-ink3); opacity:.75; z-index:2}
+
+  .stat-grid{display:grid; grid-template-columns:1fr 1fr; gap:9px}
+  .stat{background:var(--app-card); border:1px solid var(--app-line); border-radius:12px; padding:12px 13px}
+  .stat .v{font-family:var(--mono); font-size:22px; font-weight:500; color:var(--app-pine); line-height:1.2}
+  .stat .k{font-size:11.5px; color:var(--app-ink3); margin-top:2px}
+
+  /* device controls */
+  .controls{display:flex; align-items:center; gap:14px; font-size:13px; color:var(--ink-2)}
+  .controls button{
+    border:1px solid var(--line-strong); border-radius:8px; padding:6px 13px;
+    font-size:13px; color:var(--ink-2); background:var(--surface);
+  }
+  .controls button:hover:not(:disabled){border-color:var(--pine); color:var(--pine)}
+  .controls button:disabled{opacity:.4; cursor:default}
+  .counter{font-family:var(--mono); font-size:12px; color:var(--ink-3); font-variant-numeric:tabular-nums}
+  .hint{font-size:12px; color:var(--ink-3); text-align:center; max-width:38ch}
+
+  /* notes */
+  .notes{position:sticky; top:24px}
+  .note{display:none; flex-direction:column; gap:16px}
+  .note[data-active="true"]{display:flex}
+  .note h4{font-family:var(--serif); font-size:20px; line-height:1.35}
+  .note ul{display:flex; flex-direction:column; gap:9px}
+  .note li{
+    position:relative; padding-left:20px;
+    font-size:13.5px; line-height:1.62; color:var(--ink-2);
+  }
+  .note li::before{
+    content:"—"; position:absolute; left:0; top:0;
+    color:var(--pine); font-family:var(--mono); font-size:12px;
+  }
+  .note li b{color:var(--ink); font-weight:600}
+  .pin{
+    border:1px solid var(--line); border-left:2px solid var(--brass);
+    background:var(--surface); border-radius:0 10px 10px 0; padding:12px 14px;
+  }
+  .pin .eyebrow{margin-bottom:5px; color:var(--brass)}
+  .pin p{font-size:13px; line-height:1.62; color:var(--ink-2)}
+
+  /* ---------- lower document ---------- */
+  .doc{border-top:1px solid var(--line); background:var(--surface)}
+  .doc-in{max-width:1240px; margin:0 auto; padding:56px 24px 72px; display:flex; flex-direction:column; gap:56px}
+  .sec-head{display:flex; flex-direction:column; gap:8px; max-width:62ch}
+  .sec-head h2{font-family:var(--serif); font-size:27px; line-height:1.3}
+  .sec-head p{font-size:14.5px; color:var(--ink-2); line-height:1.7}
+
+  .brief{display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:1px; background:var(--line); border:1px solid var(--line); border-radius:12px; overflow:hidden}
+  .brief > div{background:var(--surface); padding:20px 22px; display:flex; flex-direction:column; gap:9px}
+  .brief h3{font-size:14.5px; font-weight:600; letter-spacing:-.01em}
+  .brief p, .brief li{font-size:13.5px; line-height:1.68; color:var(--ink-2)}
+  .brief ul{display:flex; flex-direction:column; gap:5px}
+  .brief li{position:relative; padding-left:14px}
+  .brief li::before{content:"·"; position:absolute; left:2px; top:0; color:var(--pine); font-weight:700}
+  .brief li b, .brief p b{color:var(--ink); font-weight:600}
+  .brief .num{font-family:var(--mono); font-size:11px; color:var(--ink-3); letter-spacing:.1em}
+
+  .two{display:grid; grid-template-columns:1.05fr .95fr; gap:40px; align-items:start}
+  .letter{
+    background:var(--paper); border:1px solid var(--line); border-radius:12px;
+    padding:26px 28px; font-size:14px; line-height:1.85; color:var(--ink);
+    display:flex; flex-direction:column; gap:14px; user-select:text;
+  }
+  .letter .to{font-size:11.5px; font-weight:500; letter-spacing:.05em; color:var(--ink-3)}
+  .letter p strong{font-weight:600; color:var(--pine)}
+  .qlist{display:flex; flex-direction:column; gap:11px}
+  .qlist li{display:grid; grid-template-columns:22px 1fr; gap:10px; font-size:14px; line-height:1.62; color:var(--ink-2)}
+  .qlist .n{font-family:var(--mono); font-size:11.5px; color:var(--pine); padding-top:3px}
+  .subhead{font-size:13px; font-weight:600; color:var(--ink); margin-bottom:10px}
+  .privacy{display:flex; flex-direction:column; gap:8px; margin-top:22px; padding-top:20px; border-top:1px solid var(--line)}
+  .privacy li{position:relative; padding-left:20px; font-size:13.5px; line-height:1.6; color:var(--ink-2)}
+  .privacy li::before{content:"✓"; position:absolute; left:0; top:0; color:var(--pine); font-size:12px}
+  .privacy li b{color:var(--ink); font-weight:600}
+
+  .steps{display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:1px; background:var(--line); border:1px solid var(--line); border-radius:12px; overflow:hidden}
+  .steps > div{background:var(--surface); padding:18px; display:flex; flex-direction:column; gap:7px}
+  .steps .n{font-family:var(--mono); font-size:11px; color:var(--pine); letter-spacing:.1em}
+  .steps h3{font-size:13.5px; font-weight:600}
+  .steps p{font-size:12.5px; line-height:1.6; color:var(--ink-3)}
+  .steps > div.now{background:var(--pine-soft)}
+  .steps > div.now .n{color:var(--pine)}
+
+  .caveat{
+    display:flex; flex-direction:column; gap:10px; padding:20px 22px;
+    border:1px solid var(--line); border-left:2px solid var(--flag);
+    border-radius:0 12px 12px 0; background:var(--paper);
+  }
+  .caveat p{font-size:13.5px; line-height:1.7; color:var(--ink-2); max-width:78ch}
+  .caveat .eyebrow{color:var(--flag)}
+
+  footer{border-top:1px solid var(--line); padding:26px 24px 44px; text-align:center}
+  footer p{font-size:12.5px; color:var(--ink-3)}
+
+  @media (max-width:1120px){
+    .stage{grid-template-columns:minmax(0,1fr) 320px; gap:36px}
+    .rail{display:none}
+    .rail-strip{
+      display:flex; gap:7px; overflow-x:auto; padding:0 0 12px;
+      grid-column:1 / -1; scrollbar-width:none;
+    }
+    .rail-strip::-webkit-scrollbar{display:none}
+    .rail-strip button{
+      flex:none; border:1px solid var(--line-strong); border-radius:999px;
+      padding:6px 14px; font-size:12.5px; color:var(--ink-2); white-space:nowrap;
+    }
+    .rail-strip button[aria-current="true"]{background:var(--pine); border-color:var(--pine); color:#fff}
+    .brief{grid-template-columns:1fr 1fr}
+    .steps{grid-template-columns:repeat(3,1fr)}
+  }
+  @media (max-width:860px){
+    .stage{grid-template-columns:minmax(0,1fr); gap:30px}
+    .notes{position:static}
+    .two{grid-template-columns:1fr; gap:32px}
+    .brief{grid-template-columns:1fr}
+    .steps{grid-template-columns:1fr 1fr}
+    .sec-head h2{font-size:23px}
+    .masthead-in{padding:30px 20px 24px}
+    .wrap,.stage,.doc-in{padding-left:20px; padding-right:20px}
+  }
+</style>
+
+<header class="masthead">
+  <div class="masthead-in">
+    <div class="mark">
+      <div class="glyph" aria-hidden="true">말</div>
+      <div>
+        <h1 class="wordmark">말이음</h1>
+        <p class="tagline">병원·직장·어린이집에서 오늘 쓸 한국어를 상황으로 익히는 생활언어 앱</p>
+      </div>
+    </div>
+    <div class="masthead-note">
+      <span class="stamp">클릭형 시제품 · 실제 작동 앱 아님</span>
+      <p>화면을 누르면 다음 화면으로 넘어가는 모형입니다. 음성인식·AI 응답·데이터 저장은 아직 들어 있지 않고, 하나센터와 수요조사를 함께 설계하기 위한 설명용 화면입니다.</p>
+    </div>
+  </div>
+</header>
+
+<main class="stage">
+
+  <nav class="rail" aria-label="화면 흐름">
+    <p class="col-head">화면 흐름</p>
+    <div class="rail-group">
+      <p class="rail-label">상황에 들어가기</p>
+      <button class="rail-item" data-go="0"><span class="n">01</span><span>홈 · 오늘의 생활미션</span></button>
+      <button class="rail-item" data-go="1"><span class="n">02</span><span>병원 장면 미리보기</span></button>
+    </div>
+    <div class="rail-group">
+      <p class="rail-label">역할극과 해설</p>
+      <button class="rail-item" data-go="2"><span class="n">03</span><span>음성 역할극 · 접수처</span></button>
+      <button class="rail-item" data-go="3"><span class="n">04</span><span>표현 카드 · 진료의뢰서</span></button>
+    </div>
+    <div class="rail-group">
+      <p class="rail-label">다른 생활 장면</p>
+      <button class="rail-item" data-go="4"><span class="n">05</span><span>어린이집 알림장 풀이</span></button>
+      <button class="rail-item" data-go="5"><span class="n">06</span><span>직장 단톡방 표현 해설</span></button>
+    </div>
+    <div class="rail-group">
+      <p class="rail-label">확인과 기록</p>
+      <button class="rail-item" data-go="6"><span class="n">07</span><span>오늘의 퀴즈</span></button>
+      <button class="rail-item" data-go="7"><span class="n">08</span><span>수행 전후 기록</span></button>
+    </div>
+  </nav>
+
+  <div class="rail-strip" role="tablist" aria-label="화면 바로가기">
+    <button data-go="0">01 홈</button>
+    <button data-go="1">02 병원 장면</button>
+    <button data-go="2">03 역할극</button>
+    <button data-go="3">04 표현 카드</button>
+    <button data-go="4">05 알림장</button>
+    <button data-go="5">06 단톡방</button>
+    <button data-go="6">07 퀴즈</button>
+    <button data-go="7">08 기록</button>
+  </div>
+
+  <div class="device-col">
+    <div class="device">
+      <div class="viewport">
+
+        <!-- 01 홈 -->
+        <section class="screen" data-active="true" aria-label="홈 화면">
+          <div class="statusbar"><span>9:12</span><span class="sig"><span class="bars" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="batt" aria-hidden="true"><i style="width:87%"></i></span></span></div>
+          <div class="body">
+            <div>
+              <p class="kicker">8월 31일 일요일</p>
+              <p class="lead" style="margin-top:6px">오늘도 한 가지만<br>해보면 됩니다</p>
+            </div>
+
+            <button class="card tap" data-go="1">
+              <p class="kicker">오늘의 생활미션</p>
+              <p style="font-size:15.5px; font-weight:600; line-height:1.5">병원 접수처에서<br>“진료의뢰서”라는 말 알아듣기</p>
+              <p class="tiny">3분 · 음성 역할극 1회 + 표현 3개</p>
+              <div class="cta" style="margin-top:4px">시작하기</div>
+            </button>
+
+            <div>
+              <p class="kicker" style="margin-bottom:9px">상황으로 고르기</p>
+              <div class="situations">
+                <button class="sit" data-go="1">
+                  <span class="ic" aria-hidden="true">⊕</span>
+                  <span><b>병원·약국</b><i>접수 · 진료 · 처방 · 수납</i></span>
+                  <em>12장면</em>
+                </button>
+                <button class="sit" data-go="5">
+                  <span class="ic" aria-hidden="true">✎</span>
+                  <span><b>취업·직장</b><i>면접 · 단톡방 · 보고 · 휴가 신청</i></span>
+                  <em>14장면</em>
+                </button>
+                <button class="sit" data-go="4">
+                  <span class="ic" aria-hidden="true">☺</span>
+                  <span><b>어린이집·학교</b><i>알림장 · 상담 · 준비물 · 학부모 대화</i></span>
+                  <em>11장면</em>
+                </button>
+                <button class="sit" data-go="6">
+                  <span class="ic" aria-hidden="true">₩</span>
+                  <span><b>은행·주민센터</b><i>계좌 · 자동이체 · 서류 발급 · 보이스피싱</i></span>
+                  <em>9장면</em>
+                </button>
+                <button class="sit" data-go="6">
+                  <span class="ic" aria-hidden="true">⌂</span>
+                  <span><b>주거계약·생활안전</b><i>전세 · 월세 · 확정일자 · 공과금</i></span>
+                  <em>8장면</em>
+                </button>
+              </div>
+            </div>
+          </div>
+          <nav class="tabbar" aria-hidden="true">
+            <div class="on"><span>⌂</span>홈</div>
+            <div><span>▤</span>상황</div>
+            <div><span>가</span>단어장</div>
+            <div><span>◔</span>내 기록</div>
+          </nav>
+        </section>
+
+        <!-- 02 병원 장면 미리보기 -->
+        <section class="screen" aria-label="병원 장면 미리보기">
+          <div class="statusbar"><span>9:12</span><span class="sig"><span class="bars" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="batt" aria-hidden="true"><i style="width:87%"></i></span></span></div>
+          <div class="appbar"><button class="back" data-go="0" aria-label="뒤로">‹</button><h3>병원·약국</h3><span class="step">장면 1 / 12</span></div>
+          <div class="body">
+            <div class="card">
+              <p class="kicker">오늘의 장면</p>
+              <p class="lead">큰 병원 접수처에서<br>진료 접수하기</p>
+              <p class="sub">동네 의원에서 큰 병원으로 옮겨 진료를 받으려고 합니다. 접수 창구 직원이 서류를 물어봅니다.</p>
+            </div>
+
+            <div>
+              <p class="kicker" style="margin-bottom:8px">이 장면에서 나오는 말</p>
+              <div class="chips">
+                <span class="chip">진료의뢰서</span>
+                <span class="chip">비급여</span>
+                <span class="chip">원무과</span>
+                <span class="chip">수납</span>
+                <span class="chip">처방전</span>
+              </div>
+            </div>
+
+            <div class="memo">
+              <b>먼저 알아두면 편해요.</b><br>접수 창구는 하루에 같은 질문을 수십 번 받습니다. 못 알아들었을 때 다시 묻는 것은 실례가 아닙니다.
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:9px; margin-top:auto">
+              <button class="cta" data-go="2">음성으로 역할극 시작</button>
+              <button class="cta ghost" data-go="3">글로 먼저 읽어보기</button>
+              <p class="tiny" style="text-align:center">소리를 켜지 않아도 글로 진행할 수 있습니다.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- 03 음성 역할극 -->
+        <section class="screen" aria-label="음성 역할극">
+          <div class="statusbar"><span>9:13</span><span class="sig"><span class="bars" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="batt" aria-hidden="true"><i style="width:87%"></i></span></span></div>
+          <div class="appbar"><button class="back" data-go="1" aria-label="뒤로">‹</button><h3>접수처 역할극</h3><span class="step">1 / 4턴</span></div>
+          <div class="body">
+            <div class="turn">
+              <span class="who">접수</span>
+              <div class="bubble">안녕하세요. 오늘 처음 오셨죠?<br>혹시 <mark>진료의뢰서</mark> 가져오셨어요?</div>
+            </div>
+            <div class="voice"><span class="wave" aria-hidden="true"><i style="height:5px"></i><i style="height:11px"></i><i style="height:14px"></i><i style="height:8px"></i><i style="height:12px"></i><i style="height:6px"></i><i style="height:10px"></i></span> 음성 재생 중 · 0:04</div>
+
+            <div class="turn">
+              <span class="who">접수</span>
+              <div class="bubble">없으시면 오늘은 <mark>비급여</mark>로 접수하셔야 해서<br>진료비가 조금 더 나올 수 있어요.</div>
+            </div>
+
+            <div style="margin-top:6px">
+              <p class="kicker" style="margin-bottom:8px">뭐라고 대답할까요?</p>
+              <div class="choices">
+                <button class="choice" data-go="3">네, 가져왔습니다. 여기 있습니다.</button>
+                <button class="choice key" data-go="3">
+                  진료의뢰서가 무엇인지 모르겠어요.
+                  <small>모른다고 말해도 괜찮습니다 · 가장 많이 쓰이는 표현</small>
+                </button>
+                <button class="choice" data-go="3">
+                  죄송한데 한 번만 다시 말씀해 주시겠어요?
+                  <small>속도를 늦춰 달라고 부탁하는 말</small>
+                </button>
+              </div>
+            </div>
+            <p class="tiny" style="text-align:center; margin-top:auto">말하기 버튼을 눌러 직접 대답해도 됩니다.</p>
+          </div>
+        </section>
+
+        <!-- 04 표현 카드 -->
+        <section class="screen" aria-label="표현 카드">
+          <div class="statusbar"><span>9:14</span><span class="sig"><span class="bars" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="batt" aria-hidden="true"><i style="width:86%"></i></span></span></div>
+          <div class="appbar"><button class="back" data-go="2" aria-label="뒤로">‹</button><h3>표현 카드</h3><span class="step">1 / 3</span></div>
+          <div class="body">
+            <div class="card">
+              <p class="kicker">지금 나온 말</p>
+              <p class="lead">진료의뢰서</p>
+              <p class="sub">동네 병원(1·2차)에서 큰 병원(상급종합병원)으로 옮길 때 필요한 서류입니다. 이 서류가 없으면 건강보험이 적용되지 않아 진료비 전액을 본인이 냅니다.</p>
+            </div>
+
+            <div class="pair">
+              <div class="south"><p class="lb">남한에서 쓰는 말</p><p class="w">진료의뢰서</p></div>
+              <div class="north"><p class="lb">북한식 대응 표현</p><p class="w">감수 대기</p></div>
+            </div>
+            <div class="flagline"><span aria-hidden="true">⚑</span> 북한 교사 출신 감수자 검토 후 채워지는 자리입니다. 확인되지 않은 대응어는 넣지 않습니다.</div>
+
+            <div class="card">
+              <p class="kicker">같이 나오는 말</p>
+              <div class="note-row s"><b>비급여</b><span>건강보험이 적용되지 않는 항목. 진료비를 본인이 전액 냅니다.</span></div>
+              <div class="note-row s"><b>원무과</b><span>접수·수납·서류 발급을 담당하는 병원 사무실.</span></div>
+              <div class="note-row s"><b>수납</b><span>진료비를 내는 것. “수납하고 가세요”는 계산하고 가라는 뜻입니다.</span></div>
+            </div>
+
+            <div class="card">
+              <p class="kicker">이렇게 말하면 됩니다</p>
+              <div class="note-row"><b>①</b><span>“진료의뢰서는 어디서 받을 수 있나요?”</span></div>
+              <div class="note-row"><b>②</b><span>“지금 발급받아서 다시 와도 될까요?”</span></div>
+              <div class="note-row"><b>③</b><span>“오늘 접수하면 진료비가 얼마나 나올까요?”</span></div>
+            </div>
+
+            <div class="memo"><b>남한에서는 이렇게 받아들여집니다.</b><br>모르는 말을 되묻는 것은 무례한 행동이 아닙니다. 오히려 확인하지 않고 넘어가면 서류가 없어 다시 와야 하는 일이 생깁니다.</div>
+
+            <button class="cta" data-go="6">이해했어요 · 퀴즈로</button>
+          </div>
+        </section>
+
+        <!-- 05 어린이집 알림장 -->
+        <section class="screen" aria-label="어린이집 알림장 풀이">
+          <div class="statusbar"><span>9:20</span><span class="sig"><span class="bars" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="batt" aria-hidden="true"><i style="width:86%"></i></span></span></div>
+          <div class="appbar"><button class="back" data-go="0" aria-label="뒤로">‹</button><h3>어린이집 알림장</h3><span class="step">사진으로 불러옴</span></div>
+          <div class="body">
+            <div class="card" style="background:var(--app-sky-soft); border-color:transparent">
+              <p class="kicker" style="color:var(--app-sky)">받은 알림장</p>
+              <p style="font-size:13.5px; line-height:1.75">내일은 <b>현장체험학습</b>이 있습니다. <b>도시락</b>과 물통, <b>여벌 옷</b>을 챙겨 보내주세요. <b>하원</b> 시간은 평소와 동일합니다. <b>동의서</b>는 오늘까지 회신 부탁드립니다.</p>
+            </div>
+
+            <div class="card">
+              <p class="kicker">어려운 말 풀이</p>
+              <div class="note-row"><b>현장체험학습</b><span>어린이집 밖으로 나가는 나들이·견학. 소풍이라고 생각하면 됩니다.</span></div>
+              <div class="note-row"><b>하원</b><span>아이를 데리러 가는 시간. 아침에 맡기는 것은 등원입니다.</span></div>
+              <div class="note-row"><b>여벌 옷</b><span>갈아입을 여분의 옷 한 벌.</span></div>
+              <div class="note-row"><b>동의서 회신</b><span>서명해서 다시 보내 달라는 뜻. 보내지 않으면 아이가 참여하지 못할 수 있습니다.</span></div>
+            </div>
+
+            <div>
+              <p class="kicker" style="margin-bottom:8px">남북에서 다르게 쓰는 말</p>
+              <div class="pair" style="margin-bottom:8px">
+                <div class="south"><p class="lb">남한</p><p class="w">어린이집</p></div>
+                <div class="north"><p class="lb">북한</p><p class="w">탁아소</p></div>
+              </div>
+              <div class="pair">
+                <div class="south"><p class="lb">남한</p><p class="w">도시락</p></div>
+                <div class="north"><p class="lb">북한</p><p class="w">곽밥</p></div>
+              </div>
+            </div>
+
+            <div class="card">
+              <p class="kicker">이렇게 답장하면 됩니다</p>
+              <p class="sub">“네, 동의서는 오늘 보내겠습니다. 도시락은 김밥으로 준비할게요. 감사합니다.”</p>
+              <button class="cta ghost" data-go="5">다음 장면 · 직장 단톡방</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- 06 직장 단톡방 -->
+        <section class="screen" aria-label="직장 단톡방 표현 해설">
+          <div class="statusbar"><span>9:26</span><span class="sig"><span class="bars" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="batt" aria-hidden="true"><i style="width:85%"></i></span></span></div>
+          <div class="appbar"><button class="back" data-go="0" aria-label="뒤로">‹</button><h3>직장 단톡방</h3><span class="step">장면 4 / 14</span></div>
+          <div class="body">
+            <div class="turn">
+              <span class="who">팀장</span>
+              <div class="bubble">오늘 회의록 <mark>컨펌</mark> 부탁드려요.<br>급한 건 아니고 내일 오전까지 주시면 됩니다 🙏</div>
+            </div>
+
+            <div class="card">
+              <p class="kicker">무슨 뜻일까요</p>
+              <div class="note-row s"><b>컨펌</b><span>confirm. 내용을 확인하고 괜찮은지 알려 달라는 뜻입니다.</span></div>
+              <div class="note-row s"><b>급한 건 아니고</b><span>부담을 줄이려는 표현입니다. 진짜 기한은 뒤에 붙은 “내일 오전까지”입니다.</span></div>
+              <div class="note-row s"><b>🙏</b><span>부탁과 고마움의 표시입니다. 사과하는 뜻이 아닙니다.</span></div>
+            </div>
+
+            <div class="memo"><b>남한 직장에서는 이렇게 받아들여집니다.</b><br>읽고 아무 답도 하지 않으면 무시한다고 느낄 수 있습니다. 바로 처리하기 어려우면 “확인했습니다, 이따 답드릴게요”만 보내도 충분합니다.</div>
+
+            <div class="card">
+              <p class="kicker">이렇게 답하면 됩니다</p>
+              <div class="note-row"><b>①</b><span>“네, 확인하고 내일 오전까지 회신드리겠습니다.”</span></div>
+              <div class="note-row"><b>②</b><span>“확인했습니다. 수정할 부분 있으면 표시해서 보내드릴게요.”</span></div>
+            </div>
+
+            <button class="cta" data-go="6">오늘의 퀴즈 풀기</button>
+          </div>
+        </section>
+
+        <!-- 07 퀴즈 -->
+        <section class="screen" aria-label="오늘의 퀴즈">
+          <div class="statusbar"><span>9:31</span><span class="sig"><span class="bars" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="batt" aria-hidden="true"><i style="width:85%"></i></span></span></div>
+          <div class="appbar"><button class="back" data-go="3" aria-label="뒤로">‹</button><h3>오늘의 확인</h3><span class="step">2 / 3문항</span></div>
+          <div class="body">
+            <div class="card">
+              <p class="kicker">문제 2</p>
+              <p style="font-size:15.5px; font-weight:600; line-height:1.55">병원에서 “이건 비급여 항목이에요”라고 들었습니다. 무슨 뜻일까요?</p>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:8px">
+              <button class="quiz-opt" data-go="7"><span class="num">1</span><span>진료비를 내지 않아도 된다는 뜻이다</span></button>
+              <button class="quiz-opt right" data-go="7"><span class="num">2</span><span>건강보험이 적용되지 않아 진료비를 본인이 전액 낸다는 뜻이다</span></button>
+              <button class="quiz-opt" data-go="7"><span class="num">3</span><span>나중에 신청하면 전액 돌려받는다는 뜻이다</span></button>
+            </div>
+
+            <div class="card" style="background:var(--app-pine-soft); border-color:transparent">
+              <p class="kicker" style="color:var(--app-pine)">해설</p>
+              <p class="sub" style="color:var(--app-ink)">비급여는 건강보험이 적용되지 않는 항목입니다. 실손(실비)보험에 들어 있다면 나중에 일부를 돌려받을 수 있고, 접수 전에 “이거 비급여인가요?”라고 먼저 물어봐도 됩니다.</p>
+            </div>
+
+            <button class="cta" data-go="7" style="margin-top:auto">다음 문제</button>
+          </div>
+        </section>
+
+        <!-- 08 수행 전후 기록 -->
+        <section class="screen" aria-label="수행 전후 기록">
+          <div class="statusbar"><span>9:34</span><span class="sig"><span class="bars" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="batt" aria-hidden="true"><i style="width:85%"></i></span></span></div>
+          <div class="appbar"><button class="back" data-go="6" aria-label="뒤로">‹</button><h3>내 기록</h3><span class="step">4주차</span></div>
+          <div class="body">
+            <div>
+              <p class="kicker">오늘 마친 미션</p>
+              <p class="lead" style="margin-top:6px">병원 접수, 이제<br>혼자 해볼 수 있어요</p>
+            </div>
+
+            <div class="stat-grid">
+              <div class="stat"><p class="v">7</p><p class="k">오늘 익힌 표현</p></div>
+              <div class="stat"><p class="v">12일</p><p class="k">이어서 학습한 날</p></div>
+            </div>
+
+            <div class="card">
+              <p class="kicker">상황별 자신감 (5점)</p>
+              <div class="meter">
+                <div class="top"><span>병원·약국</span><b>2.4 → 3.9</b></div>
+                <div class="track"><i class="pre" style="width:48%"></i><i style="width:78%;"></i></div>
+              </div>
+              <div class="meter">
+                <div class="top"><span>어린이집·학교</span><b>2.8 → 3.6</b></div>
+                <div class="track"><i class="pre" style="width:56%"></i><i style="width:72%;"></i></div>
+              </div>
+              <div class="meter">
+                <div class="top"><span>취업·직장</span><b>2.1 → 2.9</b></div>
+                <div class="track"><i class="pre" style="width:42%"></i><i style="width:58%;"></i></div>
+              </div>
+              <p class="tiny">회색 눈금은 시작할 때 점수, 초록 막대는 지금 점수입니다.</p>
+            </div>
+
+            <button class="card tap" data-go="0">
+              <p class="kicker">다음에 해볼 것</p>
+              <p style="font-size:15px; font-weight:600">은행에서 자동이체 신청하기</p>
+              <p class="tiny">공과금·지로·자동이체 표현 6개</p>
+            </button>
+          </div>
+          <nav class="tabbar" aria-hidden="true">
+            <div><span>⌂</span>홈</div>
+            <div><span>▤</span>상황</div>
+            <div><span>가</span>단어장</div>
+            <div class="on"><span>◔</span>내 기록</div>
+          </nav>
+        </section>
+
+      </div>
+    </div>
+
+    <div class="controls">
+      <button id="prev" type="button">‹ 이전</button>
+      <span class="counter"><span id="cur">01</span> / 08</span>
+      <button id="next" type="button">다음 ›</button>
+    </div>
+    <p class="hint">화면 안의 버튼을 눌러도 넘어갑니다. 키보드 좌우 방향키로도 이동할 수 있습니다.</p>
+  </div>
+
+  <aside class="notes" aria-label="화면 설명">
+    <p class="col-head">이 화면에서 보여줄 것</p>
+
+    <div class="note" data-active="true">
+      <h4>“공부하는 앱”이 아니라 “오늘 할 일” 하나로 시작합니다</h4>
+      <ul>
+        <li>매일 미션은 딱 하나, 3분. 일하고 아이 키우는 사람이 지치지 않는 최소 단위입니다.</li>
+        <li>단어가 아니라 <b>장소</b>로 들어갑니다. 병원·직장·어린이집·은행·주거 다섯 갈래는 기존 조사에서 확인된 주요 지원 욕구와 같은 축입니다.</li>
+        <li>화면 어디에도 “탈북·북한이탈주민” 표시가 없습니다. 휴대폰 화면에 그대로 드러나는 것을 꺼릴 수 있어 이름과 아이콘을 일반 생활학습 앱처럼 두었습니다.</li>
+      </ul>
+      <div class="pin"><p class="eyebrow">담당자께 여쭙고 싶은 것</p><p>다섯 갈래 중 센터에서 실제로 문의가 가장 많은 순서는 어떻게 되나요? 순서를 바꿔서 만들 수 있습니다.</p></div>
+    </div>
+
+    <div class="note">
+      <h4>말을 배우기 전에 장면을 먼저 봅니다</h4>
+      <ul>
+        <li>어떤 말이 나올지 미리 알려주고 들어갑니다. 모르는 상태로 부딪히게 두지 않습니다.</li>
+        <li>“되묻는 것은 실례가 아니다”처럼 <b>행동에 대한 안내</b>를 말과 함께 줍니다. 단어만 알아도 창구 앞에서 말이 나오지 않는 경우가 많습니다.</li>
+        <li>소리를 켜기 어려운 상황(직장, 대중교통)을 고려해 글로만 진행하는 길을 항상 함께 둡니다.</li>
+      </ul>
+    </div>
+
+    <div class="note">
+      <h4>정답을 고르는 연습이 아니라, 모른다고 말하는 연습</h4>
+      <ul>
+        <li>선택지 가운데 “진료의뢰서가 무엇인지 모르겠어요”를 기본값으로 강조했습니다. 실제 현장에서 가장 필요한 문장이기 때문입니다.</li>
+        <li>“다시 말씀해 주시겠어요”도 하나의 기술로 가르칩니다.</li>
+        <li>음성은 듣기부터 시작하고, 말하기는 원할 때만 하도록 둡니다. 발음을 평가받는 느낌을 만들지 않습니다.</li>
+      </ul>
+      <div class="pin"><p class="eyebrow">시제품 범위</p><p>이 화면의 음성 재생·음성 인식은 아직 붙어 있지 않습니다. 수요조사 이후 필요하다고 확인되면 개발합니다.</p></div>
+    </div>
+
+    <div class="note">
+      <h4>사전과 다른 점은 “문화적 의미”까지 설명한다는 것</h4>
+      <ul>
+        <li>뜻풀이 → 같이 나오는 말 → 실제로 쓸 문장 → 남한에서 어떻게 받아들여지는지, 네 겹으로 설명합니다.</li>
+        <li>북한식 대응 표현 칸은 <b>비워 두었습니다.</b> 북한 교사 출신 감수자가 확인한 것만 채웁니다. 확인되지 않은 말을 지어 넣으면 당사자가 먼저 알아봅니다.</li>
+        <li>남한 표현은 초록, 북한 표현은 갈색으로만 구분합니다. 어느 쪽도 틀린 말로 보이지 않게 했습니다.</li>
+      </ul>
+    </div>
+
+    <div class="note">
+      <h4>아이 때문에 가장 급한 화면입니다</h4>
+      <ul>
+        <li>알림장을 사진으로 찍으면 어려운 말에 표시가 되고, 답장 문장까지 함께 나옵니다.</li>
+        <li>“현장체험학습·하원·여벌 옷·동의서 회신”은 사전에 있어도 실제 뜻을 알기 어려운 학교 생활어입니다.</li>
+        <li>어린이집↔탁아소, 도시락↔곽밥처럼 <b>확인된 남북 어휘 대응</b>은 여기서 자연스럽게 보여줍니다.</li>
+      </ul>
+    </div>
+
+    <div class="note">
+      <h4>직장에서 오해가 생기는 건 단어가 아니라 말투입니다</h4>
+      <ul>
+        <li>“급한 건 아니고”가 실제로는 기한이 있다는 뜻이라는 것 — 이런 간접적인 말이 갈등과 고립의 원인이 됩니다.</li>
+        <li>외래어(컨펌), 이모지, 답장을 안 했을 때의 인상까지 한 장면에서 다룹니다.</li>
+        <li>바로 쓸 수 있는 답장 문장을 그대로 제공합니다. 복사해서 보내도 됩니다.</li>
+      </ul>
+    </div>
+
+    <div class="note">
+      <h4>맞히는 것보다 “왜 그런지”를 남깁니다</h4>
+      <ul>
+        <li>틀려도 다음으로 넘어가고, 해설에서 실제 행동(“접수 전에 물어봐도 된다”)을 알려줍니다.</li>
+        <li>퀴즈 결과는 점수가 아니라 <b>다음에 볼 장면을 고르는 근거</b>로 씁니다.</li>
+      </ul>
+    </div>
+
+    <div class="note">
+      <h4>이 화면이 그대로 실증사업 성과지표가 됩니다</h4>
+      <ul>
+        <li>상황별 자신감 사전·사후 점수는 파일럿 참여자 20~30명의 전후 비교 자료가 됩니다.</li>
+        <li>“이어서 학습한 날”은 지속 이용률, “익힌 표현”은 학습량 지표로 그대로 제출할 수 있습니다.</li>
+        <li>개인을 식별하는 정보 없이도 이 숫자들은 모두 집계할 수 있습니다.</li>
+      </ul>
+      <div class="pin"><p class="eyebrow">제안서에 들어갈 문장</p><p>사전·사후 자기효능감 척도와 앱 이용 로그를 함께 제출해, 교육 참여 인원 수가 아니라 <b>생활 수행 능력의 변화</b>로 성과를 보고합니다.</p></div>
+    </div>
+  </aside>
+
+</main>
+
+<section class="doc">
+  <div class="doc-in">
+
+    <div>
+      <div class="sec-head" style="margin-bottom:24px">
+        <p class="eyebrow">1페이지 사업개요</p>
+        <h2>AI 기반 북한이탈여성 생활문해력 향상 실증사업</h2>
+        <p>시제품과 함께 한 장으로 전달하는 개요입니다. 아래 여섯 칸이 제안서의 뼈대가 되고, 수요조사 결과가 나오면 숫자만 채워 넣으면 됩니다.</p>
+      </div>
+
+      <div class="brief">
+        <div>
+          <p class="num">01</p>
+          <h3>풀려는 문제</h3>
+          <p>단어를 몰라서가 아니라, <b>장면 안에서 말이 나오지 않아서</b> 병원·직장·어린이집에서 필요한 일을 놓칩니다. 되묻지 못하고 넘어간 결과가 서류 미비, 오해, 고립으로 이어집니다.</p>
+        </div>
+        <div>
+          <p class="num">02</p>
+          <h3>지금 있는 것과 빈틈</h3>
+          <ul>
+            <li>남북 단어 비교 사전·번역기 — 단어 단위</li>
+            <li>하나포털 — 정보 제공과 상담</li>
+            <li>하나원·하나센터 — 오프라인 집합교육</li>
+            <li>여성 대상 사업 — 취업·의료·육아 지원</li>
+          </ul>
+          <p>상황별 언어훈련을 하나로 묶어 일상에서 반복 사용하는 서비스는 공개적으로 확인하기 어려웠습니다.</p>
+        </div>
+        <div>
+          <p class="num">03</p>
+          <h3>제안하는 것</h3>
+          <p>병원·취업·어린이집·은행·주거 다섯 갈래의 생활 장면을 <b>상황극으로 익히고</b>, 남북 표현 차이와 그 말이 남한에서 받아들여지는 방식까지 설명받는 모바일 학습 서비스.</p>
+          <p>실제 제품명과 아이콘은 일반 생활학습 앱처럼 두어, 휴대폰 화면에 대상자 신분이 드러나지 않게 합니다.</p>
+        </div>
+        <div>
+          <p class="num">04</p>
+          <h3>실증 설계</h3>
+          <ul>
+            <li>하나센터 1곳과 공동 수요조사</li>
+            <li>당사자 20~30명 · 상담사와 교육담당자 5~10명</li>
+            <li>심층 인터뷰 최소 5명</li>
+            <li>결과를 반영한 최소 기능 앱으로 4주 파일럿</li>
+          </ul>
+          <p>센터 한 곳에서 20명만 확보해도 초기 검증에는 충분합니다.</p>
+        </div>
+        <div>
+          <p class="num">05</p>
+          <h3>성과지표</h3>
+          <ul>
+            <li>상황별 수행 자신감 사전·사후 변화</li>
+            <li>병원 이용·행정서비스 이용 능력</li>
+            <li>보이스피싱·금융사기 대응 정답률</li>
+            <li>어린이집·학교 의사소통 자신감</li>
+            <li>4주 지속 이용률</li>
+          </ul>
+          <p>참여 인원 수가 아니라 능력의 변화로 보고합니다.</p>
+        </div>
+        <div>
+          <p class="num">06</p>
+          <h3>개인정보 원칙</h3>
+          <ul>
+            <li>이름·전화번호·주민번호·상세 주소·탈북 연도를 받지 않습니다</li>
+            <li>인터뷰 참여 신청은 설문과 분리된 별도 링크로 받습니다</li>
+            <li>첫 화면에 조사 목적·익명성·중단 가능성·보관 기간을 명시합니다</li>
+            <li>수집한 자료는 실증 종료 후 폐기합니다</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="two">
+      <div>
+        <div class="sec-head" style="margin-bottom:20px">
+          <p class="eyebrow">하나센터에 보내는 글</p>
+          <h2>설문 배포 요청이 아니라, 공동 수요조사 제안으로</h2>
+          <p>외부 개인이 만든 설문을 회원에게 바로 돌려 달라는 요청은 부담스럽습니다. 시제품과 조사 계획을 함께 보내면 “아이디어 수집”이 아니라 정착지원 프로그램 검토로 읽힙니다.</p>
+        </div>
+        <div class="letter">
+          <p class="to">담당자 앞</p>
+          <p>북한이탈여성이 <strong>병원·육아·취업·행정</strong> 현장에서 겪는 생활언어 어려움을 파악하고, 상황형 디지털 교육 프로그램의 필요성을 검토하려 합니다.</p>
+          <p>센터 담당자 인터뷰와 이용자 10~20명 대상 <strong>익명 수요조사</strong>가 가능한지 문의드립니다. 설문에는 이름·연락처 등 식별정보를 포함하지 않으며, 참여는 언제든 중단하실 수 있습니다.</p>
+          <p>조사 결과와 개발된 교육 콘텐츠는 센터에 그대로 공유하고, 가능할 경우 <strong>공동 시범교육</strong>으로 발전시키고자 합니다. 먼저 만들어 둔 화면 시제품을 함께 보내드리니 15분만 살펴봐 주시면 감사하겠습니다.</p>
+        </div>
+        <div class="privacy">
+          <p class="subhead">설문 첫 화면에 반드시 넣을 고지</p>
+          <ul>
+            <li>이 조사를 왜 하는지, 결과를 어디에 쓰는지</li>
+            <li>이름·연락처를 받지 않는 익명 조사라는 점</li>
+            <li>언제든 중단할 수 있고 불이익이 없다는 점</li>
+            <li>자료를 얼마 동안 보관하고 언제 폐기하는지</li>
+            <li>인터뷰 참여를 원하면 <b>별도 링크</b>로 신청한다는 안내</li>
+          </ul>
+        </div>
+      </div>
+
+      <div>
+        <div class="sec-head" style="margin-bottom:20px">
+          <p class="eyebrow">인터뷰 문항 초안</p>
+          <h2>“병원 말이 어려운가요”로는 콘텐츠가 나오지 않습니다</h2>
+          <p>당사자는 자신이 무엇을 모르는지 설명하기 어렵습니다. 겪은 일을 떠올리게 하는 질문이어야 실제 장면과 문장이 나옵니다. 상담사에게는 반복해서 생기는 문제를 따로 묻습니다.</p>
+        </div>
+        <ol class="qlist">
+          <li><span class="n">01</span><span>최근에 이해하지 못해서 다시 물어본 말은 무엇이었나요?</span></li>
+          <li><span class="n">02</span><span>병원·학교·직장 중 가장 긴장되는 곳은 어디인가요?</span></li>
+          <li><span class="n">03</span><span>직원의 말을 알아듣지 못했을 때 어떻게 하셨나요?</span></li>
+          <li><span class="n">04</span><span>외래어·줄임말·돌려 말하는 표현 중 무엇이 가장 어려운가요?</span></li>
+          <li><span class="n">05</span><span>동영상·음성 역할극·단어 설명 중 무엇이 가장 편하신가요?</span></li>
+          <li><span class="n">06</span><span>앱에 북한이탈주민용이라고 표시돼 있어도 사용하시겠어요?</span></li>
+        </ol>
+        <div class="pin" style="margin-top:20px">
+          <p class="eyebrow">6번이 제품을 바꿉니다</p>
+          <p>휴대폰 화면에 “탈북민 앱”이라고 드러나는 것을 꺼릴 수 있습니다. 답이 갈리면 이름·아이콘·설명 문구를 일반 생활학습 앱 쪽으로 확정합니다. 이 시제품이 이미 그렇게 만들어져 있습니다.</p>
+        </div>
+        <p class="subhead" style="margin-top:22px">상담사·교육담당자에게 묻는 것</p>
+        <ol class="qlist">
+          <li><span class="n">07</span><span>같은 질문이 반복해서 들어오는 생활 영역은 어디인가요?</span></li>
+          <li><span class="n">08</span><span>집합교육으로 해결되지 않고 남는 문제는 무엇인가요?</span></li>
+          <li><span class="n">09</span><span>센터에서 쓸 수 있으려면 어떤 형태여야 하나요?</span></li>
+        </ol>
+      </div>
+    </div>
+
+    <div>
+      <div class="sec-head" style="margin-bottom:22px">
+        <p class="eyebrow">진행 순서</p>
+        <h2>설문 없이 MVP부터 만들지 않습니다</h2>
+        <p>지금은 4번이 아니라 1번과 2번 사이에 있습니다. 이 시제품이 1번이고, 왼쪽의 요청문이 2번입니다.</p>
+      </div>
+      <div class="steps">
+        <div class="now"><p class="n">01 · 지금</p><h3>클릭형 시제품</h3><p>화면 8장. 작동하는 앱이 아니라 보여줄 수 있는 모형.</p></div>
+        <div class="now"><p class="n">02 · 지금</p><h3>공동 수요조사 제안</h3><p>시제품 + 1페이지 개요를 들고 하나센터에 문의.</p></div>
+        <div><p class="n">03</p><h3>인터뷰</h3><p>담당자와 당사자 최소 5명. 실제 문장과 장면 수집.</p></div>
+        <div><p class="n">04</p><h3>최소 기능 MVP</h3><p>조사에서 확인된 상황부터 실제로 작동하게 개발.</p></div>
+        <div><p class="n">05</p><h3>파일럿 20~30명</h3><p>4주. 사전·사후 자신감 측정과 이용 로그 수집.</p></div>
+        <div><p class="n">06</p><h3>정부사업 제안</h3><p>전후 점수와 협력 센터를 근거로 제출.</p></div>
+      </div>
+    </div>
+
+    <div class="caveat">
+      <p class="eyebrow">제안서에 쓸 때 주의할 것</p>
+      <p><b>“국내 최초”라고 쓰지 않습니다.</b> 심사에서 반례 하나만 나와도 신뢰를 잃습니다. “공개적으로 확인 가능한 기존 서비스는 사전·정보·상담 중심이며, 여성의 생활 상황별 언어훈련을 통합한 서비스는 확인하기 어려웠다”로 씁니다.</p>
+      <p><b>통계 수치는 출처를 확인한 뒤에 넣습니다.</b> 누적 입국 북한이탈주민 가운데 여성 비율이 약 7할이라는 점은 통일부 공식 통계로 최종 확인하고, 인용 시점과 함께 표기합니다. 이 문서에는 확인 전 수치를 적지 않았습니다.</p>
+      <p><b>기획 단계부터 당사자와 감수자가 참여해야 합니다.</b> 북한이탈여성 당사자와 북한 교사 출신 감수자의 참여는 콘텐츠 정확도의 문제이자, 정부 심사에서 설득력을 만드는 근거입니다. 시제품의 “북한식 대응 표현” 칸을 비워 둔 것도 같은 이유입니다.</p>
+    </div>
+
+  </div>
+</section>
+
+<footer>
+  <p>말이음 · 클릭형 시제품 v0.1 — 화면은 설명을 위한 모형이며 실제 데이터·음성 인식·AI 응답은 포함되어 있지 않습니다.</p>
+</footer>
+
+<script>
+(function(){
+  var screens = Array.prototype.slice.call(document.querySelectorAll('.screen'));
+  var notes = Array.prototype.slice.call(document.querySelectorAll('.note'));
+  var railBtns = Array.prototype.slice.call(document.querySelectorAll('.rail-item'));
+  var stripBtns = Array.prototype.slice.call(document.querySelectorAll('.rail-strip button'));
+  var prev = document.getElementById('prev');
+  var next = document.getElementById('next');
+  var cur = document.getElementById('cur');
+  var viewport = document.querySelector('.viewport');
+  var idx = 0;
+
+  function pad(n){ return n < 10 ? '0' + n : String(n); }
+
+  function show(i){
+    idx = Math.max(0, Math.min(screens.length - 1, i));
+    screens.forEach(function(s, n){ s.setAttribute('data-active', n === idx ? 'true' : 'false'); });
+    notes.forEach(function(s, n){ s.setAttribute('data-active', n === idx ? 'true' : 'false'); });
+    railBtns.forEach(function(b, n){ b.setAttribute('aria-current', n === idx ? 'true' : 'false'); });
+    stripBtns.forEach(function(b, n){ b.setAttribute('aria-current', n === idx ? 'true' : 'false'); });
+    cur.textContent = pad(idx + 1);
+    prev.disabled = idx === 0;
+    next.disabled = idx === screens.length - 1;
+    var body = screens[idx].querySelector('.body');
+    if (body) body.scrollTop = 0;
+  }
+
+  document.addEventListener('click', function(e){
+    var el = e.target.closest('[data-go]');
+    if (!el) return;
+    e.preventDefault();
+    show(parseInt(el.getAttribute('data-go'), 10));
+    var strip = el.closest('.rail-strip');
+    if (strip) el.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+  });
+
+  prev.addEventListener('click', function(){ show(idx - 1); });
+  next.addEventListener('click', function(){ show(idx + 1); });
+
+  document.addEventListener('keydown', function(e){
+    if (e.target.matches('input, textarea')) return;
+    if (e.key === 'ArrowRight') { show(idx + 1); }
+    else if (e.key === 'ArrowLeft') { show(idx - 1); }
+  });
+
+  var startX = null;
+  viewport.addEventListener('touchstart', function(e){ startX = e.touches[0].clientX; }, { passive: true });
+  viewport.addEventListener('touchend', function(e){
+    if (startX === null) return;
+    var dx = e.changedTouches[0].clientX - startX;
+    if (Math.abs(dx) > 60) show(dx < 0 ? idx + 1 : idx - 1);
+    startX = null;
+  }, { passive: true });
+
+  show(0);
+})();
+</script>
