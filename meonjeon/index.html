@@ -127,7 +127,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0901-aq';
+const GATE_BUILD = '0901-ar';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1884,7 +1884,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-aq";
+const BUILD = "0901-ar";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -3434,18 +3434,21 @@ function App() {
    30가구에 보내기 전에 첫인상을 확인해야 하는데, 한 번 지나가면 다시 못 봅니다.
    이때는 무엇을 눌러도 집 정보를 건드리지 않습니다. */
 function Onboarding({ preview }) {
-  /* 차 단계에서 CarDates가 st에 바로 쓰기 때문에, 마무리할 때 st도 읽어야 합니다 */
+  /* 살림 앱일 때는 여섯 단계였습니다 — 차·반려동물·제사·음력까지 물었습니다.
+     조부모께 전달하는 앱에서는 물을 것이 넷뿐입니다.
+     맡기시나, 아이가 누구인가, 어느 분께 거나, 무엇을 알려드리나.
+     온보딩이 무거우면 하다가 때려칩니다. */
   const { st, setSt, say } = use();
   const [step, setStep] = useState(0);
-  const [d, setD] = useState(DEFAULT_STATE);
-  const [routines, setRoutines] = useState({});
-  const [pick, setPick] = useState(null);
-  const [page, setPage] = useState(0);
-  const [newItem, setNewItem] = useState("");
-  /* 영역마다 "더 보기"를 폈는지 */
-  const [moreOpen, setMoreOpen] = useState({});
+  const [kids, setKids] = useState([{ id: uid("k"), name: "", age: "" }]);
+  const [elder, setElder] = useState({ id: uid("e"), label: "", phone: "" });
+  const [at, setAt] = useState("07:50");
+  const [dow, setDow] = useState(String(new Date().getDay() || 1));
+  const [plan, setPlan] = useState({});
+  const [time, setTime] = useState("");
+  const [what, setWhat] = useState("");
   const inp = { border: `1px solid ${C.line}`, borderRadius: 12, padding: "12px 13px", fontSize: 14.5, background: C.bg, color: C.ink, width: "100%" };
-  /* 미리보기라는 걸 계속 보이게 합니다. 안 그러면 진짜 다시 설정하는 줄 압니다 */
+
   const PreviewBar = () => !preview ? null : (
     <div style={{ background: C.sunSoft, color: C.sun, borderRadius: 14, padding: "11px 14px",
                   fontSize: 12.5, lineHeight: 1.7, margin: "14px 0 2px" }}>
@@ -3456,497 +3459,163 @@ function Onboarding({ preview }) {
     </div>
   );
 
-  /* 3단계까지 고른 내용으로 추천 반복업무 목록을 만든다 */
-  const suggested = useMemo(() => eligibleRoutines(d, true), [d.children, d.flags, d.petTypes]);
-  useEffect(() => {
-    if (step !== 3) return;
-    setRoutines((prev) => {
-      const next = { ...prev };
-      /* 켜진 채로 시작하면 앱을 여는 순간 "당신이 안 하고 있는 일 132개"가 됩니다.
-         빡세게 하는 사람에겐 "그거 다 알아", 대충 하는 사람에겐 숙제입니다.
-         꺼진 채로 시작하고, 앱이 하나씩 "이건 몰랐죠?" 하며 꺼내는 게 맞습니다. */
-      suggested.forEach((r) => { if (!next[r.key]) next[r.key] = { on: false, ...seedCfg(r.seed) }; });
-      return next;
-    });
-  }, [step, suggested]);
-
-  const byCat = useMemo(() => {
-    const g = {};
-    suggested.forEach((r) => {
-      const cid = r.child ? `kid:${r.child.id}` : r.seed.cat;
-      const label = r.child ? `${r.child.name}(${childLabel(r.child)})` : (BASE_CATS.find((c) => c.id === r.seed.cat) || { label: "기타" }).label;
-      const emoji = r.child ? "🧒" : (BASE_CATS.find((c) => c.id === r.seed.cat) || { emoji: "🗂" }).emoji;
-      (g[cid] = g[cid] || { label, emoji, items: [] }).items.push(r);
-    });
-    return g;
-  }, [suggested]);
-
-  const steps = [
-    /* 예전에는 "누구와 함께 챙기나요?"였습니다. 함께 챙기는 사람이 있다고 전제하는 말입니다.
-       실제로는 혼자 다 지고 있는 집이 많고, 넣어봤자 안 거드는 경우도 있습니다.
-       넣을지 말지를 먼저 고르게 합니다. 혼자여도 앱은 다 됩니다. */
-    { q: `${BRAND}에 오신 걸 환영해요.\n혼자 챙기고 계신가요?`, s: "나눌 사람이 있을 때만 넣으세요. 혼자 쓰셔도 기능은 다 됩니다. 나중에 언제든 넣을 수 있어요." },
-    { q: "아이가 있나요?", s: "아이마다 챙길 것이 완전히 달라서 따로 관리해요. 임신 중이면 주수로 넣어주세요." },
-    { q: "우리 집에\n해당하는 것만 골라주세요", s: "고르지 않은 건 앞으로 한 번도 안 물어봐요." },
-    /* 이 단계만 "기억해내기"를 시킵니다. 그렇다고 건너뛰라고 하면 안 됩니다 —
-       제사·부모님 생신은 까먹으면 큰일 나는 것이고, 이 앱이 있는 이유입니다.
-       비우라고 권하는 대신, 지금 아는 것부터 넣게 합니다. */
-    { q: "음력으로 오는\n날이 있나요?", s: "부모님 생신과 제사는 음력이라 매년 양력 날짜가 달라집니다. 그래서 진짜로 놓칩니다 — 그 계산을 대신 합니다. 내 생일·아이 생일은 안 물어봐요. 안 까먹는 것은 안 묻습니다. 모르는 건 나중에 ‘행사·경조사’에서 채우면 됩니다." },
-    { q: "차 이야기를\n한 번만 할게요", s: "검사와 보험은 날짜를 넘기면 과태료나 무보험이 됩니다. 한 번 넣어두면 다시 안 물어봐요." },
-    /* 예전에는 "기본 주기는 넣어뒀으니 바꾸거나 끄기만 하세요"였습니다.
-       그런데 실제로는 전부 꺼진 채로 시작합니다 — 말과 동작이 반대였습니다.
-       더 나쁜 건 그 말이 "여기 있는 게 원래 해야 하는 것"으로 읽힌다는 점입니다.
-       집안일을 어디까지 하느냐는 집마다 다릅니다. 목록이 기준이 되면 안 됩니다. */
-    { q: "무엇을 챙겨드릴까요?", s: "영역별로 한 화면씩 넘어갑니다. 전부 꺼진 채로 시작하니 필요한 것만 켜세요. 여기 있는 걸 다 하는 집은 없습니다." },
+  const STEPS = [
+    { q: `${BRAND}에 오신 걸 환영해요.\n아이를 어른께 맡기시나요?`,
+      s: "할머니·할아버지, 또는 다른 어른이요. 부모가 일정을 한 번 넣어두면 앱이 매일 그 시각에 전화로 알려드립니다. 어른은 받기만 하시면 됩니다." },
+    { q: "아이가 누구인가요?",
+      s: "어른께 읽어드릴 때 이름을 부릅니다. 나이는 안 넣으셔도 됩니다." },
+    { q: "어느 분께 걸까요?",
+      s: "호칭은 어른이 들으실 말로 적으세요. 번호는 그 어른 휴대폰이나 집전화입니다." },
+    { q: "무엇을 알려드릴까요?",
+      s: "요일마다 다른 것이 있으면 지금 하나만 넣어보세요. 나머지는 나중에 채우시면 됩니다." },
   ];
-  /* 차가 없는 집에는 차 단계를 보여주지 않습니다 */
-  const LAST = 5;
-  const skipCar = !d.flags.car;
-  /* 실제로 지나가는 단계만 셉니다 */
-  const stepList = [0, 1, 2, 3, ...(skipCar ? [] : [4]), 5];
-  const stepIdx = Math.max(stepList.indexOf(step), 0);
-  const nextStep = (n) => (n === 4 && skipCar ? 5 : n);
-  const prevStep = (n) => (n === 4 && skipCar ? 3 : n);
-  /* 경조사 후보 — 이름을 이미 받았으니 물어볼 것만 남깁니다.
-     제사·부모님 생신은 음력이 기본입니다. 사용자가 바꾸면 그게 우선입니다. */
-  const [anns, setAnns] = useState({});
-  /* 몇 칸을 보여줄지. 처음부터 네 칸을 열어두면 빈칸이 벽처럼 보입니다 */
-  const [nParent, setNParent] = useState(2);
-  const [nJesa, setNJesa] = useState(2);
-  const isLunar = (a, v) => (v && v.lunar !== undefined ? v.lunar : !!a.lunar);
-  const annCandidates = useMemo(() => {
-    /* 내 생일·남편 생일·아이 생일은 안 물어봅니다.
-       그건 폰 달력에도 있고 가족이 서로 챙깁니다 — 까먹어서 손해 보는 일이 아닙니다.
-       앱만 할 수 있는 건 음력입니다. 음력은 매년 양력 날짜가 달라서
-       사람이 계산을 못 하고, 그래서 진짜로 놓칩니다. */
-    const out = [];
-    if (d.members.filter((m) => m.name.trim()).length > 1) out.push({ key: "wed", label: "결혼기념일", title: "결혼기념일" });
-    /* 부모님은 보통 네 분입니다(양가). 한 칸만 두면 세 분이 사라집니다.
-       누구 생신인지도 집마다 부르는 말이 달라서 이름을 직접 적게 둡니다. */
-    if (d.flags.parents) {
-      const PH = ["예: 아버지 생신", "예: 어머니 생신", "예: 시아버지 생신", "예: 시어머니 생신"];
-      for (let i = 0; i < nParent; i++) {
-        out.push({ key: `p${i + 1}`, label: i ? "" : "부모님 생신", group: "parent",
-                   title: "부모님 생신", lunar: true, editable: true,
-                   ph: PH[i] || "없으면 비워두세요" });
-      }
-    }
-    /* 제사·기일은 거의 음력이고, 집마다 이름이 다릅니다("할아버지 제사", "시아버님 기일").
-       이름을 직접 적게 둡니다. 안 적으면 안 만들어집니다. */
-    for (let i = 0; i < nJesa; i++) {
-      out.push({ key: `je${i + 1}`, label: i ? "" : "제사·기일", group: "jesa",
-                 title: "제사", lunar: true, editable: true,
-                 ph: i === 0 ? "예: 할아버지 제사" : "없으면 비워두세요" });
-    }
-    return out;
-  }, [d.members, d.flags.parents, nParent, nJesa]);
+  const cur = STEPS[step];
+  const kidsOk = kids.some((k) => k.name.trim());
+  const elderOk = elder.label.trim() && elder.phone.trim();
+  const canNext = step === 0 ? true : step === 1 ? kidsOk : step === 2 ? elderOk : true;
+  const planN = Object.values(plan).reduce((a, v) => a + v.length, 0);
 
-  const cids = useMemo(() => Object.keys(byCat), [byCat]);
-  const onCount = Object.values(routines).filter((r) => r.on).length;
+  const addRow = () => {
+    const w = what.trim();
+    if (!w) return;
+    setPlan((p) => ({ ...p, [dow]: (p[dow] || []).concat([{ id: uid("cl"), time: time.trim(), what: w.slice(0, 30), kind: "sked", kid: (kids[0] || {}).id, solo: "" }]) }));
+    setTime(""); setWhat("");
+  };
+
+  const finish = (on) => {
+    if (preview) { setSt((sv) => ({ ...sv, previewOnboarding: false })); say("미리보기였어요. 아무것도 안 바뀌었습니다"); return; }
+    const cleanKids = kids.filter((k) => k.name.trim())
+      .map((k) => ({ ...k, name: k.name.trim(), months: Number(k.age) ? Math.round(Number(k.age) * 12) : null }));
+    setSt((sv) => ({
+      ...sv,
+      children: cleanKids,
+      elders: on && elderOk ? [{ ...elder, label: elder.label.trim(), phone: elder.phone.trim() }] : [],
+      callAt: at, callPlan: plan, callOn: !!on && elderOk,
+      callOff: on ? 0 : Date.now(),
+      onboarded: true,
+    }));
+    say(on ? "다 됐어요. 오늘 화면에서 나갈 말을 미리 보실 수 있어요" : "다 됐어요");
+  };
 
   return (
-    <div className="px-5" style={{ paddingTop: 44 }}>
+    <div className="px-5" style={{ paddingBottom: 40 }}>
       <PreviewBar />
-      <div className="flex items-center gap-3" style={{ marginBottom: 22 }}>
-        <button className="press" onClick={() => { if (step === LAST && page > 0) return setPage(page - 1); if (step > 0) setStep(prevStep(step - 1)); }}
-          disabled={step === 0} aria-label="이전 단계"
-          style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 999, width: 34, height: 34, fontSize: 14, color: step === 0 ? C.ink3 : C.ink2, opacity: step === 0 ? .35 : 1, flexShrink: 0 }}>←</button>
-        {/* 실제 단계 수와 맞춰야 합니다. 6단계인데 "n/4"로 보이면
-             끝난 줄 알았다가 또 나와서 지칩니다. 차가 없으면 한 단계 줄어듭니다. */}
-        <div className="flex gap-1.5 flex-1">
-          {stepList.map((n, i) => <div key={n} style={{ flex: 1, height: 3, borderRadius: 99, background: i <= stepIdx ? C.moss : C.line, transition: "background .3s" }} />)}
-        </div>
-        <span className="mono" style={{ fontSize: 10.5, color: C.ink3, flexShrink: 0 }}>{stepIdx + 1}/{stepList.length}</span>
+      <div className="mono" style={{ fontSize: 10.5, color: C.moss, letterSpacing: ".1em", marginTop: 26 }}>
+        {step + 1} / {STEPS.length}
       </div>
-      <h1 className="disp" style={{ fontSize: 26, fontWeight: 600, lineHeight: 1.45, whiteSpace: "pre-line" }}>{steps[step].q}</h1>
-      <p style={{ fontSize: 13.5, color: C.ink2, marginTop: 12, lineHeight: 1.7 }}>{steps[step].s}</p>
+      <h1 className="disp" style={{ fontSize: 25, fontWeight: 600, lineHeight: 1.4, marginTop: 10, whiteSpace: "pre-line", letterSpacing: "-.02em" }}>
+        {cur.q}
+      </h1>
+      <p style={{ fontSize: 13, color: C.ink3, marginTop: 11, lineHeight: 1.8 }}>{cur.s}</p>
 
-      <div style={{ marginTop: 22 }}>
+      <div style={{ marginTop: 24 }}>
         {step === 0 && (
-          <Card><div style={{ padding: 16 }}>
-            {d.members.map((m, i) => (
-              <div key={m.id} className="flex items-center gap-3" style={{ marginTop: i ? 10 : 0 }}>
-                <Avatar member={{ ...m, name: m.name || "?" }} size={34} />
-                <input className="hae" value={m.name} placeholder={i ? "예: 남편" : "내 호칭"}
-                  onChange={(e) => setD((s) => ({ ...s, members: s.members.map((x) => x.id === m.id ? { ...x, name: e.target.value } : x) }))} style={inp} />
-                {i > 0 && <button onClick={() => setD((s) => ({ ...s, members: s.members.filter((x) => x.id !== m.id) }))} style={{ background: "none", border: "none", color: C.ink3, fontSize: 20 }}>×</button>}
-              </div>
-            ))}
-            {d.members.length < 4 && <button className="press w-full" onClick={() => setD((s) => ({ ...s, members: [...s.members, { id: uid("m"), name: "", role: "member", color: MEMBER_COLORS[s.members.length] }] }))}
-              style={{ marginTop: 12, background: "none", border: `1px dashed ${C.line}`, borderRadius: 12, padding: "11px 0", fontSize: 13, color: C.ink2 }}>가족 추가</button>}
-          </div></Card>
-        )}
-
-        {step === 1 && (
-          <Card><div style={{ padding: 16 }}>
-            {d.children.map((c) => (
-              <div key={c.id} className="flex items-center gap-2" style={{ marginBottom: 10 }}>
-                <input className="hae" value={c.name} onChange={(e) => setD((s) => ({ ...s, children: s.children.map((x) => x.id === c.id ? { ...x, name: e.target.value } : x) }))} style={{ ...inp, width: 74 }} />
-                <input className="hae" inputMode="numeric" placeholder="숫자" value={c.value} onChange={(e) => setD((s) => ({ ...s, children: s.children.map((x) => x.id === c.id ? { ...x, value: e.target.value } : x) }))} style={{ ...inp, width: 66 }} />
-                <select className="hae" value={c.unit} onChange={(e) => setD((s) => ({ ...s, children: s.children.map((x) => x.id === c.id ? { ...x, unit: e.target.value } : x) }))} style={{ ...inp, flex: 1 }}>
-                  <option value="week">임신 주수</option><option value="month">개월</option><option value="year">세</option><option value="elem">초등</option><option value="mid">중등</option>
-                </select>
-                <button onClick={() => setD((s) => ({ ...s, children: s.children.filter((x) => x.id !== c.id) }))} style={{ background: "none", border: "none", color: C.ink3, fontSize: 20 }}>×</button>
-              </div>
-            ))}
-            <button className="press w-full" onClick={() => setD((s) => ({ ...s, children: [...s.children, { id: uid("c"), name: ["첫째", "둘째", "셋째", "넷째"][s.children.length] || "아이", unit: "year", value: "" }] }))}
-              style={{ background: "none", border: `1px dashed ${C.line}`, borderRadius: 12, padding: "11px 0", fontSize: 13, color: C.ink2 }}>아이 추가</button>
-            {/* 여기 "아이가 없으면 그냥 넘어가세요"라고 썼다가 뺐습니다.
-    난임을 겪는 분에게는 실례가 되는 말입니다.
-    빈칸을 두고 사람을 설명하지 않습니다. 화면이 뭘 하는지만 적습니다. */}
-{!d.children.length && <div style={{ fontSize: 12.5, color: C.ink3, marginTop: 12, lineHeight: 1.6 }}>여기 넣은 아이를 기준으로 항목이 정해집니다. 비워두면 육아·유치원 항목은 나오지 않습니다.</div>}
-          </div></Card>
-        )}
-
-        {step === 2 && d.flags.car && (
-          <div style={{ marginBottom: 14 }}>
-            <Eyebrow>어떤 차인가요?</Eyebrow>
-            <Card style={{ marginTop: 7 }}>
-              <div style={{ padding: 15 }}>
-                {(d.cars && d.cars.length ? d.cars : [{ id: "car1", name: "", type: d.carType || "ice" }]).map((car, ci, arr) => (
-                  <div key={car.id} style={{ marginTop: ci ? 14 : 0, paddingTop: ci ? 14 : 0, borderTop: ci ? `1px solid ${C.lineSoft}` : "none" }}>
-                    {arr.length > 1 && (
-                      <div className="flex items-center gap-2" style={{ marginBottom: 9 }}>
-                        <input className="hae" value={car.name || ""} placeholder={`${ci + 1}번째 차 — 예: 남편 차`}
-                          onChange={(e) => setD((sv) => ({ ...sv, cars: arr.map((x) => x.id === car.id ? { ...x, name: e.target.value } : x) }))}
-                          style={{ ...inp, flex: 1, fontSize: 13.5 }} />
-                        <button onClick={() => setD((sv) => ({ ...sv, cars: arr.filter((x) => x.id !== car.id) }))}
-                          aria-label="이 차 지우기"
-                          style={{ background: "none", border: "none", color: C.ink3, fontSize: 18 }}>×</button>
-                      </div>
-                    )}
-                    <div className="flex gap-2">
-                      {Object.keys(CAR_TYPES).map((k) => {
-                        const on = (car.type || "ice") === k;
-                        return (
-                          <button key={k} className="press" onClick={() => setD((sv) => ({ ...sv, cars: arr.map((x) => x.id === car.id ? { ...x, type: k } : x), carType: ci === 0 ? k : sv.carType }))}
-                            style={{ flex: 1, background: on ? C.mossSoft : C.bg, color: on ? C.moss : C.ink2, border: `1px solid ${on ? C.moss : C.line}`, borderRadius: R.sm, padding: "12px 0", fontSize: 12.5, fontWeight: 600 }}>
-                            {CAR_TYPES[k].emoji} {CAR_TYPES[k].label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
-                {(!d.cars || d.cars.length < 4) && (
-                  <button className="press w-full" onClick={() => setD((sv) => {
-                    const cur = sv.cars && sv.cars.length ? sv.cars : [{ id: "car1", name: "", type: sv.carType || "ice", firstReg: "", insMonth: null }];
-                    return { ...sv, cars: [...cur, { id: uid("car"), name: "", type: "ice", firstReg: "", insMonth: null }] };
-                  })}
-                    style={{ width: "100%", marginTop: 12, background: "none", border: `1px dashed ${C.line}`, borderRadius: 12, padding: "11px 0", fontSize: 13, color: C.ink2 }}>
-                    차 한 대 더
-                  </button>
-                )}
-                <div style={{ fontSize: 12, color: C.ink3, marginTop: 10, lineHeight: 1.6 }}>
-                  기름차는 주유·엔진오일, 전기차는 충전·배터리 점검이 뜹니다.
-                  검사일과 보험 갱신 달은 나중에 설정에서 넣으셔도 돼요.
-                </div>
-              </div>
-            </Card>
-          </div>
-        )}
-
-        {step === 2 && d.flags.pet && (
-          <div style={{ marginBottom: 14 }}>
-            <Eyebrow>반려동물 종류</Eyebrow>
-            <Card style={{ marginTop: 7 }}>
-              <div style={{ padding: 15 }}>
-                <div className="flex flex-wrap gap-2">
-                  {Object.keys(PET_TYPES).map((k) => {
-                    const on = (d.petTypes || {})[k];
-                    return (
-                      <button key={k} className="press" onClick={() => setD((sv) => ({ ...sv, petTypes: { ...(sv.petTypes || {}), [k]: !on } }))}
-                        style={{ background: on ? C.mossSoft : C.bg, color: on ? C.moss : C.ink2, border: `1px solid ${on ? C.moss : C.line}`, borderRadius: R.pill, padding: "10px 15px", fontSize: 13, fontWeight: 600 }}>
-                        {PET_TYPES[k].emoji} {PET_TYPES[k].label}
-                      </button>
-                    );
-                  })}
-                </div>
-                <div style={{ fontSize: 12, color: C.ink3, marginTop: 11, lineHeight: 1.6 }}>종류마다 챙길 게 달라서요. 고양이는 모래, 강아지는 산책·동물등록, 물고기는 물갈이가 따로 뜹니다.</div>
-              </div>
-            </Card>
-          </div>
-        )}
-
-        {step === 2 && FLAG_GROUPS.map((g) => (
-          <div key={g} style={{ marginBottom: 14 }}>
-            <Eyebrow>{g}</Eyebrow>
-            <Card style={{ marginTop: 7 }}>
-              {/* need가 있는 항목은 그 항목을 켰을 때만 나옵니다.
-                   안 그러면 부모님을 안 챙기는 집에도 "혼자 지내심"이 뜹니다 */}
-              {Object.keys(FLAGS).filter((k) => FLAGS[k].g === g && (!FLAGS[k].need || d.flags[FLAGS[k].need])).map((k, i, arr) => {
-                const on = d.flags[k];
-                return (
-                  <button key={k} className="press flex items-center gap-3 w-full text-left" onClick={() => setD((s) => ({ ...s, flags: { ...s.flags, [k]: !s.flags[k] } }))}
-                    style={{ background: on ? C.mossSoft : "transparent", border: "none", borderBottom: i === arr.length - 1 ? "none" : `1px solid ${C.line}`, padding: "13px 15px" }}>
-                    <span style={{ fontSize: 18 }}>{FLAGS[k].emoji}</span>
-                    <span className="flex-1 min-w-0">
-                      <span style={{ display: "block", fontSize: 14.5, fontWeight: 600, color: on ? C.moss : C.ink }}>{FLAGS[k].label}</span>
-                      <span style={{ display: "block", fontSize: 12, color: C.ink3, marginTop: 1 }}>{FLAGS[k].desc}</span>
-                    </span>
-                    <span style={{ width: 21, height: 21, borderRadius: 7, flexShrink: 0, border: `1.5px solid ${on ? C.moss : C.line}`, background: on ? C.moss : "transparent", color: "#fff", fontSize: 12, lineHeight: "19px", textAlign: "center" }}>{on ? "✓" : ""}</span>
-                  </button>
-                );
-              })}
-            </Card>
-          </div>
-        ))}
-
-        {step === 3 && (
-          <Card><div style={{ padding: 16 }}>
-            {/* 잘 까먹는 사람에게 "직접 추가하세요"는 벽입니다.
-               이름을 이미 받았으니 후보를 미리 만들어두고 날짜만 넣게 합니다. */}
-            {annCandidates.map((a, i, arr) => {
-              const v = anns[a.key] || {};
-              return (
-                <div key={a.key} style={{ marginTop: i ? 13 : 0, paddingTop: i ? 13 : 0, borderTop: i ? `1px solid ${C.lineSoft}` : "none" }}>
-                  {a.editable && <div style={{ fontSize: 11.5, color: C.ink3, marginBottom: 6 }}>{a.label}</div>}
-                  <div className="flex items-center gap-2">
-                    {a.editable
-                      ? <input className="hae" value={v.name || ""} placeholder={a.ph}
-                          onChange={(e) => setAnns((p) => ({ ...p, [a.key]: { ...v, name: e.target.value } }))}
-                          style={{ ...inp, flex: 1, minWidth: 0, fontSize: 13.5 }} />
-                      : <span style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 500 }}>{a.label}</span>}
-                    <button className="press" onClick={() => setAnns((p) => ({ ...p, [a.key]: { ...v, lunar: !isLunar(a, v) } }))}
-                      style={{ background: isLunar(a, v) ? C.mossSoft : C.bg, color: isLunar(a, v) ? C.moss : C.ink3, border: `1px solid ${isLunar(a, v) ? C.moss : C.line}`, borderRadius: 999, padding: "5px 10px", fontSize: 11.5, flexShrink: 0 }}>
-                      {isLunar(a, v) ? "음력" : "양력"}
-                    </button>
-                  </div>
-                  <div className="flex gap-2" style={{ marginTop: 8 }}>
-                    <select className="hae" value={v.m || ""} onChange={(e) => setAnns((p) => ({ ...p, [a.key]: { ...v, m: e.target.value } }))} style={{ ...inp, flex: 1 }}>
-                      <option value="">몇 월</option>
-                      {Array.from({ length: 12 }, (_, k) => k + 1).map((m) => <option key={m} value={m}>{m}월</option>)}
-                    </select>
-                    <select className="hae" value={v.d || ""} onChange={(e) => setAnns((p) => ({ ...p, [a.key]: { ...v, d: e.target.value } }))} style={{ ...inp, flex: 1 }}>
-                      <option value="">며칠</option>
-                      {Array.from({ length: isLunar(a, v) ? 30 : 31 }, (_, k) => k + 1).map((dd) => <option key={dd} value={dd}>{dd}일</option>)}
-                    </select>
-                  </div>
-                  {/* 묶음의 마지막 칸 아래에만 "더" 버튼을 둡니다 */}
-                  {a.group && (!arr[i + 1] || arr[i + 1].group !== a.group) ? (
-                    <button className="press" onClick={() => a.group === "parent" ? setNParent((n) => Math.min(n + 1, 6)) : setNJesa((n) => Math.min(n + 1, 6))}
-                      style={{ marginTop: 9, background: "transparent", border: `1px dashed ${C.line}`, borderRadius: 10,
-                               padding: "8px 12px", fontSize: 12, color: C.ink2 }}>
-                      ＋ {a.group === "parent" ? "한 분 더" : "하나 더"}
-                    </button>
-                  ) : null}
-                </div>
-              );
-            })}
-            <div style={{ fontSize: 12, color: C.ink3, marginTop: 14, lineHeight: 1.7 }}>
-              모르면 비워두세요. <b style={{ color: C.ink2 }}>일주일 전</b>에 올립니다.
-              이름을 안 적은 칸은 만들지 않아요.
-            </div>
-          </div></Card>
-        )}
-
-        {step === 4 && d.flags.car && (
           <>
-            <Card><div style={{ padding: 16, fontSize: 12.5, color: C.ink2, lineHeight: 1.75 }}>
-              자동차등록증이나 보험 안내 문자에 다 적혀 있어요.
-              <b style={{ color: C.ink }}> 지금 몰라도 됩니다</b> — 나중에 설정에서 넣으셔도 돼요.
-            </div></Card>
-            <CarDates />
+            <Btn kind="accent" onClick={() => setStep(1)}>네, 맡깁니다</Btn>
+            <Btn kind="quiet" onClick={() => { setStep(1); }} style={{ marginTop: 6 }}>
+              아직은 아니지만 곧 맡길 것 같아요
+            </Btn>
+            <button className="press" onClick={() => finish(false)}
+              style={{ display: "block", width: "100%", marginTop: 10, background: "transparent", border: "none",
+                       color: C.ink3, fontSize: 12.5, padding: "10px 0" }}>
+              맡기지 않습니다 — 그냥 둘러볼게요
+            </button>
           </>
         )}
 
-        {step === LAST && cids.length > 0 && (() => {
-          const cid = cids[Math.min(page, cids.length - 1)];
-          const grp = byCat[cid];
-          const onHere = grp.items.filter((r) => (routines[r.key] || {}).on).length;
-          /* 순서: ① 놓치면 손해인 것 ② 보통 것 ③ 안 잊는 일(설거지·빨래 같은 것) */
-          const rank = (r) => (r.seed.tp ? 0 : (NEVER_FORGET[r.seed.id] ? 2 : 1));
-          const sorted = [...grp.items].sort((a, b) => rank(a) - rank(b));
-          const openCount = Math.max(6, sorted.filter((r) => r.seed.tp).length);
-          const shownItems = moreOpen[cid] ? sorted : sorted.slice(0, openCount);
-          const hidden = sorted.length - shownItems.length;
-          return (
-            <>
-              <div className="flex items-center justify-between" style={{ marginBottom: 12 }}>
-                <div className="flex items-center gap-2">
-                  <span style={{ fontSize: 22 }}>{grp.emoji}</span>
-                  <span className="disp" style={{ fontSize: 19, fontWeight: 600 }}>{grp.label}</span>
-                </div>
-                <span className="mono" style={{ fontSize: 11, color: C.ink3 }}>{page + 1} / {cids.length}</span>
+        {step === 1 && (
+          <>
+            {kids.map((k, i) => (
+              <div key={k.id} className="grid grid-cols-3 gap-2" style={{ marginBottom: 8 }}>
+                <input style={{ ...inp, gridColumn: "span 2" }} placeholder="이름" value={k.name}
+                  onChange={(e) => setKids((v) => v.map((x, ix) => ix === i ? { ...x, name: e.target.value.slice(0, 10) } : x))} />
+                <input style={inp} placeholder="나이" inputMode="numeric" value={k.age}
+                  onChange={(e) => setKids((v) => v.map((x, ix) => ix === i ? { ...x, age: e.target.value.replace(/\D/g, "").slice(0, 2) } : x))} />
               </div>
-              <div style={{ fontSize: 12.5, color: C.ink3, marginBottom: 10, lineHeight: 1.6 }}>
-                <b style={{ color: C.ink2 }}>이미 챙기고 계신 것만</b> 골라주세요. 지금은 {onHere}개 켜져 있어요.<br />
-                하나도 안 고르셔도 됩니다. 나머지는 때가 되면 저희가 하나씩 꺼냅니다.
-              </div>
-              {/* 한 영역에 스물여덟 개가 한꺼번에 나오면 정작 챙겨야 할 게 묻힙니다.
-                  실제로 "분리수거는 꼭 챙겨야 하는데 처음에 설정할 게 너무 많아서 눈에 안 들어왔다"는
-                  말을 들었습니다. 놓치면 손해로 돌아오는 것(tp)을 위로 올리고,
-                  안 잊는 일(설거지·빨래 같은 것)은 아래로 내린 뒤, 나머지는 접어둡니다. */}
-              <Card>
-                {shownItems.map((r, i, arr) => {
-                  const cfg = routines[r.key] || { on: false, ...seedCfg(r.seed) };
-                  return (
-                    <div key={r.key} className="flex items-center gap-3" style={{ padding: "13px 15px", borderBottom: i === arr.length - 1 ? "none" : `1px solid ${C.line}`, opacity: cfg.on ? 1 : .4 }}>
-                      <span className="flex-1 min-w-0">
-                        <span style={{ display: "block", fontSize: 14.5, fontWeight: 500 }}>{r.seed.t}</span>
-                        {r.seed.season && <span style={{ display: "block", fontSize: 11, color: C.sun, marginTop: 2 }}>{r.seed.season === "summer" ? "여름에만" : "겨울에만"}</span>}
-                      </span>
-                      <button className="press" onClick={() => setPick(r.key)}
-                        style={{ background: C.bg, border: `1px solid ${C.line}`, borderRadius: 999, padding: "5px 11px", fontSize: 12, color: C.ink2, whiteSpace: "nowrap" }}>{patternLabel(cfg)}</button>
-                      <button className="press" onClick={() => setRoutines((pv) => ({ ...pv, [r.key]: { ...cfg, on: !cfg.on } }))} aria-label="사용 여부"
-                        style={{ width: 42, height: 25, borderRadius: 99, border: "none", background: cfg.on ? C.moss : C.line, position: "relative", flexShrink: 0 }}>
-                        <span style={{ position: "absolute", top: 3, left: cfg.on ? 20 : 3, width: 19, height: 19, borderRadius: 99, background: "#fff", transition: "left .18s" }} />
-                      </button>
-                      {r.custom && <button onClick={() => setD((sv) => ({ ...sv, customRoutines: sv.customRoutines.filter((x) => x.id !== r.seed.id) }))}
-                        style={{ background: "none", border: "none", color: C.ink3, fontSize: 17, padding: 0 }}>×</button>}
-                    </div>
-                  );
-                })}
-                <div className="flex items-center gap-2" style={{ padding: "12px 15px", borderTop: `1px solid ${C.line}`, background: C.bg }}>
-                  <input className="hae" value={newItem} onChange={(e) => setNewItem(e.target.value)}
-                    placeholder="우리 집만의 일 추가 (예: 김치 담그기)"
-                    style={{ flex: 1, border: `1px solid ${C.line}`, borderRadius: 10, padding: "9px 11px", fontSize: 13.5, background: C.card, color: C.ink }} />
-                  <button className="press" onClick={() => {
-                    const title = newItem.trim(); if (!title) return;
-                    const nid = uid("cr");
-                    setD((sv) => ({ ...sv, customRoutines: [...(sv.customRoutines || []), { id: nid, title, category: cid, cycle: 7 }] }));
-                    setRoutines((pv) => ({ ...pv, [`c:${nid}`]: { on: true, cycle: 7 } }));
-                    setNewItem("");
-                  }} style={{ background: C.moss, color: "#fff", border: "none", borderRadius: 10, padding: "9px 14px", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>추가</button>
-                </div>
-              </Card>
-              {hidden > 0 && (
-                <button className="press" onClick={() => setMoreOpen((m) => ({ ...m, [cid]: 1 }))}
-                  style={{ width: "100%", marginTop: 8, background: "transparent", border: `1px dashed ${C.line}`,
-                           borderRadius: 12, padding: "11px 0", fontSize: 12.5, color: C.ink2 }}>
-                  {hidden}개 더 보기 <span style={{ color: C.ink3 }}>· 안 보셔도 됩니다</span>
-                </button>
-              )}
-              <div className="flex gap-2" style={{ marginTop: 10 }}>
-                <button className="press" onClick={() => setRoutines((pv) => { const n = { ...pv }; grp.items.forEach((r) => { n[r.key] = { ...(n[r.key] || seedCfg(r.seed)), on: true }; }); return n; })}
-                  style={{ flex: 1, background: "transparent", border: `1px solid ${C.line}`, borderRadius: 12, padding: "10px 0", fontSize: 12.5, color: C.ink2 }}>전부 켜기</button>
-                <button className="press" onClick={() => setRoutines((pv) => { const n = { ...pv }; grp.items.forEach((r) => { n[r.key] = { ...(n[r.key] || seedCfg(r.seed)), on: false }; }); return n; })}
-                  style={{ flex: 1, background: "transparent", border: `1px solid ${C.line}`, borderRadius: 12, padding: "10px 0", fontSize: 12.5, color: C.ink2 }}>이 영역은 건너뛰기</button>
-              </div>
-              <div className="flex gap-1.5" style={{ marginTop: 16, justifyContent: "center" }}>
-                {cids.map((_, i) => <span key={i} onClick={() => setPage(i)} style={{ width: i === page ? 16 : 6, height: 6, borderRadius: 99, background: i === page ? C.moss : C.line, cursor: "pointer", transition: "width .2s" }} />)}
-              </div>
-              {/* 영역이 열 개입니다. 끝까지 넘기다 지치면 아무거나 눌러버립니다.
-                  기본값이 이미 들어 있으니 여기서 바로 끝낼 수 있게 둡니다. */}
-              <button className="press" onClick={finish}
-                style={{ width: "100%", marginTop: 16, background: "transparent", border: `1px solid ${C.line}`,
-                         borderRadius: 14, padding: "13px 0", fontSize: 13, color: C.ink2 }}>
-                나머지는 나중에 켤게요 · <b style={{ color: C.moss }}>바로 시작하기</b>
-              </button>
-              {/* 예전 문구는 "나머지는 기본값으로 두고"였습니다. 켜져 있는 게 있는 것처럼 읽히는데
-                  실제로는 하나도 안 켜집니다. 지쳐서 이걸 누른 집은 빈 앱을 받고 그날 닫습니다. */}
-              <p style={{ fontSize: 11.5, color: C.ink3, textAlign: "center", marginTop: 7, lineHeight: 1.7 }}>
-                안 켠 것은 안 올라옵니다. 영역 화면에서 언제든 켜고 끌 수 있어요.<br />
-                다 켜실 필요 없습니다. 두세 개로 시작하셔도 됩니다.
-              </p>
-              {/* 처음 채우는 게 제일 힘듭니다. 그런데 날짜를 하나씩 옮겨 적지 않아도 되는 길이 있습니다.
-                  여기서 하라고 하면 안 됩니다 — 본인인증하러 나갔다가 안 돌아옵니다.
-                  있다는 것만 알리고, 첫 화면에 남겨둡니다. */}
-              {page === cids.length - 1 && (() => {
-                const now = new Date().getMonth() + 1;
-                const spots = CAPTURE_SPOTS.filter((x) =>
-                  (!x.kid || (d.children || []).length) &&
-                  (!x.flag || d.flags[x.flag]) &&
-                  (!x.mo || x.mo.indexOf(now) >= 0));
-                if (!spots.length) return null;
+            ))}
+            {kids.length < 4 && (
+              <button className="press" onClick={() => setKids((v) => v.concat([{ id: uid("k"), name: "", age: "" }]))}
+                style={{ background: "transparent", border: `1px dashed ${C.line}`, borderRadius: 12, width: "100%",
+                         padding: "11px 0", fontSize: 13, color: C.ink3 }}>+ 아이 더 넣기</button>
+            )}
+            <p style={{ fontSize: 12, color: C.ink3, marginTop: 12, lineHeight: 1.7 }}>
+              아이가 둘이어도 <b style={{ color: C.ink2 }}>전화는 한 통</b>입니다. 이름을 앞에 붙여 읽어드려요.
+            </p>
+          </>
+        )}
+
+        {step === 2 && (
+          <>
+            <div className="grid grid-cols-2 gap-2">
+              <input style={inp} placeholder="호칭 (예: 할머니)" value={elder.label}
+                onChange={(e) => setElder((v) => ({ ...v, label: e.target.value.slice(0, 10) }))} />
+              <input style={inp} placeholder="전화번호" inputMode="tel" value={elder.phone}
+                onChange={(e) => setElder((v) => ({ ...v, phone: e.target.value.replace(/[^\d-]/g, "").slice(0, 14) }))} />
+            </div>
+            <div className="flex items-center gap-2.5" style={{ marginTop: 10 }}>
+              <span style={{ fontSize: 13, color: C.ink2, flexShrink: 0 }}>전화 나가는 시각</span>
+              <input style={{ ...inp, width: 110 }} value={at}
+                onChange={(e) => setAt(e.target.value.slice(0, 5))} />
+            </div>
+            <div style={{ marginTop: 14, background: C.mossSoft, borderRadius: 12, padding: "13px 15px", fontSize: 12.5, color: C.ink2, lineHeight: 1.8 }}>
+              전화는 <b style={{ color: C.ink }}>부모님 번호로</b> 갑니다. 어른 폰에는 늘 보시던 이름으로 뜹니다.<br />
+              그래도 <b style={{ color: C.ink }}>“앞으로 이 번호로 전화 갈 거야”</b>라고 한 번 말씀드려 주세요.
+              모르고 받으시면 기계 목소리에 놀라십니다.
+            </div>
+          </>
+        )}
+
+        {step === 3 && (
+          <>
+            <div className="flex gap-1.5" style={{ marginBottom: 12 }}>
+              {["1", "2", "3", "4", "5"].map((dv) => {
+                const n = (plan[dv] || []).length;
                 return (
-                  <div style={{ marginTop: 16, background: C.mossSoft, borderRadius: 14, padding: "15px 16px" }}>
-                    <div style={{ fontSize: 13.5, fontWeight: 600, color: C.moss }}>날짜를 하나씩 적지 않으셔도 됩니다</div>
-                    <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 7, lineHeight: 1.75 }}>
-                      보험 만기·예방접종 차수 같은 건 <b style={{ color: C.ink }}>한 화면에 모아 보여주는 곳</b>이 있습니다.
-                      그 화면을 캡처해서 올리시면 여러 건이 한 번에 들어와요.
-                    </div>
-                    <div style={{ fontSize: 12, color: C.ink3, marginTop: 9, lineHeight: 1.8 }}>
-                      {spots.map((x) => `${x.name} → ${x.what}`).join("\n")}
-                    </div>
-                    <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 10, lineHeight: 1.7 }}>
-                      <b style={{ color: C.ink2 }}>지금 안 하셔도 됩니다.</b>
-                      생각나실 때 <b style={{ color: C.ink2 }}>말하기</b>에서 캡처를 올리시면 됩니다.
-                    </div>
-                  </div>
+                  <button key={dv} className="press" onClick={() => setDow(dv)}
+                    style={{ flex: 1, padding: "9px 0", borderRadius: 12, fontSize: 13, fontWeight: dow === dv ? 600 : 400,
+                             border: `1px solid ${dow === dv ? C.moss : C.line}`, background: dow === dv ? C.moss : "transparent",
+                             color: dow === dv ? "#fff" : (n ? C.ink2 : C.ink3) }}>
+                    {DOW_KR[Number(dv)]}{n ? <span style={{ fontSize: 10, marginLeft: 3, opacity: .8 }}>{n}</span> : null}
+                  </button>
                 );
-              })()}
-              {pick && (
-                <CyclePicker current={(routines[pick] || {}).cycle} title="얼마마다 할까요?" pattern={routines[pick] || {}}
-                  onPick={(dd) => { setRoutines((pv) => { const c = { ...pv[pick], cycle: dd, on: true }; return { ...pv, [pick]: { ...c, nextAt: nextByPattern(c) } }; }); setPick(null); }}
-                  onPattern={(p) => setRoutines((pv) => { const c = { ...pv[pick], ...p, on: true }; return { ...pv, [pick]: { ...c, nextAt: nextByPattern(c) || c.nextAt } }; })}
-                  onOff={() => { setRoutines((pv) => ({ ...pv, [pick]: { ...pv[pick], on: false } })); setPick(null); }}
-                  onClose={() => setPick(null)} />
-              )}
-            </>
-          );
-        })()}
+              })}
+            </div>
+            {(plan[dow] || []).map((r) => (
+              <div key={r.id} className="flex items-center gap-2.5" style={{ padding: "9px 0", borderBottom: `1px solid ${C.lineSoft}` }}>
+                <span className="mono" style={{ fontSize: 12.5, color: C.moss, width: 46 }}>{r.time || "—"}</span>
+                <span style={{ fontSize: 14, flex: 1 }}>{r.what}</span>
+                <button className="press" onClick={() => setPlan((p) => ({ ...p, [dow]: p[dow].filter((x) => x.id !== r.id) }))}
+                  style={{ background: "transparent", border: "none", color: C.ink3, fontSize: 12 }}>빼기</button>
+              </div>
+            ))}
+            <div className="flex gap-2" style={{ marginTop: 12 }}>
+              <input style={{ ...inp, width: 82, flexShrink: 0 }} placeholder="15:20" value={time}
+                onChange={(e) => setTime(e.target.value.slice(0, 5))} />
+              <input style={inp} placeholder="태권도 데려다주기" value={what}
+                onChange={(e) => setWhat(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addRow(); }} />
+              <button className="press" onClick={addRow}
+                style={{ flexShrink: 0, padding: "0 16px", borderRadius: 12, background: C.moss, color: "#fff", border: "none", fontSize: 14, fontWeight: 600 }}>넣기</button>
+            </div>
+            <p style={{ fontSize: 12, color: C.ink3, marginTop: 12, lineHeight: 1.7 }}>
+              약과 준비물은 나중에 <b style={{ color: C.ink2 }}>전화</b> 화면에서 넣으시면 됩니다.
+              지금은 하나만 넣어보셔도 되고, 그냥 넘어가셔도 됩니다.
+            </p>
+          </>
+        )}
       </div>
 
-      <div style={{ marginTop: 22 }}>
-        <Btn onClick={() => {
-          if (step < LAST) return setStep(nextStep(step + 1));
-          if (page < cids.length - 1) { setPage(page + 1); window.scrollTo({ top: 0, behavior: "smooth" }); return; }
-          finish();
-        }}>{step < LAST ? "다음" : (page < cids.length - 1 ? "다음 영역" : "시작하기")}</Btn>
-        {step > 0 && <Btn kind="quiet" onClick={() => { if (step === LAST && page > 0) return setPage(page - 1); setStep(prevStep(step - 1)); }}>이전</Btn>}
-        {preview && <Btn kind="quiet" onClick={() => setSt((sv) => ({ ...sv, previewOnboarding: false }))}>미리보기 끝내기</Btn>}
-      </div>
+      {step > 0 && (
+        <div style={{ marginTop: 26 }}>
+          {step < STEPS.length - 1
+            ? <Btn kind="accent" disabled={!canNext} onClick={() => setStep(step + 1)}>다음</Btn>
+            : <Btn kind="accent" onClick={() => finish(true)}>{planN ? "다 됐어요" : "일단 이대로 시작하기"}</Btn>}
+          <Btn kind="quiet" onClick={() => setStep(step - 1)} style={{ marginTop: 4 }}>← 뒤로</Btn>
+        </div>
+      )}
     </div>
   );
-
-  function finish() {
-          /* 처음 채우기 안내를 첫 화면에 남깁니다. 온보딩에서 시키면 나갔다가 안 돌아옵니다 */
-          const oneShot = Date.now();
-          /* 첫 회차를 언제로 잡을지는 firstRunAt이 정합니다.
-             설정하다 지쳐서 "6개월"을 눌렀다고 그 일이 오늘 뜨면 안 됩니다.
-             음력·기준일(제사, 명절 예매, 보험 만기)은 이미 날짜가 정해져 있으니
-             그 값을 그대로 둡니다 — 여기서 덮어쓰면 음력 계산이 통째로 날아갑니다. */
-          const init = {};
-          Object.keys(routines).forEach((k) => {
-            const c = routines[k];
-            const patterned = dowList(c).length > 0 || domList(c).length > 0;
-            const fixed = c.anchor || c.lunar;
-            init[k] = { ...c, on: c.on,
-              nextAt: fixed ? (c.nextAt || todayKey())
-                    : patterned ? nextByPattern(c)
-                    : firstRunAt(c.cycle) };
-          });
-          /* 넣어주신 기념일을 정기 일정으로 만듭니다 */
-          const cr = [...(d.customRoutines || [])];
-          /* 안 넣고 넘어간 것은 며칠 뒤에 앱이 다시 물어봅니다.
-             있는 줄 아는 것만 물어봅니다 — 제사는 있는지 없는지 알 수 없어서 안 묻습니다. */
-          const later = [];
-          annCandidates.forEach((a) => {
-            const v = anns[a.key] || {};
-            const made = makeAnniversary(a, v);
-            if (made) { cr.push(made.routine); init[made.key] = made.cfg; return; }
-            if (a.group === "jesa") return;
-            if (a.group === "parent") return;      /* 부모님은 아래에서 한 번만 */
-            later.push({ key: a.key, label: a.label, title: a.title, lunar: !!a.lunar });
-          });
-          /* 부모님 생신을 하나도 안 넣었으면 한 번만 물어봅니다 */
-          if (d.flags.parents && !annCandidates.some((a) => a.group === "parent" && makeAnniversary(a, anns[a.key] || {}))) {
-            later.push({ key: "parents", label: "부모님 생신", lunar: true, editable: true, ph: "예: 아버지 생신" });
-          }
-          /* 차 단계에서 넣은 값은 CarDates가 st에 바로 씁니다. 그것을 살려서 넘깁니다 */
-          const cars = (st.cars && st.cars.length) ? st.cars : carsOf(d);
-          /* 차 검사·보험 일정도 CarDates가 st에 만들어뒀습니다 */
-          (st.customRoutines || []).filter((r) => /^car-(insp|ins):/.test(r.id)).forEach((r) => {
-            if (!cr.some((x) => x.id === r.id)) { cr.push(r); init[`c:${r.id}`] = st.routines[`c:${r.id}`]; }
-          });
-          if (preview) { setSt((sv) => ({ ...sv, previewOnboarding: false })); say("미리보기였어요. 아무것도 안 바뀌었습니다"); return; }
-          /* 통째로 끈 영역을 적어둡니다. 지쳐서 "이 영역은 건너뛰기"를 누른 것일 수도 있어서,
-             사흘 뒤에 딱 한 번만 다시 물어봅니다. 안 본 영역은 기본값으로 켜져 있으니 안 묻습니다. */
-          const skipped = cids.filter((cid) => {
-            const items = (byCat[cid] || { items: [] }).items;
-            return items.length > 0 && items.every((r) => routines[r.key] && routines[r.key].on === false);
-          }).map((cid) => (byCat[cid] || {}).label).filter(Boolean);
-
-          setSt({ ...d, members: d.members.filter((m) => m.name.trim()),
-                  cars, customRoutines: cr, routines: init, onboarded: true, oneShotAsk: oneShot,
-                  /* 사흘 뒤부터 물어봅니다. 시작하자마자 또 물으면 잔소리가 됩니다 */
-                  pendingDates: later, pendingAt: Date.now() + 3 * DAY,
-                  skippedCats: skipped });
-        }
 }
 
-/* ── 헤더 ─────────────────────────────────────── */
 function Header() {
   const { st, me, setMe, tab, setTab } = use();
   const inSet = tab === "set";
