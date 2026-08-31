@@ -1,8 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
-import { BeeGame, BeeState, InputName, QUESTS, VIEW_H, VIEW_W } from "@/lib/bee/game";
+import { BeeGame, BeeState, InputName, STAGES, VIEW_H, VIEW_W } from "@/lib/bee/game";
 
 const KEY_MAP: Record<string, InputName> = {
   ArrowLeft: "left",
@@ -24,15 +23,18 @@ const INITIAL: BeeState = {
   wing: 100,
   nectar: 0,
   jelly: 0,
+  wax: 0,
   crew: 0,
-  questIndex: 0,
+  stage: 0,
   progress: 0,
   target: 6,
   isQueen: false,
   status: "playing",
   message: "",
-  room: "",
+  zone: "",
   elapsed: 0,
+  fact: null,
+  dizzy: false,
 };
 
 function Meter({ label, value, color }: { label: string; value: number; color: string }) {
@@ -152,7 +154,7 @@ export default function BeePage() {
     "select-none touch-none rounded-xl border border-amber-800/60 bg-amber-950/80 text-amber-100 " +
     "active:bg-amber-500 active:text-amber-950 flex items-center justify-center font-bold shadow";
 
-  const quest = QUESTS[Math.min(state.questIndex, QUESTS.length - 1)];
+  const stage = STAGES[Math.min(state.stage, STAGES.length - 1)];
   const pct = Math.round((state.progress / Math.max(1, state.target)) * 100);
 
   return (
@@ -166,9 +168,6 @@ export default function BeePage() {
           >
             {muted ? "🔇 소리 꺼짐" : "🔊 소리 켜짐"}
           </button>
-          <Link href="/ant" className="text-xs text-amber-200/50 underline hover:text-amber-200">
-            개미집
-          </Link>
         </div>
       </header>
 
@@ -177,11 +176,11 @@ export default function BeePage() {
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5">
           <div className="min-w-0">
             <p className="truncate text-sm font-bold text-amber-200">
-              퀘스트 {Math.min(state.questIndex + 1, QUESTS.length)}/{QUESTS.length} ·{" "}
-              {quest.title}
-              <span className="ml-2 text-xs font-normal text-amber-200/60">{quest.where}</span>
+              {Math.min(state.stage + 1, STAGES.length)}/{STAGES.length} · {stage.job}
+              <span className="ml-1.5 text-xs font-normal text-amber-300/70">{stage.age}</span>
+              <span className="ml-2 text-xs font-normal text-amber-200/50">{stage.where}</span>
             </p>
-            <p className="truncate text-[11px] text-amber-100/60">{quest.detail}</p>
+            <p className="truncate text-[11px] text-amber-100/60">{stage.task}</p>
           </div>
           <div className="flex items-center gap-2">
             <div className="h-2 w-24 overflow-hidden rounded-full bg-amber-950/80 sm:w-36">
@@ -198,9 +197,11 @@ export default function BeePage() {
         <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-amber-900/50 pt-2">
           <Meter label="체력" value={state.hp} color="#f2705f" />
           <Meter label="날개" value={state.wing} color="#8fd4ff" />
-          <span className="text-xs text-amber-200">🍯 {state.nectar}</span>
-          <span className="text-xs text-amber-100">🥛 {state.jelly}</span>
-          <span className="text-xs text-amber-200/80">🐝 x{state.crew}</span>
+          {state.nectar > 0 && <span className="text-xs text-amber-200">🍯 {state.nectar}</span>}
+          {state.jelly > 0 && <span className="text-xs text-amber-100">🥛 {state.jelly}</span>}
+          {state.wax > 0 && <span className="text-xs text-amber-100/80">🕯 {state.wax}</span>}
+          {state.crew > 0 && <span className="text-xs text-amber-200/80">🐝 x{state.crew}</span>}
+          {state.dizzy && <span className="text-xs text-lime-300">😵 방향 감각 상실</span>}
           {state.isQueen && <span className="text-xs text-fuchsia-300">👑 여왕벌</span>}
         </div>
       </div>
@@ -213,9 +214,9 @@ export default function BeePage() {
       >
         <canvas ref={canvasRef} className="block h-full w-full" style={{ imageRendering: "pixelated" }} />
 
-        {state.room && (
+        {state.zone && (
           <div className="pointer-events-none absolute left-1/2 top-3 -translate-x-1/2 rounded-full bg-black/50 px-4 py-1 text-xs tracking-widest text-amber-100">
-            {state.room}
+            {state.zone}
           </div>
         )}
 
@@ -227,13 +228,16 @@ export default function BeePage() {
 
         {!started && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 overflow-y-auto bg-black/85 px-5 py-4 text-center">
-            <p className="text-lg font-bold text-amber-300 sm:text-xl">왕벌의 비행</p>
+            <p className="text-lg font-bold text-amber-300 sm:text-xl">
+              왕벌의 비행 <span className="text-amber-200/60">— 마누카 계곡</span>
+            </p>
             <p className="max-w-md text-[11px] leading-relaxed text-amber-100/80 sm:text-sm">
-              너는 갓 태어난 <b className="text-amber-200">공주벌</b>. 벌집의 방을 돌며 다섯 가지
-              일을 해내야 여왕이 될 수 있다. 꽃밭에서 꿀을 모으고, 저장방을 채우고, 애벌레를
-              돌보고, 말벌을 쫓아내고, 왕대에서 로열젤리를 먹으면 — 마지막은{" "}
-              <b className="text-fuchsia-300">혼인비행</b>. 하늘 끝까지 날아오르면 수벌들이
-              구애의 춤을 춘다.
+              뉴질랜드 마누카 계곡의 벌통 한 채. 너는 방금 방에서 나온 일벌이다. 실제 꿀벌처럼{" "}
+              <b className="text-amber-200">나이를 먹을 때마다 맡는 일이 바뀐다</b> — 청소벌,
+              육아벌, 건축벌, 경비벌, 채집벌.
+              <br />
+              육아벌일 때 <b className="text-amber-200">로열젤리를 먹여 키운 그 애벌레</b>가
+              마지막에 여왕이 되어 나온다. 그리고 그 여왕이 네가 된다.
             </p>
             <button
               onClick={() => setStarted(true)}
@@ -242,23 +246,39 @@ export default function BeePage() {
               날아오르기
             </button>
             <p className="text-[10px] text-amber-200/50 sm:text-[11px]">
-              방향키로 비행 · Space 부스터 · 물건은 몸으로 부딪히면 자동으로 쓴다
+방향키로 비행 · Space 부스터 · 몸으로 부딪히면 일이 된다 · 약 5분
             </p>
           </div>
         )}
 
-        {state.status === "ending" && (
+        {state.fact && (
+          <button
+            onClick={() => gameRef.current?.dismissFact()}
+            className="absolute inset-0 flex cursor-pointer flex-col items-center justify-center gap-2 bg-black/85 px-6 text-center"
+          >
+            <span className="text-[10px] tracking-[0.2em] text-amber-400/70">알고 계셨나요</span>
+            <span className="text-base font-bold text-amber-200 sm:text-lg">
+              {state.fact.title}
+            </span>
+            <span className="max-w-md text-[11px] leading-relaxed text-amber-100/80 sm:text-sm">
+              {state.fact.body}
+            </span>
+            <span className="mt-1 text-[10px] text-amber-200/40">아무 곳이나 눌러 계속</span>
+          </button>
+        )}
+
+        {state.status === "ending" && !state.fact && (
           <div className="absolute inset-0 flex flex-col items-center justify-end gap-2 bg-gradient-to-t from-black/90 via-black/40 to-transparent px-5 pb-5 pt-8 text-center">
             <p className="text-xl font-bold text-amber-200 drop-shadow sm:text-2xl">
-              👑 여왕벌 탄생
+              👑 마누카 계곡의 새 여왕
             </p>
             <p className="max-w-md text-[11px] leading-relaxed text-amber-100/90 sm:text-sm">
-              수벌들이 하늘 위에서 구애의 춤을 춘다. 「왕벌의 비행」이 울려 퍼지는 동안, 새 여왕은
-              벌집의 모든 일을 마치고 자기 계절을 시작한다.
+              혼인비행을 마친 여왕은 벌통으로 돌아가 평생 알을 낳는다. 언젠가 무리의 절반을
+              데리고 분봉해, 다음 계곡에 새 왕국을 열 것이다.
               <br />
-              <span className="text-amber-200/70">
-                걸린 시간 {Math.floor(state.elapsed)}초 · 계속 날아다녀도 좋다
-              </span>
+              <span className="text-amber-300/80">다음 왕국 — 캘리포니아 아몬드 농장 (준비 중)</span>
+              <br />
+              <span className="text-amber-200/60">걸린 시간 {Math.floor(state.elapsed)}초</span>
             </p>
             <button
               onClick={restart}
@@ -292,19 +312,19 @@ export default function BeePage() {
       </div>
 
       <ol className="hidden w-full max-w-3xl flex-wrap justify-center gap-x-3 gap-y-1 text-[11px] text-amber-200/50 sm:flex">
-        {QUESTS.map((q, i) => (
+        {STAGES.map((q, i) => (
           <li
-            key={q.title}
+            key={q.job}
             className={
-              i < state.questIndex
+              i < state.stage
                 ? "text-amber-400/80 line-through"
-                : i === state.questIndex
+                : i === state.stage
                   ? "font-bold text-amber-200"
                   : ""
             }
           >
-            {i < state.questIndex ? "✓ " : `${i + 1}. `}
-            {q.title}
+            {i < state.stage ? "✓ " : `${i + 1}. `}
+            {q.job}
           </li>
         ))}
       </ol>

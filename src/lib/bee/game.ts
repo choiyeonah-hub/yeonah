@@ -1,78 +1,112 @@
-// 「왕벌의 비행」 엔진: 날아다니는 공주벌, 방마다 놓인 퀘스트, 마지막 혼인비행.
+// 「왕벌의 비행 — 마누카 계곡」 엔진.
+// 실제 꿀벌의 일령별 직무(temporal polyethism)를 그대로 스테이지로 삼는다.
+// 청소벌 → 육아벌 → 건축벌 → 경비벌 → 채집벌 → (내가 기른 왕대에서 나온) 처녀왕.
 import { BeeAudio } from "./music";
 import {
-  AIR,
-  DOOR,
-  GRASS,
+  BOX,
   GROUND_Y,
+  GRASS,
   Hive,
-  Room,
   TILE,
   WAX,
+  WOOD,
   WORLD_H,
   WORLD_W,
+  Zone,
   generateHive,
   isSolid,
-  roomOf,
-  setTile,
   tileAt,
+  zoneOf,
 } from "./world";
 
 export const VIEW_W = 480;
 export const VIEW_H = 320;
 
-const ACCEL = 0.3;
-const DRAG = 0.905;
-const GRAVITY = 0.055;
-const MAX_SPEED = 3.4;
-const BEE_W = 18;
-const BEE_H = 13;
+const ACCEL = 0.32;
+const DRAG = 0.9;
+const GRAVITY = 0.05;
+const MAX_SPEED = 3.5;
+const BEE_W = 16;
+const BEE_H = 12;
 
 export type Status = "playing" | "wedding" | "ending";
 
-export type Quest = {
-  title: string;
-  detail: string;
+export type Stage = {
+  job: string;
+  age: string;
+  task: string;
   where: string;
   target: number;
+  /** 스테이지를 마치면 뜨는 사실 카드 */
+  fact: { title: string; body: string };
 };
 
-export const QUESTS: Quest[] = [
+export const STAGES: Stage[] = [
   {
-    title: "꽃밭의 꿀",
-    detail: "꽃 위로 날아가 꿀을 모아 오자.",
-    where: "꽃밭 (지상)",
+    job: "청소벌",
+    age: "1~2일령",
+    task: "갓 나온 방을 청소하자",
+    where: "육아권",
     target: 6,
+    fact: {
+      title: "일벌의 첫 일은 청소다",
+      body: "갓 태어난 일벌이 맨 처음 맡는 일은 자기가 나온 방을 닦는 것. 방이 깨끗해야 여왕이 그 자리에 다시 알을 낳는다.",
+    },
   },
   {
-    title: "저장방 채우기",
-    detail: "모아 온 꿀을 빈 벌집칸에 넣자.",
-    where: "꿀 저장방",
-    target: 6,
+    job: "육아벌",
+    age: "3~11일령",
+    task: "애벌레를 먹이고, 왕대에는 로열젤리만 주자",
+    where: "육아권",
+    target: 9,
+    fact: {
+      title: "여왕은 태어나는 게 아니라 먹여서 만들어진다",
+      body: "모든 애벌레는 같은 수정란에서 나온다. 처음 3일은 다 로열젤리를 먹지만, 그 뒤로도 로열젤리만 먹는 애벌레 하나만 여왕으로 자란다. 방금 네가 그 아이를 골랐다.",
+    },
   },
   {
-    title: "애벌레 돌보기",
-    detail: "젤리 웅덩이에서 로열젤리를 떠서 애벌레에게 먹이자.",
-    where: "육아방",
+    job: "건축벌",
+    age: "12~17일령",
+    task: "밀랍을 내어 저장권에 방을 짓자",
+    where: "꿀 저장권",
     target: 6,
+    fact: {
+      title: "밀랍은 배에서 나온다",
+      body: "일벌은 배 아래 밀랍샘에서 얇은 밀랍 비늘을 뽑아낸다. 밀랍 100g을 만들려면 꿀을 1kg 가까이 먹어야 한다. 그래서 벌집 한 장이 비싸다.",
+    },
   },
   {
-    title: "말벌 쫓아내기",
-    detail: "일벌을 2마리 이상 데리고 말벌에게 부딪혀 열구를 만들자.",
-    where: "경비실",
+    job: "경비벌",
+    age: "18~21일령",
+    task: "동료를 모아 말벌을 열구로 밀어내자",
+    where: "입구·경비 구역",
     target: 2,
+    fact: {
+      title: "열구 — 체온으로 이기는 방어",
+      body: "토종꿀벌은 말벌을 수백 마리가 공처럼 둘러싸고 날개근육을 떨어 온도를 47도까지 올린다. 벌은 견디고 말벌은 못 견디는 온도다.",
+    },
   },
   {
-    title: "여왕 즉위",
-    detail: "로열젤리를 들고 왕대 안으로 들어가자.",
-    where: "왕대방",
-    target: 1,
+    job: "채집벌",
+    age: "22일령~",
+    task: "마누카 꽃의 꿀을 저장권까지 나르자",
+    where: "마누카 계곡",
+    target: 6,
+    fact: {
+      title: "평생 모으는 꿀은 티스푼 한 술이 안 된다",
+      body: "채집벌 한 마리가 평생 모으는 꿀은 티스푼 1/12쯤. 마누카는 한 해에 2~6주만 피기 때문에, 그 짧은 기간이 계곡 전체의 한 해를 결정한다.",
+    },
   },
   {
-    title: "혼인비행",
-    detail: "벌집 밖 하늘 높이 날아오르자. 수벌들이 기다린다.",
-    where: "하늘",
+    job: "처녀왕",
+    age: "출방 직후",
+    task: "하늘 높이 올라 혼인비행을 하자",
+    where: "마누카 계곡 상공",
     target: 1,
+    fact: {
+      title: "혼인비행은 평생 한 번",
+      body: "처녀왕은 딱 한 번 하늘로 올라 수벌들과 짝짓기하고, 그때 받은 정자로 평생 알을 낳는다. 수벌은 그 비행이 생의 마지막이다.",
+    },
   },
 ];
 
@@ -81,15 +115,18 @@ export type BeeState = {
   wing: number;
   nectar: number;
   jelly: number;
+  wax: number;
   crew: number;
-  questIndex: number;
+  stage: number;
   progress: number;
   target: number;
   isQueen: boolean;
   status: Status;
   message: string;
-  room: string;
+  zone: string;
   elapsed: number;
+  fact: { title: string; body: string } | null;
+  dizzy: boolean;
 };
 
 export type InputName = "left" | "right" | "up" | "down" | "boost";
@@ -110,7 +147,7 @@ type Particle = {
 
 type Drone = { angle: number; radius: number; phase: number; x: number; y: number; dir: number };
 
-function overlapsCircle(ax: number, ay: number, bx: number, by: number, r: number) {
+function near(ax: number, ay: number, bx: number, by: number, r: number) {
   const dx = ax - bx;
   const dy = ay - by;
   return dx * dx + dy * dy < r * r;
@@ -124,6 +161,59 @@ function collides(hive: Hive, box: Box) {
   for (let y = y0; y <= y1; y++) {
     for (let x = x0; x <= x1; x++) {
       if (isSolid(tileAt(hive, x, y))) return true;
+    }
+  }
+  return false;
+}
+
+/** 축을 나눠 조금씩 밀어 이동시킨다. 한 번에 크게 옮기면 벽을 파고든다. */
+function moveBox(hive: Hive, box: Box, vx: number, vy: number) {
+  const hit = { x: false, y: false };
+  const steps = Math.max(1, Math.ceil(Math.max(Math.abs(vx), Math.abs(vy)) / 3));
+  const sx = vx / steps;
+  const sy = vy / steps;
+  for (let i = 0; i < steps; i++) {
+    if (sx !== 0) {
+      if (collides(hive, { ...box, x: box.x + sx })) {
+        hit.x = true;
+        const dir = Math.sign(sx);
+        let guard = 0;
+        while (guard++ < 8 && !collides(hive, { ...box, x: box.x + dir })) box.x += dir;
+      } else box.x += sx;
+    }
+    if (sy !== 0) {
+      if (collides(hive, { ...box, y: box.y + sy })) {
+        hit.y = true;
+        const dir = Math.sign(sy);
+        let guard = 0;
+        while (guard++ < 8 && !collides(hive, { ...box, y: box.y + dir })) box.y += dir;
+      } else box.y += sy;
+    }
+  }
+  return hit;
+}
+
+/** 어쩌다 벽에 박혔을 때 가장 가까운 빈 곳으로 밀어낸다. 없으면 영원히 갇힌다. */
+function unstick(hive: Hive, box: Box) {
+  if (!collides(hive, box)) return false;
+  const dirs = [
+    [0, -1],
+    [0, 1],
+    [-1, 0],
+    [1, 0],
+    [-1, -1],
+    [1, -1],
+    [-1, 1],
+    [1, 1],
+  ];
+  for (let r = 2; r <= 40; r += 2) {
+    for (const [dx, dy] of dirs) {
+      const cand = { ...box, x: box.x + dx * r, y: box.y + dy * r };
+      if (!collides(hive, cand)) {
+        box.x = cand.x;
+        box.y = cand.y;
+        return true;
+      }
     }
   }
   return false;
@@ -169,33 +259,34 @@ export class BeeGame {
   private wing = 100;
   private nectar = 0;
   private jelly = 0;
+  private wax = 0;
   private isQueen = false;
   private invuln = 0;
   private hurtFlash = 0;
-  private sipCooldown = 0;
+  private actCooldown = 0;
+  private dizzy = 0;
 
-  private questIndex = 0;
+  private stage = 0;
   private status: Status = "playing";
   private message = "";
   private messageTimer = 0;
   private elapsed = 0;
-  private roomLabel = "";
-  private roomLabelTimer = 0;
-  private lastRoomId = "";
+  private zoneLabel = "";
+  private zoneTimer = 0;
+  private lastZone = "";
+
+  private pendingFact: Stage["fact"] | null = null;
+  private factTimer = 0;
 
   private particles: Particle[] = [];
   private drones: Drone[] = [];
   private weddingTime = 0;
-  private doorOpening = 0;
 
   private camX = 0;
   private camY = 0;
   private combCache = new Map<string, HTMLCanvasElement>();
 
-  constructor(
-    canvas: HTMLCanvasElement,
-    opts: { onState: (s: BeeState) => void; seed?: number }
-  ) {
+  constructor(canvas: HTMLCanvasElement, opts: { onState: (s: BeeState) => void; seed?: number }) {
     this.canvas = canvas;
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("canvas 2d context unavailable");
@@ -218,28 +309,31 @@ export class BeeGame {
     this.hp = 100;
     this.wing = 100;
     this.nectar = 0;
-    this.nectarTotal = 0;
     this.jelly = 0;
+    this.wax = 0;
     this.isQueen = false;
     this.invuln = 0;
     this.hurtFlash = 0;
-    this.questIndex = 0;
+    this.dizzy = 0;
+    this.stage = 0;
     this.status = "playing";
     this.elapsed = 0;
     this.particles = [];
     this.drones = [];
     this.weddingTime = 0;
-    this.doorOpening = 0;
-    this.roomLabelTimer = 0;
-    this.lastRoomId = "";
+    this.pendingFact = null;
+    this.factTimer = 0;
+    this.zoneTimer = 0;
+    this.lastZone = "";
     this.audio.stopFlight();
-    this.say("나는 갓 태어난 공주벌. 여왕이 되려면 할 일이 있다!", 4.5);
+    this.say("나는 방금 방에서 나온 일벌. 첫 일은 청소다.", 4);
     this.updateCamera(true);
     this.emit();
     this.draw();
   }
 
   setInput(name: InputName, down: boolean) {
+    if (down && this.pendingFact) this.dismissFact();
     this.input[name] = down;
   }
 
@@ -249,6 +343,12 @@ export class BeeGame {
 
   setMuted(muted: boolean) {
     this.audio.setMuted(muted);
+  }
+
+  dismissFact() {
+    this.pendingFact = null;
+    this.factTimer = 0;
+    this.emit();
   }
 
   resize(width: number, height: number) {
@@ -298,66 +398,81 @@ export class BeeGame {
     this.messageTimer = seconds;
   }
 
-  private progressOf(index: number) {
+  private get cx() {
+    return this.box.x + this.box.w / 2;
+  }
+  private get cy() {
+    return this.box.y + this.box.h / 2;
+  }
+
+  private progress() {
     const h = this.hive;
-    switch (index) {
+    switch (this.stage) {
       case 0:
-        return this.nectarTotal;
+        return h.brood.filter((c) => !c.dirty).length;
       case 1:
-        return h.cells.filter((c) => c.filled).length;
+        return h.brood.filter((c) => c.fed).length + h.queenCell.jelly;
       case 2:
-        return h.larvae.filter((l) => l.fed).length;
+        return h.honey.filter((c) => c.built).length;
       case 3:
         return h.hornets.filter((x) => !x.alive).length;
       case 4:
-        return this.isQueen ? 1 : 0;
+        return h.honey.filter((c) => c.filled).length;
       default:
         return this.status === "playing" ? 0 : 1;
     }
   }
 
-  private nectarTotal = 0;
-
   private emit() {
-    const q = QUESTS[Math.min(this.questIndex, QUESTS.length - 1)];
+    const st = STAGES[Math.min(this.stage, STAGES.length - 1)];
     this.onState({
       hp: Math.max(0, Math.round(this.hp)),
       wing: Math.round(this.wing),
       nectar: this.nectar,
       jelly: this.jelly,
+      wax: Math.round(this.wax),
       crew: this.hive.workers.filter((w) => w.recruited).length,
-      questIndex: this.questIndex,
-      progress: Math.min(this.progressOf(this.questIndex), q.target),
-      target: q.target,
+      stage: this.stage,
+      progress: Math.min(this.progress(), st.target),
+      target: st.target,
       isQueen: this.isQueen,
       status: this.status,
       message: this.messageTimer > 0 ? this.message : "",
-      room: this.roomLabelTimer > 0 ? this.roomLabel : "",
+      zone: this.zoneTimer > 0 ? this.zoneLabel : "",
       elapsed: this.elapsed,
+      fact: this.pendingFact,
+      dizzy: this.dizzy > 0,
     });
   }
 
-  // ------------------------------------------------------------- 업데이트
+  // -------------------------------------------------------------- 업데이트
 
   private update(dt: number) {
+    if (this.pendingFact) {
+      this.factTimer -= dt;
+      if (this.factTimer <= 0) this.dismissFact();
+      this.updateParticles(dt);
+      return;
+    }
+
     this.elapsed += dt;
     if (this.messageTimer > 0) this.messageTimer -= dt;
-    if (this.roomLabelTimer > 0) this.roomLabelTimer -= dt;
+    if (this.zoneTimer > 0) this.zoneTimer -= dt;
     if (this.invuln > 0) this.invuln -= dt;
     if (this.hurtFlash > 0) this.hurtFlash -= dt;
-    if (this.sipCooldown > 0) this.sipCooldown -= dt;
+    if (this.actCooldown > 0) this.actCooldown -= dt;
+    if (this.dizzy > 0) this.dizzy -= dt;
 
     this.updateBee(dt);
     this.updateWorkers(dt);
     this.updateHornets(dt);
-    this.updateInteractions(dt);
     this.updateFlowers(dt);
-    this.updateQuest();
+    this.updateActions();
+    this.updateStage();
     this.updateParticles(dt);
-    this.updateDoor(dt);
     if (this.status !== "playing") this.updateWedding(dt);
     this.updateCamera(false);
-    this.updateRoomLabel();
+    this.updateZoneLabel();
 
     this.stateTick += dt;
     if (this.stateTick > 0.1) {
@@ -369,101 +484,87 @@ export class BeeGame {
   private updateBee(dt: number) {
     const inp = this.input;
     const tired = this.wing <= 1;
-    const boosting = inp.boost && !tired && this.wing > 5;
+    const boosting = inp.boost && this.wing > 5;
     const thrusting = inp.left || inp.right || inp.up || inp.down;
+    const flip = this.dizzy > 0 ? -1 : 1; // 농약에 취하면 방향 감각이 뒤집힌다
 
-    let accel = ACCEL * (tired ? 0.4 : 1) * (boosting ? 1.75 : 1);
-    if (this.isQueen) accel *= 1.12; // 여왕은 더 크고 힘차다
+    let accel = ACCEL * (tired ? 0.4 : 1) * (boosting ? 1.7 : 1);
+    if (this.isQueen) accel *= 1.1;
 
-    if (inp.left) this.vx -= accel;
-    if (inp.right) this.vx += accel;
-    if (inp.up) this.vy -= accel;
-    if (inp.down) this.vy += accel;
+    if (inp.left) this.vx -= accel * flip;
+    if (inp.right) this.vx += accel * flip;
+    if (inp.up) this.vy -= accel * flip;
+    if (inp.down) this.vy += accel * flip;
 
-    if (inp.left && !inp.right) this.facing = -1;
-    if (inp.right && !inp.left) this.facing = 1;
+    if (this.vx < -0.15) this.facing = -1;
+    if (this.vx > 0.15) this.facing = 1;
 
     this.vy += GRAVITY * (tired ? 2.6 : 1);
     this.vx *= DRAG;
     this.vy *= DRAG;
 
     const speed = Math.hypot(this.vx, this.vy);
-    const max = MAX_SPEED * (boosting ? 1.35 : 1);
+    const max = MAX_SPEED * (boosting ? 1.3 : 1);
     if (speed > max) {
       this.vx = (this.vx / speed) * max;
       this.vy = (this.vy / speed) * max;
     }
 
-    if (thrusting) this.wing = Math.max(0, this.wing - (boosting ? 26 : 11) * dt);
-    else this.wing = Math.min(100, this.wing + 24 * dt);
+    if (thrusting) this.wing = Math.max(0, this.wing - (boosting ? 24 : 10) * dt);
+    else this.wing = Math.min(100, this.wing + 26 * dt);
+
+    // 건축벌은 날개 힘을 밀랍으로 바꾼다
+    if (this.stage === 2 && !thrusting) this.wax = Math.min(6, this.wax + 1.1 * dt);
 
     this.wingPhase += dt * (26 + speed * 8);
 
-    // 벽에 부딪히면 살짝 튕긴다
-    const nx = { ...this.box, x: this.box.x + this.vx };
-    if (collides(this.hive, nx)) {
-      const dir = Math.sign(this.vx) || 1;
-      while (!collides(this.hive, { ...this.box, x: this.box.x + dir })) this.box.x += dir;
-      this.vx *= -0.28;
-    } else {
-      this.box.x = nx.x;
+    if (unstick(this.hive, this.box)) {
+      this.vx = 0;
+      this.vy = 0;
     }
-    const ny = { ...this.box, y: this.box.y + this.vy };
-    if (collides(this.hive, ny)) {
-      const dir = Math.sign(this.vy) || 1;
-      while (!collides(this.hive, { ...this.box, y: this.box.y + dir })) this.box.y += dir;
-      this.vy *= -0.28;
-    } else {
-      this.box.y = ny.y;
-    }
+    const hit = moveBox(this.hive, this.box, this.vx, this.vy);
+    if (hit.x) this.vx *= -0.3;
+    if (hit.y) this.vy *= -0.3;
 
     this.box.x = Math.max(TILE, Math.min(WORLD_W * TILE - TILE - this.box.w, this.box.x));
-    this.box.y = Math.max(-620, Math.min(WORLD_H * TILE - TILE, this.box.y));
+    this.box.y = Math.max(-640, Math.min(WORLD_H * TILE - TILE, this.box.y));
 
     this.audio.setWing(Math.min(1, speed / MAX_SPEED));
 
-    // 꽃가루 자국
-    if (speed > 1.6 && Math.random() < 0.16) {
+    if (speed > 1.6 && Math.random() < 0.14) {
       this.particles.push({
         x: this.cx,
         y: this.cy,
-        vx: -this.vx * 0.16,
-        vy: -this.vy * 0.16 - 0.15,
-        life: 0.42,
-        maxLife: 0.42,
-        color: "rgba(255,224,130,0.8)",
+        vx: -this.vx * 0.15,
+        vy: -this.vy * 0.15 - 0.12,
+        life: 0.4,
+        maxLife: 0.4,
+        color: this.dizzy > 0 ? "rgba(180,255,180,0.8)" : "rgba(255,224,130,0.8)",
         size: 1.6,
         kind: "dot",
       });
     }
   }
 
-  private get cx() {
-    return this.box.x + this.box.w / 2;
-  }
-  private get cy() {
-    return this.box.y + this.box.h / 2;
-  }
-
   private updateWorkers(dt: number) {
     const crew = this.hive.workers.filter((w) => w.recruited);
     crew.forEach((w, i) => {
       w.phase += dt * 6;
-      const behind = (i + 1) * 22;
+      const behind = (i + 1) * 20;
       const tx = this.cx - this.facing * behind + Math.cos(w.phase) * 5;
-      const ty = this.cy - 14 + Math.sin(w.phase * 1.3) * 7;
-      w.vx += (tx - w.x) * 0.055;
-      w.vy += (ty - w.y) * 0.055;
-      w.vx *= 0.86;
-      w.vy *= 0.86;
+      const ty = this.cy - 12 + Math.sin(w.phase * 1.3) * 6;
+      w.vx += (tx - w.x) * 0.06;
+      w.vy += (ty - w.y) * 0.06;
+      w.vx *= 0.85;
+      w.vy *= 0.85;
       w.x += w.vx;
       w.y += w.vy;
     });
     for (const w of this.hive.workers) {
       if (w.recruited) continue;
-      w.phase += dt * 2.4;
-      w.x = w.homeX + Math.cos(w.phase) * 22;
-      w.y = w.homeY + Math.sin(w.phase * 1.7) * 12;
+      w.phase += dt * 2.2;
+      w.x = w.homeX + Math.cos(w.phase) * 18;
+      w.y = w.homeY + Math.sin(w.phase * 1.7) * 9;
     }
   }
 
@@ -474,150 +575,191 @@ export class BeeGame {
       const dx = this.cx - hn.x;
       const dy = this.cy - hn.y;
       const dist = Math.hypot(dx, dy);
-      const chase = dist < 190 && this.status === "playing";
+      const chase = dist < 170 && this.stage >= 3 && this.status === "playing";
       if (chase) {
-        hn.vx += (dx / (dist || 1)) * 0.09;
-        hn.vy += (dy / (dist || 1)) * 0.09;
+        hn.vx += (dx / (dist || 1)) * 0.085;
+        hn.vy += (dy / (dist || 1)) * 0.085;
       } else {
-        hn.vx += (hn.homeX - hn.x) * 0.004 + Math.cos(hn.wiggle * 0.4) * 0.03;
-        hn.vy += (hn.homeY - hn.y) * 0.004 + Math.sin(hn.wiggle * 0.5) * 0.03;
+        hn.vx += (hn.homeX - hn.x) * 0.005 + Math.cos(hn.wiggle * 0.4) * 0.03;
+        hn.vy += (hn.homeY - hn.y) * 0.005 + Math.sin(hn.wiggle * 0.5) * 0.03;
       }
       hn.vx *= 0.94;
       hn.vy *= 0.94;
       const sp = Math.hypot(hn.vx, hn.vy);
-      const cap = chase ? 2.3 : 1.1;
+      const cap = chase ? 2.1 : 1;
       if (sp > cap) {
         hn.vx = (hn.vx / sp) * cap;
         hn.vy = (hn.vy / sp) * cap;
       }
-      const box: Box = { x: hn.x - 8, y: hn.y - 6, w: 16, h: 12 };
-      const nx = { ...box, x: box.x + hn.vx };
-      if (collides(this.hive, nx)) hn.vx *= -0.6;
-      else hn.x += hn.vx;
-      const ny = { ...box, y: box.y + hn.vy };
-      if (collides(this.hive, ny)) hn.vy *= -0.6;
-      else hn.y += hn.vy;
+      const b: Box = { x: hn.x - 9, y: hn.y - 7, w: 18, h: 13 };
+      unstick(this.hive, b);
+      const hit = moveBox(this.hive, b, hn.vx, hn.vy);
+      if (hit.x) hn.vx *= -0.6;
+      if (hit.y) hn.vy *= -0.6;
+      hn.x = b.x + 9;
+      hn.y = b.y + 7;
     }
   }
 
   private updateFlowers(dt: number) {
     for (const f of this.hive.flowers) {
       f.sway += dt;
-      // 꿀은 시간이 지나면 다시 고인다 (막히지 않도록)
-      if (f.used && Math.random() < dt * 0.05) f.used = false;
+      if (f.used) {
+        f.regrow -= dt;
+        if (f.regrow <= 0) f.used = false;
+      }
     }
   }
 
-  private updateInteractions(dt: number) {
+  private updateActions() {
     const h = this.hive;
     const px = this.cx;
     const py = this.cy;
+    if (this.actCooldown > 0) return;
 
-    // 꽃에서 꿀 모으기
-    if (this.sipCooldown <= 0) {
-      for (const f of h.flowers) {
-        if (f.used) continue;
-        if (!overlapsCircle(px, py, f.x, f.y - 10, 18)) continue;
-        f.used = true;
-        this.nectar++;
-        this.nectarTotal++;
-        this.sipCooldown = 0.25;
-        this.wing = Math.min(100, this.wing + 18);
-        this.audio.sfx("sip");
-        this.say(`꿀 한 모금! (가진 꿀 ${this.nectar})`, 1.4);
-        this.burst(f.x, f.y - 12, "#ffd76a", 10);
-        break;
-      }
-    }
-
-    // 빈 벌집칸에 꿀 넣기
-    if (this.nectar > 0) {
-      for (const c of h.cells) {
-        if (c.filled) continue;
-        if (!overlapsCircle(px, py, c.x, c.y, 17)) continue;
-        c.filled = true;
-        this.nectar--;
+    // 0. 청소벌 — 더러운 방 닦기
+    if (this.stage === 0) {
+      for (const c of h.brood) {
+        if (!c.dirty || !near(px, py, c.x, c.y, 27)) continue;
+        c.dirty = false;
+        this.actCooldown = 0.2;
         this.audio.sfx("deposit");
-        this.say("꿀을 벌집칸에 채웠다", 1.3);
-        this.burst(c.x, c.y, "#ffbe3d", 12);
-        break;
+        this.burst(c.x, c.y, "#cbb18a", 10);
+        this.say("방 하나를 닦았다", 1.1);
+        return;
       }
     }
 
-    // 로열젤리 뜨기
-    if (this.jelly < 3 && overlapsCircle(px, py, h.jelly.x, h.jelly.y, 26) && this.sipCooldown <= 0) {
-      this.jelly++;
-      this.sipCooldown = 0.4;
-      this.audio.sfx("sip");
-      this.say(`로열젤리를 떴다 (${this.jelly}/3)`, 1.3);
-      this.burst(h.jelly.x, h.jelly.y - 6, "#fff4d0", 10);
-    }
-
-    // 애벌레 먹이기
-    if (this.jelly > 0) {
-      for (const l of h.larvae) {
-        if (l.fed) continue;
-        if (!overlapsCircle(px, py, l.x, l.y, 18)) continue;
-        l.fed = true;
-        this.jelly--;
-        this.audio.sfx("feed");
-        this.say("애벌레가 배부르게 먹었다!", 1.4);
-        this.burst(l.x, l.y - 4, "#fff1c9", 12);
-        break;
+    // 1. 육아벌 — 젤리를 떠서 애벌레와 왕대에
+    if (this.stage === 1) {
+      if (this.jelly < 3 && near(px, py, h.jellyPool.x, h.jellyPool.y, 32)) {
+        this.jelly++;
+        this.actCooldown = 0.35;
+        this.audio.sfx("sip");
+        this.say(`로열젤리를 떴다 (${this.jelly}/3)`, 1.2);
+        this.burst(h.jellyPool.x, h.jellyPool.y - 6, "#fff4d0", 8);
+        return;
+      }
+      if (this.jelly > 0) {
+        for (const c of h.brood) {
+          if (c.dirty || !c.larva || c.fed || !near(px, py, c.x, c.y, 27)) continue;
+          c.fed = true;
+          this.jelly--;
+          this.actCooldown = 0.25;
+          this.audio.sfx("feed");
+          this.say("애벌레가 먹었다", 1.1);
+          this.burst(c.x, c.y - 4, "#fff1c9", 10);
+          return;
+        }
+        const q = h.queenCell;
+        if (q.jelly < 3 && near(px, py, q.x, q.y, 34)) {
+          q.jelly++;
+          this.jelly--;
+          this.actCooldown = 0.35;
+          this.audio.sfx("crown");
+          this.burst(q.x, q.y, "#ffe9a3", 16);
+          this.say(
+            q.jelly >= 3
+              ? "왕대의 애벌레는 로열젤리만 먹었다. 이 아이가 여왕이 된다."
+              : `왕대에 로열젤리 (${q.jelly}/3)`,
+            q.jelly >= 3 ? 3.5 : 1.4
+          );
+          if (q.jelly >= 3) q.capped = true;
+          return;
+        }
       }
     }
 
-    // 일벌 합류
-    for (const w of h.workers) {
-      if (w.recruited) continue;
-      if (!overlapsCircle(px, py, w.x, w.y, 20)) continue;
-      w.recruited = true;
-      this.audio.sfx("recruit");
-      this.say("일벌이 따라온다!", 1.3);
-      this.burst(w.x, w.y, "#ffe9a3", 8);
-    }
-
-    // 말벌
-    const crew = h.workers.filter((w) => w.recruited).length;
-    for (const hn of h.hornets) {
-      if (!hn.alive) continue;
-      if (!overlapsCircle(px, py, hn.x, hn.y, 18)) continue;
-      if (crew >= 2) {
-        hn.alive = false;
-        this.audio.sfx("defeat");
-        this.say("일벌들이 열구를 만들어 말벌을 쫓아냈다!", 2.4);
-        this.burst(hn.x, hn.y, "#ffd166", 26);
-        this.particles.push({
-          x: hn.x,
-          y: hn.y,
-          vx: 0,
-          vy: 0,
-          life: 0.6,
-          maxLife: 0.6,
-          color: "#ffb703",
-          size: 30,
-          kind: "ring",
-        });
-      } else if (this.invuln <= 0) {
-        this.hurt(15, hn.x, hn.y);
+    // 2. 건축벌 — 밀랍으로 방 짓기
+    if (this.stage === 2 && this.wax >= 1) {
+      for (const c of h.honey) {
+        if (c.built || !near(px, py, c.x, c.y, 27)) continue;
+        c.built = true;
+        this.wax -= 1;
+        this.actCooldown = 0.25;
+        this.audio.sfx("deposit");
+        this.burst(c.x, c.y, "#ffdf9a", 12);
+        this.say("육각방 하나를 지었다", 1.2);
+        return;
       }
     }
 
-    // 왕대
-    if (
-      !this.isQueen &&
-      this.questIndex === 4 &&
-      this.jelly > 0 &&
-      overlapsCircle(px, py, h.queenCell.x, h.queenCell.y, 30)
-    ) {
-      this.jelly--;
-      this.isQueen = true;
-      this.audio.sfx("crown");
-      this.say("로열젤리를 먹었다 — 나는 이제 여왕벌이다!", 4);
-      this.burst(h.queenCell.x, h.queenCell.y, "#ffe9a3", 40);
+    // 3. 경비벌 — 동료 모으고 말벌 밀어내기
+    if (this.stage === 3) {
+      for (const w of h.workers) {
+        if (w.recruited || !near(px, py, w.x, w.y, 28)) continue;
+        w.recruited = true;
+        this.audio.sfx("recruit");
+        this.say("동료가 따라온다!", 1.2);
+        this.burst(w.x, w.y, "#ffe9a3", 8);
+        return;
+      }
     }
 
-    void dt;
+    // 4. 채집벌 — 마누카 꿀을 떠서 지어 둔 방에 채우기
+    if (this.stage === 4) {
+      if (this.nectar < 3) {
+        for (const f of h.flowers) {
+          if (f.used || !near(px, py, f.x, f.y - 10, 26)) continue;
+          f.used = true;
+          f.regrow = 14;
+          this.actCooldown = 0.25;
+          if (f.sprayed) {
+            this.dizzy = 4.5;
+            this.audio.sfx("hit");
+            this.say("농약이 묻은 꽃이다! 방향 감각이 흐려진다...", 3);
+            this.burst(f.x, f.y - 12, "#b6ff9e", 14);
+          } else {
+            this.nectar++;
+            this.wing = Math.min(100, this.wing + 14);
+            this.audio.sfx("sip");
+            this.say(`마누카 꿀 (${this.nectar}/3)`, 1.2);
+            this.burst(f.x, f.y - 12, "#ffd76a", 10);
+          }
+          return;
+        }
+      }
+      if (this.nectar > 0) {
+        for (const c of h.honey) {
+          if (!c.built || c.filled || !near(px, py, c.x, c.y, 27)) continue;
+          c.filled = true;
+          this.nectar--;
+          this.actCooldown = 0.25;
+          this.audio.sfx("deposit");
+          this.burst(c.x, c.y, "#ffbe3d", 12);
+          this.say("저장권에 꿀을 채웠다", 1.2);
+          return;
+        }
+      }
+    }
+
+    // 말벌 접촉 (경비 단계 이후 항상)
+    if (this.stage >= 3) {
+      const crew = h.workers.filter((w) => w.recruited).length;
+      for (const hn of h.hornets) {
+        if (!hn.alive || !near(px, py, hn.x, hn.y, 26)) continue;
+        if (crew >= 2) {
+          hn.alive = false;
+          this.audio.sfx("defeat");
+          this.say("동료들이 열구를 만들어 말벌을 밀어냈다!", 2.6);
+          this.burst(hn.x, hn.y, "#ffd166", 26);
+          this.particles.push({
+            x: hn.x,
+            y: hn.y,
+            vx: 0,
+            vy: 0,
+            life: 0.6,
+            maxLife: 0.6,
+            color: "#ffb703",
+            size: 30,
+            kind: "ring",
+          });
+        } else if (this.invuln <= 0) {
+          this.hurt(14, hn.x, hn.y);
+        }
+        return;
+      }
+    }
   }
 
   private hurt(amount: number, fromX: number, fromY: number) {
@@ -632,66 +774,81 @@ export class BeeGame {
     this.audio.sfx("hit");
     this.burst(this.cx, this.cy, "#ff8a7a", 12);
     if (this.hp <= 0) {
-      // 기절했다가 현관홀에서 깨어난다 (진행한 퀘스트는 그대로)
-      const hall = this.hive.rooms.find((r) => r.id === "hall")!;
-      this.box.x = (hall.x + hall.w / 2) * TILE;
-      this.box.y = (hall.y + 3) * TILE;
+      const z = this.hive.zones.find((r) => r.id === "brood")!;
+      this.box.x = (z.x + 3) * TILE;
+      this.box.y = (z.y + 4) * TILE;
       this.vx = 0;
       this.vy = 0;
       this.hp = 60;
       this.wing = 60;
       this.invuln = 2;
       this.hive.workers.forEach((w) => (w.recruited = false));
-      this.say("기절했다가 현관홀에서 깨어났다...", 3);
+      this.say("쫓겨났다가 육아권에서 정신을 차렸다...", 3);
     }
     this.emit();
   }
 
-  private updateQuest() {
-    const q = QUESTS[this.questIndex];
-    if (!q) return;
+  private updateStage() {
+    const st = STAGES[this.stage];
+    if (!st) return;
 
-    if (this.questIndex === 5) {
-      // 혼인비행: 하늘 높이 오르면 시작
-      if (this.status === "playing" && this.cy < 4 * TILE) this.beginWedding();
+    if (this.stage === 5) {
+      if (this.status === "playing" && this.cy < 2 * TILE) this.beginWedding();
       return;
     }
 
-    if (this.progressOf(this.questIndex) >= q.target) {
-      this.questIndex++;
-      this.audio.sfx("quest");
-      const next = QUESTS[this.questIndex];
-      this.say(`「${q.title}」 완료! 다음: ${next.title} — ${next.where}`, 4);
-      if (this.questIndex === 4) this.openDoor();
-      this.emit();
-    }
+    if (this.progress() < st.target) return;
+
+    this.pendingFact = st.fact;
+    this.factTimer = 7;
+    this.stage++;
+    this.audio.sfx("quest");
+    this.onStageStart();
+    this.emit();
   }
 
-  private openDoor() {
-    if (this.doorOpening > 0 || this.hive.doorTiles.length === 0) return;
-    this.doorOpening = 1.2;
-    this.audio.sfx("door");
-    this.say("밀랍 문이 열렸다. 왕대방으로 내려가자!", 4);
-  }
-
-  private updateDoor(dt: number) {
-    if (this.doorOpening <= 0) return;
-    this.doorOpening -= dt;
-    const tiles = this.hive.doorTiles;
-    const remove = Math.max(1, Math.ceil(tiles.length * dt * 1.4));
-    for (let i = 0; i < remove && tiles.length; i++) {
-      const t = tiles.splice(Math.floor(Math.random() * tiles.length), 1)[0];
-      setTile(this.hive, t[0], t[1], AIR);
-      this.burst(t[0] * TILE + 8, t[1] * TILE + 8, "#f6c453", 6);
+  /** 새 스테이지가 열릴 때의 연출과 준비 */
+  private onStageStart() {
+    const h = this.hive;
+    switch (this.stage) {
+      case 1:
+        // 닦아 둔 방에 여왕이 알을 낳았다 → 애벌레
+        h.brood.forEach((c) => {
+          if (!c.dirty) c.larva = true;
+        });
+        this.say("여왕이 닦아 둔 방마다 알을 낳았다. 이제 육아벌이다.", 4);
+        break;
+      case 2:
+        this.say("밀랍샘이 자랐다. 가만히 있으면 밀랍이 모인다.", 4);
+        break;
+      case 3:
+        this.say("입구를 지킬 차례. 동료 둘 이상을 데리고 부딪치자.", 4);
+        break;
+      case 4:
+        this.say("드디어 바깥이다. 왼쪽 입구로 나가 마누카 꽃을 찾자.", 4.5);
+        break;
+      case 5: {
+        // 시점 전환 — 내가 로열젤리를 먹인 그 애벌레가 여왕이 되어 나온다
+        this.isQueen = true;
+        this.box.x = h.queenCell.x - this.box.w / 2;
+        this.box.y = h.queenCell.y - 24;
+        this.vx = 0;
+        this.vy = 0;
+        this.hp = 100;
+        this.wing = 100;
+        this.audio.sfx("crown");
+        this.burst(h.queenCell.x, h.queenCell.y, "#ffe9a3", 40);
+        this.say("네가 로열젤리를 먹인 그 애벌레가 여왕이 되어 나왔다. 이제 그 여왕이 너다.", 6);
+        break;
+      }
     }
-    if (tiles.length === 0) this.doorOpening = 0;
   }
 
   private beginWedding() {
     this.status = "wedding";
     this.weddingTime = 0;
     this.audio.startFlight();
-    this.say("수벌들이 몰려온다 — 구애의 춤이 시작된다!", 5);
+    this.say("수벌들이 몰려온다 — 혼인비행이다!", 5);
     this.drones = [];
     for (let i = 0; i < 9; i++) {
       this.drones.push({
@@ -711,10 +868,8 @@ export class BeeGame {
     const t = this.weddingTime;
     for (const d of this.drones) {
       const spin = t * 1.15 + d.angle;
-      // 구애춤: 여왕 둘레를 8자로 돈다
       const px = this.cx + Math.cos(spin) * d.radius;
-      const py =
-        this.cy + Math.sin(spin * 2 + d.phase) * d.radius * 0.42 + Math.sin(t * 2 + d.phase) * 6;
+      const py = this.cy + Math.sin(spin * 2 + d.phase) * d.radius * 0.42 + Math.sin(t * 2) * 6;
       d.dir = px > d.x ? 1 : -1;
       d.x += (px - d.x) * 0.16;
       d.y += (py - d.y) * 0.16;
@@ -737,6 +892,8 @@ export class BeeGame {
     }
     if (this.status === "wedding" && t > 11) {
       this.status = "ending";
+      this.pendingFact = STAGES[5].fact;
+      this.factTimer = 9;
       this.emit();
     }
   }
@@ -773,23 +930,21 @@ export class BeeGame {
     }
   }
 
-  private updateRoomLabel() {
-    const r = roomOf(this.hive, this.cx, this.cy);
-    const id = r ? r.id : this.cy < GROUND_Y * TILE ? "sky" : "";
-    if (id && id !== this.lastRoomId) {
-      this.lastRoomId = id;
-      this.roomLabel = r ? r.name : "꽃밭";
-      this.roomLabelTimer = 2.2;
-    } else if (!id) {
-      this.lastRoomId = "";
-    }
+  private updateZoneLabel() {
+    const z = zoneOf(this.hive, this.cx, this.cy);
+    const id = z ? z.id : this.cy < GROUND_Y * TILE ? "meadow" : "";
+    if (id && id !== this.lastZone) {
+      this.lastZone = id;
+      this.zoneLabel = z ? z.name : "마누카 계곡";
+      this.zoneTimer = 2.2;
+    } else if (!id) this.lastZone = "";
   }
 
   private updateCamera(snap: boolean) {
     const tx = this.cx - this.vw / 2 + this.vx * 12;
     const ty = this.cy - this.vh / 2 + this.vy * 8;
     const cx = Math.max(0, Math.min(WORLD_W * TILE - this.vw, tx));
-    const cy = Math.max(-620, Math.min(WORLD_H * TILE - this.vh, ty));
+    const cy = Math.max(-640, Math.min(WORLD_H * TILE - this.vh, ty));
     if (snap) {
       this.camX = cx;
       this.camY = cy;
@@ -799,10 +954,9 @@ export class BeeGame {
     }
   }
 
-  /** 지금 퀘스트가 가리키는 목표 지점 (나침반용) */
-  private questTarget(): { x: number; y: number } | null {
+  private target(): { x: number; y: number } | null {
     const h = this.hive;
-    const near = <T extends { x: number; y: number }>(list: T[]) => {
+    const nearest = <T extends { x: number; y: number }>(list: T[]) => {
       let best: T | null = null;
       let bd = Infinity;
       for (const it of list) {
@@ -814,29 +968,31 @@ export class BeeGame {
       }
       return best;
     };
-    switch (this.questIndex) {
+    switch (this.stage) {
       case 0:
-        return near(h.flowers.filter((f) => !f.used));
+        return nearest(h.brood.filter((c) => c.dirty));
       case 1:
-        return this.nectar > 0
-          ? near(h.cells.filter((c) => !c.filled))
-          : near(h.flowers.filter((f) => !f.used));
+        if (this.jelly <= 0) return h.jellyPool;
+        return (
+          nearest(h.brood.filter((c) => c.larva && !c.fed)) ??
+          (h.queenCell.jelly < 3 ? h.queenCell : null)
+        );
       case 2:
-        return this.jelly > 0 ? near(h.larvae.filter((l) => !l.fed)) : h.jelly;
-      case 3: {
-        const crew = h.workers.filter((w) => w.recruited).length;
-        return crew >= 2
-          ? near(h.hornets.filter((x) => x.alive))
-          : near(h.workers.filter((w) => !w.recruited));
-      }
+        return nearest(h.honey.filter((c) => !c.built));
+      case 3:
+        return h.workers.filter((w) => w.recruited).length >= 2
+          ? nearest(h.hornets.filter((x) => x.alive))
+          : nearest(h.workers.filter((w) => !w.recruited));
       case 4:
-        return this.jelly > 0 ? h.queenCell : h.jelly;
+        return this.nectar > 0
+          ? nearest(h.honey.filter((c) => c.built && !c.filled))
+          : nearest(h.flowers.filter((f) => !f.used && !f.sprayed));
       default:
-        return { x: this.cx, y: -400 };
+        return { x: this.cx, y: -500 };
     }
   }
 
-  // ---------------------------------------------------------------- 렌더
+  // ------------------------------------------------------------------ 렌더
 
   private draw() {
     const ctx = this.ctx;
@@ -848,9 +1004,11 @@ export class BeeGame {
 
     ctx.save();
     ctx.translate(-camX, -camY);
-    this.drawFarScenery(camX, camY);
+    this.drawClouds(camX, camY);
+    this.drawHills(camX, camY);
+    this.drawInteriorBackdrop();
     this.drawTiles(camX, camY);
-    this.drawCombRooms(camX, camY);
+    this.drawCombZones(camX, camY);
     this.drawFlowers(camX, camY);
     this.drawProps(camX, camY);
     this.drawWorkers();
@@ -863,6 +1021,10 @@ export class BeeGame {
     this.drawVignette();
     this.drawCompass(camX, camY);
 
+    if (this.dizzy > 0) {
+      ctx.fillStyle = `rgba(150,255,150,${0.1 + Math.sin(this.elapsed * 8) * 0.05})`;
+      ctx.fillRect(0, 0, this.vw, this.vh);
+    }
     if (this.hurtFlash > 0) {
       ctx.fillStyle = `rgba(255,70,70,${this.hurtFlash * 0.45})`;
       ctx.fillRect(0, 0, this.vw, this.vh);
@@ -871,44 +1033,82 @@ export class BeeGame {
 
   private drawSky(camY: number) {
     const ctx = this.ctx;
-    const high = Math.max(0, Math.min(1, -camY / 620));
+    const high = Math.max(0, Math.min(1, -camY / 640));
     const g = ctx.createLinearGradient(0, 0, 0, this.vh);
-    const top = [92 - high * 60, 158 - high * 80, 226 - high * 60];
-    const bot = [186 - high * 90, 220 - high * 70, 240 - high * 40];
-    g.addColorStop(0, `rgb(${top.map((v) => Math.round(v)).join(",")})`);
-    g.addColorStop(1, `rgb(${bot.map((v) => Math.round(v)).join(",")})`);
+    g.addColorStop(
+      0,
+      `rgb(${Math.round(96 - high * 62)},${Math.round(164 - high * 84)},${Math.round(228 - high * 62)})`
+    );
+    g.addColorStop(
+      1,
+      `rgb(${Math.round(192 - high * 96)},${Math.round(224 - high * 74)},${Math.round(238 - high * 44)})`
+    );
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, this.vw, this.vh);
 
-    // 해
-    const sunY = 70 - camY * 0.06;
-    if (sunY > -60 && sunY < this.vh + 60) {
-      const sx = this.vw * 0.78;
-      const rg = ctx.createRadialGradient(sx, sunY, 4, sx, sunY, 70);
-      rg.addColorStop(0, "rgba(255,247,214,0.95)");
-      rg.addColorStop(1, "rgba(255,247,214,0)");
+    const sunY = 60 - camY * 0.05;
+    if (sunY > -70 && sunY < this.vh + 70) {
+      const sx = this.vw * 0.8;
+      const rg = ctx.createRadialGradient(sx, sunY, 4, sx, sunY, 74);
+      rg.addColorStop(0, "rgba(255,248,216,0.95)");
+      rg.addColorStop(1, "rgba(255,248,216,0)");
       ctx.fillStyle = rg;
       ctx.beginPath();
-      ctx.arc(sx, sunY, 70, 0, Math.PI * 2);
+      ctx.arc(sx, sunY, 74, 0, Math.PI * 2);
       ctx.fill();
     }
   }
 
-  private drawFarScenery(camX: number, camY: number) {
+  private drawClouds(camX: number, camY: number) {
     const ctx = this.ctx;
-    // 구름 (시차 이동)
-    for (let i = 0; i < 9; i++) {
+    for (let i = 0; i < 10; i++) {
       const n = hash2(i, 3);
-      const cx = ((i * 337 + this.elapsed * 6) % (WORLD_W * TILE + 400)) - 200 + camX * 0.35;
-      const cy = -260 + n * 500 + camY * 0.25;
-      ctx.fillStyle = `rgba(255,255,255,${0.5 + n * 0.3})`;
+      const cx = ((i * 311 + this.elapsed * 5) % (WORLD_W * TILE + 400)) - 200 + camX * 0.4;
+      const cy = -300 + n * 560 + camY * 0.3;
+      ctx.fillStyle = `rgba(255,255,255,${0.45 + n * 0.3})`;
       ctx.beginPath();
-      ctx.ellipse(cx, cy, 46 + n * 30, 15 + n * 9, 0, 0, Math.PI * 2);
+      ctx.ellipse(cx, cy, 44 + n * 30, 14 + n * 9, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.beginPath();
-      ctx.ellipse(cx + 28, cy + 5, 30 + n * 16, 11 + n * 6, 0, 0, Math.PI * 2);
+      ctx.ellipse(cx + 26, cy + 5, 28 + n * 15, 10 + n * 6, 0, 0, Math.PI * 2);
       ctx.fill();
     }
+  }
+
+  /** 뉴질랜드 계곡의 먼 능선 */
+  private drawHills(camX: number, camY: number) {
+    const ctx = this.ctx;
+    const baseY = GROUND_Y * TILE;
+    for (let layer = 0; layer < 2; layer++) {
+      const p = 0.55 + layer * 0.2;
+      const amp = 46 - layer * 16;
+      const off = camX * (1 - p);
+      ctx.fillStyle = layer === 0 ? "rgba(108,142,116,0.55)" : "rgba(84,118,96,0.7)";
+      ctx.beginPath();
+      ctx.moveTo(camX - 20, baseY + 10);
+      for (let x = camX - 20; x < camX + this.vw + 20; x += 12) {
+        const t = (x + off) * 0.006 + layer * 2.3;
+        ctx.lineTo(x, baseY - 40 - layer * 26 + Math.sin(t) * amp + Math.sin(t * 2.7) * amp * 0.35);
+      }
+      ctx.lineTo(camX + this.vw + 20, baseY + 10);
+      ctx.closePath();
+      ctx.fill();
+    }
+    void camY;
+  }
+
+  /** 벌통 속과 땅속의 빈칸 뒤편. 이걸 안 깔면 하늘이 비쳐 보인다. */
+  private drawInteriorBackdrop() {
+    const ctx = this.ctx;
+    ctx.fillStyle = "#2c1d0d";
+    ctx.fillRect(
+      (BOX.x + 1) * TILE,
+      (BOX.y + 1) * TILE,
+      (BOX.w - 2) * TILE,
+      (BOX.h - 2) * TILE
+    );
+    ctx.fillStyle = "#3a2a17";
+    ctx.fillRect(0, GROUND_Y * TILE, WORLD_W * TILE, (WORLD_H - GROUND_Y) * TILE);
   }
 
   private drawTiles(camX: number, camY: number) {
@@ -921,57 +1121,43 @@ export class BeeGame {
     for (let y = y0; y <= y1; y++) {
       for (let x = x0; x <= x1; x++) {
         const v = tileAt(this.hive, x, y);
-        if (v === AIR) {
-          if (y > GROUND_Y) {
-            // 굴 안쪽 배경 (방 밖 통로)
-            ctx.fillStyle = "#3b2a17";
-            ctx.fillRect(x * TILE, y * TILE, TILE, TILE);
-          }
-          continue;
-        }
+        if (v === 0) continue;
         const px = x * TILE;
         const py = y * TILE;
         const n = hash2(x, y);
         if (v === GRASS) {
-          ctx.fillStyle = `rgb(${(96 + n * 20) | 0},${(154 + n * 26) | 0},${(66 + n * 18) | 0})`;
+          ctx.fillStyle = `rgb(${(92 + n * 22) | 0},${(150 + n * 28) | 0},${(64 + n * 18) | 0})`;
           ctx.fillRect(px, py, TILE, TILE);
-          ctx.fillStyle = "rgba(160,214,110,0.6)";
+          ctx.fillStyle = "rgba(164,216,116,0.6)";
           ctx.fillRect(px, py, TILE, 4);
-        } else if (v === WAX || v === DOOR) {
+        } else if (v === WOOD) {
+          const b = n * 14;
+          ctx.fillStyle = `rgb(${(160 + b) | 0},${(112 + b) | 0},${(64 + b * 0.7) | 0})`;
+          ctx.fillRect(px, py, TILE, TILE);
+          ctx.strokeStyle = "rgba(96,62,30,0.35)";
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(px, py + 4 + n * 8);
+          ctx.lineTo(px + TILE, py + 3 + n * 9);
+          ctx.stroke();
+        } else if (v === WAX) {
           const b = n * 16;
-          ctx.fillStyle =
-            v === DOOR
-              ? `rgb(${(232 + b * 0.4) | 0},${(186 + b * 0.5) | 0},${(84 + b) | 0})`
-              : `rgb(${(206 + b) | 0},${(152 + b) | 0},${(66 + b * 0.8) | 0})`;
+          ctx.fillStyle = `rgb(${(214 + b * 0.4) | 0},${(166 + b) | 0},${(76 + b) | 0})`;
           ctx.fillRect(px, py, TILE, TILE);
-          if (tileAt(this.hive, x, y - 1) === AIR) {
-            ctx.fillStyle = "rgba(255,232,170,0.5)";
-            ctx.fillRect(px, py, TILE, 3);
-          }
-          if (n > 0.8) {
-            ctx.fillStyle = "rgba(140,94,32,0.35)";
-            ctx.fillRect(px + 3 + ((n * 7) | 0), py + 4 + ((n * 9) | 0) % 8, 4, 3);
-          }
         } else {
-          const b = n * 18;
-          ctx.fillStyle = `rgb(${(96 + b) | 0},${(70 + b * 0.8) | 0},${(48 + b * 0.6) | 0})`;
+          const b = n * 16;
+          ctx.fillStyle = `rgb(${(92 + b) | 0},${(68 + b * 0.8) | 0},${(46 + b * 0.6) | 0})`;
           ctx.fillRect(px, py, TILE, TILE);
-          if (n > 0.86) {
-            ctx.fillStyle = "rgba(58,40,26,0.5)";
-            ctx.fillRect(px + 4, py + 5, 3, 3);
-          }
         }
       }
     }
   }
 
-  /** 방 안쪽 벌집 무늬 배경 (방마다 한 번만 그려 캐시) */
-  private combCanvas(room: Room) {
-    const key = room.id;
-    const cached = this.combCache.get(key);
+  private combCanvas(zone: Zone) {
+    const cached = this.combCache.get(zone.id);
     if (cached) return cached;
-    const w = room.w * TILE;
-    const h = room.h * TILE;
+    const w = zone.w * TILE;
+    const h = zone.h * TILE;
     const cv = document.createElement("canvas");
     cv.width = w;
     cv.height = h;
@@ -996,32 +1182,31 @@ export class BeeGame {
         }
         c.closePath();
         const n = hash2(col, row);
-        c.fillStyle = `rgba(${(122 + n * 26) | 0},${(84 + n * 20) | 0},${(34 + n * 14) | 0},1)`;
+        c.fillStyle = `rgb(${(120 + n * 26) | 0},${(84 + n * 20) | 0},${(34 + n * 14) | 0})`;
         c.fill();
         c.strokeStyle = "rgba(226,176,84,0.4)";
         c.lineWidth = 1.4;
         c.stroke();
       }
     }
-    this.combCache.set(key, cv);
+    this.combCache.set(zone.id, cv);
     return cv;
   }
 
-  private drawCombRooms(camX: number, camY: number) {
+  private drawCombZones(camX: number, camY: number) {
     const ctx = this.ctx;
-    for (const room of this.hive.rooms) {
-      const rx = room.x * TILE;
-      const ry = room.y * TILE;
-      const rw = room.w * TILE;
-      const rh = room.h * TILE;
+    for (const z of this.hive.zones) {
+      const rx = z.x * TILE;
+      const ry = z.y * TILE;
+      const rw = z.w * TILE;
+      const rh = z.h * TILE;
       if (rx > camX + this.vw || rx + rw < camX || ry > camY + this.vh || ry + rh < camY) continue;
-      ctx.drawImage(this.combCanvas(room), rx, ry);
-      // 방 이름
+      ctx.drawImage(this.combCanvas(z), rx, ry);
       ctx.save();
-      ctx.font = "bold 20px system-ui, sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillStyle = "rgba(255,226,160,0.16)";
-      ctx.fillText(room.name, rx + rw / 2, ry + 26);
+      ctx.font = "bold 13px system-ui, sans-serif";
+      ctx.textAlign = "left";
+      ctx.fillStyle = "rgba(255,226,160,0.13)";
+      ctx.fillText(z.name, rx + 10, ry + 16);
       ctx.restore();
     }
   }
@@ -1030,53 +1215,70 @@ export class BeeGame {
     const ctx = this.ctx;
     for (const f of this.hive.flowers) {
       if (f.x < camX - 40 || f.x > camX + this.vw + 40) continue;
-      if (f.y < camY - 60 || f.y > camY + this.vh + 60) continue;
+      if (f.y < camY - 70 || f.y > camY + this.vh + 40) continue;
       const sway = Math.sin(f.sway) * 3;
-      const topY = f.y - 30;
-      ctx.strokeStyle = "#4f8a3c";
-      ctx.lineWidth = 2.5;
+      const topY = f.y - 32;
+      ctx.strokeStyle = f.sprayed ? "#6b7a52" : "#4f7a3c";
+      ctx.lineWidth = 2.4;
       ctx.beginPath();
       ctx.moveTo(f.x, f.y);
-      ctx.quadraticCurveTo(f.x + sway * 0.5, f.y - 16, f.x + sway, topY);
+      ctx.quadraticCurveTo(f.x + sway * 0.5, f.y - 17, f.x + sway, topY);
       ctx.stroke();
-      ctx.fillStyle = "#5aa04a";
-      ctx.beginPath();
-      ctx.ellipse(f.x + 6, f.y - 14, 6, 3, -0.5, 0, Math.PI * 2);
-      ctx.fill();
-
-      const petals = 6;
-      const open = f.used ? 0.6 : 1;
-      for (let i = 0; i < petals; i++) {
-        const a = (i / petals) * Math.PI * 2 + f.sway * 0.2;
-        ctx.fillStyle = f.used
-          ? `hsl(${f.hue} 22% 62%)`
-          : `hsl(${f.hue} 78% ${62 + Math.sin(i) * 6}%)`;
+      // 마누카는 잔가지에 작은 흰 꽃이 여러 송이 달린다
+      const heads = [
+        [0, 0],
+        [-8, 6],
+        [8, 5],
+      ];
+      for (const [ox, oy] of heads) {
+        const hx = f.x + sway + ox;
+        const hy = topY + oy;
+        const open = f.used ? 0.55 : 1;
+        for (let i = 0; i < 5; i++) {
+          const a = (i / 5) * Math.PI * 2 + f.sway * 0.2;
+          ctx.fillStyle = f.sprayed
+            ? "#cfe0c0"
+            : f.used
+              ? "#d8d2c4"
+              : i % 2
+                ? "#ffffff"
+                : "#ffeef2";
+          ctx.beginPath();
+          ctx.ellipse(
+            hx + Math.cos(a) * 4.4 * open,
+            hy + Math.sin(a) * 4.4 * open,
+            3.6 * open,
+            3 * open,
+            a,
+            0,
+            Math.PI * 2
+          );
+          ctx.fill();
+        }
+        ctx.fillStyle = f.sprayed ? "#8fa06a" : f.used ? "#b9ac8a" : "#5a3b2a";
         ctx.beginPath();
-        ctx.ellipse(
-          f.x + sway + Math.cos(a) * 7 * open,
-          topY + Math.sin(a) * 7 * open,
-          6 * open,
-          4.4 * open,
-          a,
-          0,
-          Math.PI * 2
-        );
+        ctx.arc(hx, hy, 2.1, 0, Math.PI * 2);
         ctx.fill();
       }
-      ctx.fillStyle = f.used ? "#b9ac8a" : "#ffd85e";
-      ctx.beginPath();
-      ctx.arc(f.x + sway, topY, 4.4, 0, Math.PI * 2);
-      ctx.fill();
-      if (!f.used) {
-        ctx.fillStyle = "rgba(255,236,160,0.25)";
+      if (f.sprayed) {
+        ctx.fillStyle = `rgba(150,235,140,${0.16 + Math.sin(this.elapsed * 3 + f.sway) * 0.06})`;
         ctx.beginPath();
-        ctx.arc(f.x + sway, topY, 11 + Math.sin(this.elapsed * 3 + f.sway) * 1.6, 0, Math.PI * 2);
+        ctx.arc(f.x + sway, topY + 3, 17, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "rgba(190,255,180,0.85)";
+        ctx.font = "9px system-ui, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("농약", f.x + sway, topY - 14);
+      } else if (!f.used) {
+        ctx.fillStyle = "rgba(255,240,190,0.2)";
+        ctx.beginPath();
+        ctx.arc(f.x + sway, topY + 3, 14 + Math.sin(this.elapsed * 3 + f.sway) * 1.6, 0, Math.PI * 2);
         ctx.fill();
       }
     }
   }
 
-  private drawHexCell(x: number, y: number, r: number, fill: string, stroke: string) {
+  private hex(x: number, y: number, r: number, fill: string, stroke: string) {
     const ctx = this.ctx;
     ctx.beginPath();
     for (let i = 0; i < 6; i++) {
@@ -1099,114 +1301,118 @@ export class BeeGame {
     const vis = (x: number, y: number) =>
       x > camX - 60 && x < camX + this.vw + 60 && y > camY - 60 && y < camY + this.vh + 60;
 
-    // 저장방 벌집칸
-    for (const c of this.hive.cells) {
+    // 육아권 방
+    for (const c of this.hive.brood) {
       if (!vis(c.x, c.y)) continue;
-      if (c.filled) {
-        this.drawHexCell(c.x, c.y, 15, "#f0a92a", "#ffdf9a");
+      if (c.dirty) {
+        this.hex(c.x, c.y, 15, "rgba(64,48,28,0.9)", "rgba(150,120,70,0.7)");
+        ctx.fillStyle = "rgba(120,100,70,0.9)";
+        for (let i = 0; i < 4; i++) {
+          const n = hash2(c.x + i, c.y);
+          ctx.fillRect(c.x - 7 + n * 14, c.y - 6 + ((n * 13) % 12), 2.6, 2.2);
+        }
+      } else if (c.larva) {
+        this.hex(c.x, c.y, 15, "rgba(58,38,14,0.85)", "rgba(226,176,84,0.8)");
+        const wig = Math.sin(this.elapsed * 3 + c.wiggle) * 1.6;
+        ctx.fillStyle = c.fed ? "#fff6dd" : "#f0dfb6";
+        ctx.beginPath();
+        ctx.ellipse(c.x, c.y + 2, 7.5, 5.5, wig * 0.06, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "rgba(196,164,110,0.75)";
+        ctx.lineWidth = 1;
+        for (let i = -1; i <= 1; i++) {
+          ctx.beginPath();
+          ctx.moveTo(c.x + i * 3.2, c.y - 2.4);
+          ctx.lineTo(c.x + i * 3.2, c.y + 6);
+          ctx.stroke();
+        }
+        if (c.fed) {
+          ctx.fillStyle = "rgba(255,236,168,0.9)";
+          ctx.font = "9px system-ui, sans-serif";
+          ctx.textAlign = "center";
+          ctx.fillText("♪", c.x, c.y - 12);
+        }
+      } else {
+        this.hex(c.x, c.y, 15, "rgba(96,66,28,0.75)", "rgba(226,176,84,0.6)");
+      }
+    }
+
+    // 로열젤리 웅덩이
+    const j = this.hive.jellyPool;
+    if (vis(j.x, j.y) && this.stage <= 1) {
+      ctx.fillStyle = "rgba(255,245,214,0.22)";
+      ctx.beginPath();
+      ctx.ellipse(j.x, j.y, 24 + Math.sin(this.elapsed * 2) * 2, 11, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#fdf3d3";
+      ctx.beginPath();
+      ctx.ellipse(j.x, j.y, 17, 8, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "rgba(255,255,255,0.85)";
+      ctx.beginPath();
+      ctx.ellipse(j.x - 5, j.y - 2, 4.4, 2, -0.4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.font = "bold 10px system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillStyle = "rgba(255,247,220,0.8)";
+      ctx.fillText("로열젤리", j.x, j.y - 15);
+    }
+
+    // 왕대 (소비 아래 가장자리에 매달린 땅콩 모양)
+    const q = this.hive.queenCell;
+    if (vis(q.x, q.y)) {
+      ctx.save();
+      ctx.translate(q.x, q.y);
+      const glow = ctx.createRadialGradient(0, 8, 3, 0, 8, 46);
+      glow.addColorStop(0, `rgba(255,226,150,${q.capped ? 0.42 : 0.18})`);
+      glow.addColorStop(1, "rgba(255,226,150,0)");
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(0, 8, 46, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = q.capped ? "#e0ae46" : "#c9963c";
+      ctx.beginPath();
+      ctx.ellipse(0, 4, 12, 11, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(0, 18, 10, 12, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(0, 31, 7, 8, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(120,78,20,0.5)";
+      ctx.lineWidth = 1.5;
+      for (let i = 0; i < 4; i++) {
+        ctx.beginPath();
+        ctx.arc(0, 2 + i * 9, 9, 0.15 * Math.PI, 0.85 * Math.PI);
+        ctx.stroke();
+      }
+      ctx.fillStyle = "rgba(255,244,206,0.9)";
+      ctx.font = "bold 10px system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(q.capped ? "왕대 (봉인)" : `왕대 ${q.jelly}/3`, 0, -14);
+      ctx.restore();
+    }
+
+    // 저장권 방
+    for (const c of this.hive.honey) {
+      if (!vis(c.x, c.y)) continue;
+      if (!c.built) {
+        ctx.setLineDash([4, 4]);
+        this.hex(c.x, c.y, 15, "rgba(40,26,10,0.5)", "rgba(240,196,110,0.5)");
+        ctx.setLineDash([]);
+      } else if (c.filled) {
+        this.hex(c.x, c.y, 15, "#f0a92a", "#ffdf9a");
         ctx.fillStyle = "rgba(255,240,190,0.55)";
         ctx.beginPath();
         ctx.ellipse(c.x - 3, c.y - 4, 4.5, 2.6, -0.5, 0, Math.PI * 2);
         ctx.fill();
       } else {
-        this.drawHexCell(c.x, c.y, 15, "rgba(48,30,12,0.75)", "rgba(240,196,110,0.75)");
-        const pulse = 0.4 + Math.sin(this.elapsed * 3 + c.x) * 0.15;
-        ctx.strokeStyle = `rgba(255,226,150,${this.nectar > 0 ? pulse : 0.15})`;
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.arc(c.x, c.y, 19, 0, Math.PI * 2);
-        ctx.stroke();
+        this.hex(c.x, c.y, 15, "rgba(48,30,12,0.75)", "rgba(240,196,110,0.8)");
       }
-    }
-
-    // 로열젤리 웅덩이
-    const j = this.hive.jelly;
-    if (vis(j.x, j.y)) {
-      ctx.fillStyle = "rgba(255,245,214,0.22)";
-      ctx.beginPath();
-      ctx.ellipse(j.x, j.y, 26 + Math.sin(this.elapsed * 2) * 2, 12, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = "#fdf3d3";
-      ctx.beginPath();
-      ctx.ellipse(j.x, j.y, 19, 8.5, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = "rgba(255,255,255,0.85)";
-      ctx.beginPath();
-      ctx.ellipse(j.x - 6, j.y - 2, 5, 2.2, -0.4, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.font = "bold 10px system-ui, sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillStyle = "rgba(255,247,220,0.75)";
-      ctx.fillText("로열젤리", j.x, j.y - 16);
-    }
-
-    // 애벌레
-    for (const l of this.hive.larvae) {
-      if (!vis(l.x, l.y)) continue;
-      this.drawHexCell(l.x, l.y, 16, "rgba(60,38,14,0.85)", "rgba(226,176,84,0.8)");
-      const wig = Math.sin(this.elapsed * 3 + l.wiggle) * 1.6;
-      ctx.fillStyle = l.fed ? "#fff6dd" : "#f3e3bd";
-      ctx.beginPath();
-      ctx.ellipse(l.x, l.y + 2 + wig * 0.3, 8, 6, wig * 0.06, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = "rgba(196,164,110,0.8)";
-      ctx.lineWidth = 1;
-      for (let i = -1; i <= 1; i++) {
-        ctx.beginPath();
-        ctx.moveTo(l.x + i * 3.4, l.y - 3);
-        ctx.lineTo(l.x + i * 3.4, l.y + 6);
-        ctx.stroke();
-      }
-      ctx.fillStyle = "#5b4327";
-      ctx.fillRect(l.x + 3, l.y + wig * 0.2, 1.4, 1.4);
-      if (l.fed) {
-        ctx.fillStyle = "rgba(255,236,168,0.9)";
-        ctx.font = "9px system-ui, sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillText("♪", l.x, l.y - 12);
-      }
-    }
-
-    // 왕대
-    const q = this.hive.queenCell;
-    if (vis(q.x, q.y)) {
-      const ready = this.questIndex >= 4;
-      ctx.save();
-      ctx.translate(q.x, q.y);
-      const glow = ctx.createRadialGradient(0, 0, 4, 0, 0, 54);
-      glow.addColorStop(0, `rgba(255,226,150,${ready ? 0.4 : 0.16})`);
-      glow.addColorStop(1, "rgba(255,226,150,0)");
-      ctx.fillStyle = glow;
-      ctx.beginPath();
-      ctx.arc(0, 0, 54, 0, Math.PI * 2);
-      ctx.fill();
-      // 땅콩 모양으로 늘어진 왕대
-      ctx.fillStyle = "#d9a441";
-      ctx.beginPath();
-      ctx.ellipse(0, -18, 17, 15, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.ellipse(0, 2, 15, 17, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.ellipse(0, 20, 11, 12, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = "rgba(120,78,20,0.5)";
-      ctx.lineWidth = 1.6;
-      for (let i = -2; i <= 2; i++) {
-        ctx.beginPath();
-        ctx.arc(0, i * 9, 13, 0.15 * Math.PI, 0.85 * Math.PI);
-        ctx.stroke();
-      }
-      ctx.fillStyle = "rgba(255,244,206,0.9)";
-      ctx.font = "bold 11px system-ui, sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillText("왕대", 0, -40);
-      ctx.restore();
     }
   }
 
-  /** 벌 그리기. kind 에 따라 몸집과 색이 달라진다. */
   private drawBee(
     x: number,
     y: number,
@@ -1223,9 +1429,8 @@ export class BeeGame {
     const body = kind === "hornet" ? "#e2861f" : "#f6c343";
     const dark = kind === "hornet" ? "#3a2408" : "#3d2c10";
     const fuzz = kind === "hornet" ? "#b96412" : "#e8b13a";
-    const abdomenLen = kind === "queen" ? 15 : kind === "hornet" ? 14 : 10;
+    const abdomen = kind === "queen" ? 15 : kind === "hornet" ? 14 : 10;
 
-    // 날개
     const flap = Math.sin(wingPhase) * 0.55 + 0.6;
     ctx.fillStyle = kind === "hornet" ? "rgba(220,220,230,0.4)" : "rgba(226,242,255,0.55)";
     ctx.strokeStyle = "rgba(255,255,255,0.5)";
@@ -1241,27 +1446,25 @@ export class BeeGame {
       ctx.restore();
     }
 
-    // 배 (줄무늬)
     ctx.fillStyle = body;
     ctx.beginPath();
-    ctx.ellipse(-abdomenLen * 0.5, 0, abdomenLen, 7.4, 0, 0, Math.PI * 2);
+    ctx.ellipse(-abdomen * 0.5, 0, abdomen, 7.4, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = dark;
     for (let i = 0; i < 3; i++) {
       ctx.beginPath();
-      ctx.ellipse(-abdomenLen * 0.28 - i * (abdomenLen * 0.42), 0, 2.2, 7.2 - i * 1.4, 0, 0, Math.PI * 2);
+      ctx.ellipse(-abdomen * 0.28 - i * (abdomen * 0.42), 0, 2.2, 7.2 - i * 1.4, 0, 0, Math.PI * 2);
       ctx.fill();
     }
     if (kind === "hornet") {
       ctx.strokeStyle = dark;
       ctx.lineWidth = 1.4;
       ctx.beginPath();
-      ctx.moveTo(-abdomenLen * 1.45, 0);
-      ctx.lineTo(-abdomenLen * 1.9, 1.5);
+      ctx.moveTo(-abdomen * 1.45, 0);
+      ctx.lineTo(-abdomen * 1.9, 1.5);
       ctx.stroke();
     }
 
-    // 가슴 (털)
     ctx.fillStyle = fuzz;
     ctx.beginPath();
     ctx.arc(4, -1, 6.4, 0, Math.PI * 2);
@@ -1276,7 +1479,6 @@ export class BeeGame {
       ctx.stroke();
     }
 
-    // 머리
     ctx.fillStyle = dark;
     ctx.beginPath();
     ctx.arc(11.5, -1.5, 4.6, 0, Math.PI * 2);
@@ -1298,7 +1500,6 @@ export class BeeGame {
       ctx.stroke();
     }
 
-    // 다리
     ctx.strokeStyle = dark;
     ctx.lineWidth = 1.1;
     for (let i = 0; i < 3; i++) {
@@ -1308,7 +1509,6 @@ export class BeeGame {
       ctx.stroke();
     }
 
-    // 왕관
     if (kind === "queen") {
       ctx.fillStyle = "#ffd75e";
       ctx.beginPath();
@@ -1328,21 +1528,14 @@ export class BeeGame {
   }
 
   private drawWorkers() {
+    const ctx = this.ctx;
     for (const w of this.hive.workers) {
-      this.drawBee(
-        w.x,
-        w.y,
-        w.recruited ? (this.facing as number) : 1,
-        0.58,
-        this.elapsed * 30 + w.phase,
-        "worker"
-      );
-      if (!w.recruited) {
-        const ctx = this.ctx;
-        ctx.fillStyle = "rgba(255,236,168,0.5)";
+      this.drawBee(w.x, w.y, w.recruited ? this.facing : 1, 0.6, this.elapsed * 30 + w.phase, "worker");
+      if (!w.recruited && this.stage === 3) {
+        ctx.fillStyle = "rgba(255,236,168,0.6)";
         ctx.font = "10px system-ui, sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText("?", w.x, w.y - 14);
+        ctx.fillText("!", w.x, w.y - 13);
       }
     }
   }
@@ -1370,19 +1563,24 @@ export class BeeGame {
       this.wingPhase,
       this.isQueen ? "queen" : "player"
     );
-    // 들고 있는 것
     const ctx = this.ctx;
     if (this.nectar > 0) {
       ctx.fillStyle = "#ffcf4d";
       ctx.beginPath();
-      ctx.arc(this.cx - this.facing * 13, this.cy + 7, 3.4, 0, Math.PI * 2);
+      ctx.arc(this.cx - this.facing * 12, this.cy + 6, 3.2, 0, Math.PI * 2);
       ctx.fill();
     }
     if (this.jelly > 0) {
       ctx.fillStyle = "#fdf3d3";
       ctx.beginPath();
-      ctx.arc(this.cx - this.facing * 13, this.cy - 8, 3.6, 0, Math.PI * 2);
+      ctx.arc(this.cx - this.facing * 12, this.cy - 7, 3.4, 0, Math.PI * 2);
       ctx.fill();
+    }
+    if (this.stage === 2 && this.wax >= 1) {
+      ctx.fillStyle = "rgba(255,240,205,0.9)";
+      for (let i = 0; i < Math.min(3, Math.floor(this.wax)); i++) {
+        ctx.fillRect(this.cx - 6 + i * 4, this.cy + 8, 3, 2);
+      }
     }
   }
 
@@ -1415,25 +1613,25 @@ export class BeeGame {
 
   private drawVignette() {
     const ctx = this.ctx;
-    const underground = this.cy > GROUND_Y * TILE;
+    const inside =
+      this.cx / TILE > BOX.x && this.cx / TILE < BOX.x + BOX.w && this.cy / TILE < GROUND_Y;
     const px = this.cx - this.camX;
     const py = this.cy - this.camY;
-    const r = underground ? Math.max(this.vw, this.vh) * 0.62 : Math.max(this.vw, this.vh) * 0.95;
+    const r = Math.max(this.vw, this.vh) * (inside ? 0.66 : 0.95);
     const g = ctx.createRadialGradient(px, py, r * 0.25, px, py, r);
     g.addColorStop(0, "rgba(0,0,0,0)");
-    g.addColorStop(1, underground ? "rgba(24,12,2,0.72)" : "rgba(10,20,40,0.32)");
+    g.addColorStop(1, inside ? "rgba(30,16,2,0.66)" : "rgba(10,20,40,0.3)");
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, this.vw, this.vh);
   }
 
   private drawCompass(camX: number, camY: number) {
-    if (this.status !== "playing") return;
-    const t = this.questTarget();
+    if (this.status !== "playing" || this.pendingFact) return;
+    const t = this.target();
     if (!t) return;
     const tx = t.x - camX;
     const ty = t.y - camY;
     if (tx > 24 && tx < this.vw - 24 && ty > 24 && ty < this.vh - 24) return;
-
     const cx = this.vw / 2;
     const cy = this.vh / 2;
     const a = Math.atan2(ty - cy, tx - cx);

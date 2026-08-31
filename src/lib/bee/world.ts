@@ -1,21 +1,22 @@
-// 「왕벌의 비행」 — 땅속 벌집 지도.
-// 방(chamber)은 손으로 배치하고, 방마다 퀘스트에 쓰이는 물건과 벌들을 놓는다.
+// 「마누카 계곡」 — 뉴질랜드 양봉장의 벌통 한 채.
+// 실제 벌통 구조를 따른다: 아래가 입구·경비 구역, 가운데가 육아권,
+// 위가 꿀 저장권(계상). 왕대는 육아권 소비의 아래 가장자리에 매달린다.
 
 export const TILE = 16;
-export const WORLD_W = 150;
-export const WORLD_H = 132;
-export const GROUND_Y = 40; // 이 줄이 잔디, 위쪽은 하늘
+export const WORLD_W = 130;
+export const WORLD_H = 56;
+export const GROUND_Y = 44;
 
 export const AIR = 0;
 export const SOIL = 1;
 export const WAX = 2;
 export const GRASS = 3;
-export const DOOR = 4; // 왕대로 가는 밀랍 문 (퀘스트를 마치면 열린다)
+export const WOOD = 4;
 
-export type RoomId = "hall" | "vault" | "nursery" | "guard" | "queen";
+export type ZoneId = "meadow" | "entrance" | "brood" | "super";
 
-export type Room = {
-  id: RoomId;
+export type Zone = {
+  id: ZoneId;
   name: string;
   x: number;
   y: number;
@@ -23,9 +24,33 @@ export type Room = {
   h: number;
 };
 
-export type Flower = { x: number; y: number; hue: number; used: boolean; sway: number };
-export type Cell = { x: number; y: number; filled: boolean };
-export type Larva = { x: number; y: number; fed: boolean; wiggle: number };
+/** 육아권 소비의 방 하나. 청소 → 알 → 애벌레 → 성충으로 이어진다. */
+export type BroodCell = {
+  x: number;
+  y: number;
+  dirty: boolean;
+  larva: boolean;
+  fed: boolean;
+  wiggle: number;
+};
+
+/** 저장권의 방 하나. 짓기 → 꿀 채우기로 이어진다. */
+export type HoneyCell = {
+  x: number;
+  y: number;
+  built: boolean;
+  filled: boolean;
+};
+
+export type Flower = {
+  x: number;
+  y: number;
+  used: boolean;
+  sprayed: boolean;
+  sway: number;
+  regrow: number;
+};
+
 export type Worker = {
   x: number;
   y: number;
@@ -36,6 +61,7 @@ export type Worker = {
   homeX: number;
   homeY: number;
 };
+
 export type Hornet = {
   x: number;
   y: number;
@@ -47,17 +73,23 @@ export type Hornet = {
   wiggle: number;
 };
 
+export type QueenCellState = {
+  x: number;
+  y: number;
+  jelly: number; // 로열젤리를 몇 번 먹였는가
+  capped: boolean;
+};
+
 export type Hive = {
   tiles: Uint8Array;
-  rooms: Room[];
+  zones: Zone[];
+  brood: BroodCell[];
+  honey: HoneyCell[];
   flowers: Flower[];
-  cells: Cell[];
-  larvae: Larva[];
-  jelly: { x: number; y: number };
   workers: Worker[];
   hornets: Hornet[];
-  queenCell: { x: number; y: number };
-  doorTiles: Array<[number, number]>;
+  jellyPool: { x: number; y: number };
+  queenCell: QueenCellState;
   spawn: { x: number; y: number };
   entrance: { x: number; y: number };
 };
@@ -75,61 +107,45 @@ export function mulberry32(seed: number) {
 
 export function tileAt(h: Hive, tx: number, ty: number): number {
   if (tx < 0 || tx >= WORLD_W || ty >= WORLD_H) return SOIL;
-  if (ty < 0) return AIR; // 하늘은 끝없이 열려 있다
+  if (ty < 0) return AIR; // 하늘은 끝없이 열려 있다 (혼인비행)
   return h.tiles[ty * WORLD_W + tx];
-}
-
-export function setTile(h: Hive, tx: number, ty: number, v: number) {
-  if (tx < 0 || ty < 0 || tx >= WORLD_W || ty >= WORLD_H) return;
-  h.tiles[ty * WORLD_W + tx] = v;
 }
 
 export function isSolid(v: number) {
   return v !== AIR;
 }
 
-export function solidAt(h: Hive, px: number, py: number) {
-  return isSolid(tileAt(h, Math.floor(px / TILE), Math.floor(py / TILE)));
-}
+// 벌통 상자
+const BOX = { x: 48, y: 8, w: 36, h: 36 }; // 타일 좌표, y+h 가 지면에 닿는다
+const WALL = 2;
 
-// 방 배치 (타일 좌표, 내부 크기)
-const ROOMS: Room[] = [
-  { id: "hall", name: "현관홀", x: 62, y: 52, w: 30, h: 15 },
-  { id: "vault", name: "꿀 저장방", x: 20, y: 54, w: 36, h: 17 },
-  { id: "nursery", name: "육아방", x: 98, y: 54, w: 36, h: 19 },
-  { id: "guard", name: "경비실", x: 46, y: 80, w: 46, h: 17 },
-  { id: "queen", name: "왕대방", x: 58, y: 106, w: 38, h: 20 },
+const ZONES: Zone[] = [
+  { id: "super", name: "꿀 저장권 (계상)", x: BOX.x + WALL, y: BOX.y + WALL, w: BOX.w - WALL * 2, h: 11 },
+  { id: "brood", name: "육아권 (소비)", x: BOX.x + WALL, y: BOX.y + WALL + 12, w: BOX.w - WALL * 2, h: 12 },
+  { id: "entrance", name: "입구·경비 구역", x: BOX.x + WALL, y: BOX.y + WALL + 25, w: BOX.w - WALL * 2, h: 7 },
 ];
 
-type Rect = { x: number; y: number; w: number; h: number };
-
-// 방과 방을 잇는 통로
-const CORRIDORS: Rect[] = [
-  { x: 74, y: GROUND_Y - 1, w: 5, h: 14 }, // 입구 갱도 → 현관홀
-  { x: 56, y: 58, w: 7, h: 6 }, // 현관홀 ↔ 저장방
-  { x: 91, y: 58, w: 8, h: 6 }, // 현관홀 ↔ 육아방
-  { x: 70, y: 66, w: 6, h: 15 }, // 현관홀 ↔ 경비실
-  { x: 66, y: 96, w: 6, h: 11 }, // 경비실 ↔ 왕대방 (밀랍 문이 막고 있다)
-];
-
-const DOOR_ROW = 100; // 밀랍 문이 놓이는 줄
-
-function carve(h: Hive, r: Rect) {
-  for (let y = r.y; y < r.y + r.h; y++) {
-    for (let x = r.x; x < r.x + r.w; x++) {
-      if (x < 1 || y < 0 || x >= WORLD_W - 1 || y >= WORLD_H - 2) continue;
-      setTile(h, x, y, AIR);
-    }
-  }
-}
-
-export function roomOf(h: Hive, px: number, py: number): Room | null {
+export function zoneOf(h: Hive, px: number, py: number): Zone | null {
   const tx = px / TILE;
   const ty = py / TILE;
-  for (const r of h.rooms) {
-    if (tx >= r.x && tx < r.x + r.w && ty >= r.y && ty < r.y + r.h) return r;
+  for (const z of h.zones) {
+    if (tx >= z.x && tx < z.x + z.w && ty >= z.y && ty < z.y + z.h) return z;
   }
   return null;
+}
+
+export function isOutside(px: number, py: number) {
+  const tx = px / TILE;
+  return py / TILE < GROUND_Y && (tx < BOX.x || tx > BOX.x + BOX.w);
+}
+
+function fill(tiles: Uint8Array, x: number, y: number, w: number, h: number, v: number) {
+  for (let yy = y; yy < y + h; yy++) {
+    for (let xx = x; xx < x + w; xx++) {
+      if (xx < 0 || yy < 0 || xx >= WORLD_W || yy >= WORLD_H) continue;
+      tiles[yy * WORLD_W + xx] = v;
+    }
+  }
 }
 
 export function generateHive(seed: number): Hive {
@@ -138,17 +154,16 @@ export function generateHive(seed: number): Hive {
 
   const h: Hive = {
     tiles,
-    rooms: ROOMS.map((r) => ({ ...r })),
+    zones: ZONES.map((z) => ({ ...z })),
+    brood: [],
+    honey: [],
     flowers: [],
-    cells: [],
-    larvae: [],
-    jelly: { x: 0, y: 0 },
     workers: [],
     hornets: [],
-    queenCell: { x: 0, y: 0 },
-    doorTiles: [],
+    jellyPool: { x: 0, y: 0 },
+    queenCell: { x: 0, y: 0, jelly: 0, capped: false },
     spawn: { x: 0, y: 0 },
-    entrance: { x: 76 * TILE, y: (GROUND_Y - 1) * TILE },
+    entrance: { x: 0, y: 0 },
   };
 
   // 하늘 / 잔디 / 흙
@@ -158,85 +173,86 @@ export function generateHive(seed: number): Hive {
     }
   }
 
-  for (const r of h.rooms) carve(h, r);
-  for (const c of CORRIDORS) carve(h, c);
+  // 벌통 상자 (나무) → 속을 파낸다
+  fill(tiles, BOX.x, BOX.y, BOX.w, BOX.h, WOOD);
+  fill(tiles, BOX.x + WALL, BOX.y + WALL, BOX.w - WALL * 2, BOX.h - WALL * 2, AIR);
 
-  // 굴 벽에 밀랍을 두껍게 발라 준다 (빈 칸에서 2칸 이내의 흙)
-  const src = Uint8Array.from(tiles);
-  for (let y = GROUND_Y; y < WORLD_H; y++) {
-    for (let x = 0; x < WORLD_W; x++) {
-      if (src[y * WORLD_W + x] !== SOIL) continue;
-      let near = false;
-      for (let dy = -2; dy <= 2 && !near; dy++) {
-        for (let dx = -2; dx <= 2; dx++) {
-          const nx = x + dx;
-          const ny = y + dy;
-          if (nx < 0 || ny <= GROUND_Y || nx >= WORLD_W || ny >= WORLD_H) continue;
-          if (src[ny * WORLD_W + nx] === AIR) {
-            near = true;
-            break;
-          }
-        }
-      }
-      if (near) tiles[y * WORLD_W + x] = WAX;
-    }
-  }
+  // 층 사이 소비(밀랍) 칸막이 — 양쪽에 통로를 남긴다
+  const inX = BOX.x + WALL;
+  const inW = BOX.w - WALL * 2;
+  const divA = BOX.y + WALL + 11; // 계상 ↔ 육아권
+  const divB = BOX.y + WALL + 24; // 육아권 ↔ 입구 구역
+  fill(tiles, inX, divA, inW, 1, WAX);
+  fill(tiles, inX + 2, divA, 7, 1, AIR); // 왼쪽 통로
+  fill(tiles, inX + inW - 9, divA, 7, 1, AIR); // 오른쪽 통로
+  fill(tiles, inX, divB, inW, 1, WAX);
+  fill(tiles, inX + Math.floor(inW / 2) - 5, divB, 10, 1, AIR); // 가운데 통로
 
-  // 왕대방으로 내려가는 통로를 밀랍 문으로 막는다
-  const doorCorridor = CORRIDORS[CORRIDORS.length - 1];
-  for (let x = doorCorridor.x; x < doorCorridor.x + doorCorridor.w; x++) {
-    for (let y = DOOR_ROW; y < DOOR_ROW + 2; y++) {
-      setTile(h, x, y, DOOR);
-      h.doorTiles.push([x, y]);
-    }
-  }
+  // 입구 (왼쪽 벽 아래) + 착륙판
+  const entryY = BOX.y + BOX.h - 6;
+  fill(tiles, BOX.x, entryY, WALL, 4, AIR);
+  h.entrance = { x: (BOX.x - 1) * TILE, y: (entryY + 2) * TILE };
 
-  // 꽃밭 (지상)
-  const hues = [340, 20, 45, 280, 200, 320, 60, 15];
-  for (let i = 0; i < 8; i++) {
-    const tx = 12 + i * 16 + Math.floor(rng() * 5);
+  // 마누카 꽃밭 — 벌통 양옆
+  const spots: number[] = [];
+  for (let i = 0; i < 5; i++) spots.push(6 + i * 8 + Math.floor(rng() * 3));
+  for (let i = 0; i < 5; i++) spots.push(BOX.x + BOX.w + 4 + i * 8 + Math.floor(rng() * 3));
+  for (const tx of spots) {
+    if (tx < 2 || tx > WORLD_W - 3) continue;
     h.flowers.push({
       x: tx * TILE + TILE / 2,
       y: GROUND_Y * TILE + 2,
-      hue: hues[i % hues.length],
       used: false,
+      sprayed: false,
       sway: rng() * Math.PI * 2,
+      regrow: 0,
     });
   }
+  // 농약이 뿌려진 꽃 두 송이 (실제 벌 감소 원인 중 하나)
+  const sprayIdx = [2 + Math.floor(rng() * 2), 6 + Math.floor(rng() * 3)];
+  for (const i of sprayIdx) if (h.flowers[i]) h.flowers[i].sprayed = true;
 
-  const room = (id: RoomId) => h.rooms.find((r) => r.id === id)!;
-
-  // 저장방: 채워야 할 빈 벌집칸
-  const vault = room("vault");
+  // 육아권: 방 8칸 (처음엔 더러운 상태)
+  const brood = h.zones.find((z) => z.id === "brood")!;
   for (let i = 0; i < 6; i++) {
     const col = i % 3;
     const row = Math.floor(i / 3);
-    h.cells.push({
-      x: (vault.x + 7 + col * 8) * TILE,
-      y: (vault.y + 5 + row * 6) * TILE,
-      filled: false,
-    });
-  }
-
-  // 육아방: 애벌레와 로열젤리 웅덩이
-  const nursery = room("nursery");
-  for (let i = 0; i < 6; i++) {
-    const col = i % 3;
-    const row = Math.floor(i / 3);
-    h.larvae.push({
-      x: (nursery.x + 6 + col * 9) * TILE,
-      y: (nursery.y + 6 + row * 7) * TILE,
+    h.brood.push({
+      x: (brood.x + 7 + col * 9) * TILE,
+      y: (brood.y + 3 + row * 5) * TILE,
+      dirty: true,
+      larva: false,
       fed: false,
       wiggle: rng() * Math.PI * 2,
     });
   }
-  h.jelly = { x: (nursery.x + nursery.w - 4) * TILE, y: (nursery.y + nursery.h - 3) * TILE };
+  h.jellyPool = { x: (brood.x + brood.w - 3) * TILE, y: (brood.y + brood.h - 2) * TILE };
+  // 왕대는 육아권 소비 아래 가장자리에 매달린다
+  h.queenCell = {
+    x: (brood.x + Math.floor(brood.w / 2)) * TILE,
+    y: (brood.y + brood.h - 3) * TILE,
+    jelly: 0,
+    capped: false,
+  };
 
-  // 경비실: 일벌과 말벌
-  const guard = room("guard");
-  for (let i = 0; i < 4; i++) {
-    const wx = (guard.x + 6 + i * 5) * TILE;
-    const wy = (guard.y + 4 + (i % 2) * 6) * TILE;
+  // 저장권: 지을 자리 8칸
+  const sup = h.zones.find((z) => z.id === "super")!;
+  for (let i = 0; i < 6; i++) {
+    const col = i % 3;
+    const row = Math.floor(i / 3);
+    h.honey.push({
+      x: (sup.x + 7 + col * 9) * TILE,
+      y: (sup.y + 3 + row * 5) * TILE,
+      built: false,
+      filled: false,
+    });
+  }
+
+  // 입구 구역: 동료 일벌과 말벌
+  const ent = h.zones.find((z) => z.id === "entrance")!;
+  for (let i = 0; i < 3; i++) {
+    const wx = (ent.x + 6 + i * 8) * TILE;
+    const wy = (ent.y + 3) * TILE;
     h.workers.push({
       x: wx,
       y: wy,
@@ -249,8 +265,8 @@ export function generateHive(seed: number): Hive {
     });
   }
   for (let i = 0; i < 2; i++) {
-    const hx = (guard.x + guard.w - 12 + i * 7) * TILE;
-    const hy = (guard.y + 5 + i * 5) * TILE;
+    const hx = (ent.x + ent.w - 8 + i * 4) * TILE;
+    const hy = (ent.y + 2 + i * 2) * TILE;
     h.hornets.push({
       x: hx,
       y: hy,
@@ -263,14 +279,9 @@ export function generateHive(seed: number): Hive {
     });
   }
 
-  // 왕대 (여왕이 될 방)
-  const queen = room("queen");
-  h.queenCell = {
-    x: (queen.x + queen.w / 2) * TILE,
-    y: (queen.y + queen.h - 6) * TILE,
-  };
-
-  // 시작 위치: 꽃밭 입구 근처 하늘
-  h.spawn = { x: h.entrance.x - 6 * TILE, y: (GROUND_Y - 4) * TILE };
+  // 시작: 육아권 한가운데 (갓 태어난 청소벌)
+  h.spawn = { x: (brood.x + 3) * TILE, y: (brood.y + 6) * TILE };
   return h;
 }
+
+export { BOX };
