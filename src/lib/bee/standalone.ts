@@ -247,7 +247,7 @@ export function mount(root: HTMLElement): () => void {
     const cap = cssW * (portrait ? 1.55 : 1.1);
     const cssH = Math.round(Math.max(cssW * 0.5, Math.min(Math.max(avail, 210), cap)));
     frame.style.height = `${cssH}px`;
-    game.resize(VIEW_W, Math.max(260, Math.min(700, Math.round((VIEW_W * cssH) / cssW))));
+    game.resize(VIEW_W, Math.max(260, Math.min(700, Math.round((VIEW_W * cssH) / cssW))), cssW);
   }
   fit();
 

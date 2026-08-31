@@ -103,7 +103,7 @@ export const STYLES = String.raw`
     height: 320px;
     box-shadow: 0 18px 40px rgba(0,0,0,.5);
   }
-  canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
+  canvas { display: block; width: 100%; height: 100%; }
 
   .zone, .msg {
     position: absolute; left: 50%; transform: translateX(-50%);

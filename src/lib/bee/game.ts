@@ -7,6 +7,7 @@ import {
   BOX,
   GROUND_Y,
   GRASS,
+  LAYOUT,
   Hive,
   TILE,
   WAX,
@@ -267,6 +268,10 @@ export class BeeGame {
   private ctx: CanvasRenderingContext2D;
   private vw = VIEW_W;
   private vh = VIEW_H;
+  /** 게임 좌표 → 화면 픽셀 배율 */
+  private scale = 1;
+  private bgCache: HTMLCanvasElement | null = null;
+  private bgCacheKey = "";
   private onState: (s: BeeState) => void;
   readonly audio = new BeeAudio();
 
@@ -333,7 +338,8 @@ export class BeeGame {
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("canvas 2d context unavailable");
     this.ctx = ctx;
-    this.ctx.imageSmoothingEnabled = false;
+    this.ctx.imageSmoothingEnabled = true;
+    this.ctx.imageSmoothingQuality = "high";
     this.vw = canvas.width || VIEW_W;
     this.vh = canvas.height || VIEW_H;
     this.onState = opts.onState;
@@ -551,15 +557,26 @@ export class BeeGame {
     this.emit();
   }
 
-  resize(width: number, height: number) {
+  /**
+   * vw/vh 는 게임이 쓰는 좌표계, 캔버스는 화면 픽셀만큼 크게 잡는다.
+   * 저해상도로 그려 뻥튀기하면 옛날 오락실 화면이 된다.
+   */
+  resize(width: number, height: number, cssWidth?: number) {
     const w = Math.max(240, Math.round(width));
     const h = Math.max(200, Math.round(height));
-    if (w === this.vw && h === this.vh) return;
+    const dpr = Math.min(2.5, typeof window === "undefined" ? 1 : window.devicePixelRatio || 1);
+    const target = cssWidth && cssWidth > 0 ? (cssWidth * dpr) / w : this.scale;
+    const scale = Math.max(1, Math.min(4, target));
+    if (w === this.vw && h === this.vh && Math.abs(scale - this.scale) < 0.01) return;
     this.vw = w;
     this.vh = h;
-    this.canvas.width = w;
-    this.canvas.height = h;
-    this.ctx.imageSmoothingEnabled = false;
+    this.scale = scale;
+    this.canvas.width = Math.round(w * scale);
+    this.canvas.height = Math.round(h * scale);
+    this.ctx.imageSmoothingEnabled = true;
+    this.ctx.imageSmoothingQuality = "high";
+    this.combCache.clear();
+    this.bgCache = null;
     this.updateCamera(true);
     this.draw();
   }
@@ -1239,16 +1256,17 @@ export class BeeGame {
     const camX = Math.round(this.camX);
     const camY = Math.round(this.camY);
 
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.setTransform(this.scale, 0, 0, this.scale, 0, 0);
     this.drawSky(camY);
 
     ctx.save();
     ctx.translate(-camX, -camY);
     this.drawClouds(camX, camY);
     this.drawHills(camX, camY);
-    this.drawInteriorBackdrop();
-    this.drawTiles(camX, camY);
+    this.drawTerrain(camX, camY);
+    this.drawHiveShell();
     this.drawCombZones(camX, camY);
+    this.drawDividers();
     this.drawFlowers(camX, camY);
     this.drawProps(camX, camY);
     this.drawWorkers();
@@ -1332,67 +1350,171 @@ export class BeeGame {
     void camY;
   }
 
-  /** 벌통 속과 땅속의 빈칸 뒤편. 이걸 안 깔면 하늘이 비쳐 보인다. */
-  private drawInteriorBackdrop() {
+  /** 땅 — 잔디와 흙을 타일이 아니라 하나의 면으로 그린다. */
+  private drawTerrain(camX: number, camY: number) {
     const ctx = this.ctx;
-    ctx.fillStyle = "#2c1d0d";
-    ctx.fillRect(
-      (BOX.x + 1) * TILE,
-      (BOX.y + 1) * TILE,
-      (BOX.w - 2) * TILE,
-      (BOX.h - 2) * TILE
-    );
-    ctx.fillStyle = "#3a2a17";
-    ctx.fillRect(0, GROUND_Y * TILE, WORLD_W * TILE, (WORLD_H - GROUND_Y) * TILE);
+    const gy = GROUND_Y * TILE;
+    const bottom = WORLD_H * TILE;
+    if (camY + this.vh < gy) return;
+
+    const soil = ctx.createLinearGradient(0, gy, 0, bottom);
+    soil.addColorStop(0, shade(this.region.soil, 0.06));
+    soil.addColorStop(1, shade(this.region.soil, -0.42));
+    ctx.fillStyle = soil;
+    ctx.fillRect(camX - 20, gy, this.vw + 40, bottom - gy);
+
+    // 흙 속 결
+    ctx.save();
+    ctx.globalAlpha = 0.14;
+    ctx.fillStyle = shade(this.region.soil, -0.5);
+    for (let i = 0; i < 26; i++) {
+      const n = hash2(i, 11);
+      const x = camX - 20 + ((n * 1600 + i * 137) % (this.vw + 40));
+      const y = gy + 26 + ((hash2(i, 21) * 900) % (bottom - gy - 30));
+      ctx.beginPath();
+      ctx.ellipse(x, y, 12 + n * 22, 3 + n * 5, n * 1.4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+
+    // 잔디 — 위쪽에 부드러운 띠와 풀잎
+    const grass = ctx.createLinearGradient(0, gy - 5, 0, gy + 22);
+    grass.addColorStop(0, shade(this.region.grass, 0.26));
+    grass.addColorStop(0.55, this.region.grass);
+    grass.addColorStop(1, shade(this.region.grass, -0.45));
+    ctx.fillStyle = grass;
+    ctx.fillRect(camX - 20, gy - 3, this.vw + 40, 24);
+
+    ctx.strokeStyle = shade(this.region.grass, 0.3);
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    const step = 7;
+    const x0 = Math.floor((camX - 20) / step) * step;
+    for (let x = x0; x < camX + this.vw + 20; x += step) {
+      const n = hash2(x, 5);
+      const h = 5 + n * 7;
+      const lean = Math.sin(this.elapsed * 1.1 + x * 0.05) * 2.2;
+      ctx.moveTo(x, gy - 1);
+      ctx.quadraticCurveTo(x + lean * 0.5, gy - h * 0.6, x + lean, gy - h);
+    }
+    ctx.stroke();
   }
 
-  private drawTiles(camX: number, camY: number) {
+  /** 벌통 — 판자 하나하나가 아니라 상자 한 채로 그린다. */
+  private drawHiveShell() {
     const ctx = this.ctx;
-    const x0 = Math.max(0, Math.floor(camX / TILE) - 1);
-    const x1 = Math.min(WORLD_W - 1, Math.ceil((camX + this.vw) / TILE));
-    const y0 = Math.max(0, Math.floor(camY / TILE) - 1);
-    const y1 = Math.min(WORLD_H - 1, Math.ceil((camY + this.vh) / TILE));
+    const hv = this.region.hive;
+    const bx = LAYOUT.box.x * TILE;
+    const by = LAYOUT.box.y * TILE;
+    const bw = LAYOUT.box.w * TILE;
+    const bh = LAYOUT.box.h * TILE;
 
-    for (let y = y0; y <= y1; y++) {
-      for (let x = x0; x <= x1; x++) {
-        const v = tileAt(this.hive, x, y);
-        if (v === 0) continue;
-        const px = x * TILE;
-        const py = y * TILE;
-        const n = hash2(x, y);
-        if (v === GRASS) {
-          ctx.fillStyle = shade(this.region.grass, (n - 0.5) * 0.16);
-          ctx.fillRect(px, py, TILE, TILE);
-          ctx.fillStyle = shade(this.region.grass, 0.24);
-          ctx.fillRect(px, py, TILE, 4);
-        } else if (v === WOOD) {
-          const hv = this.region.hive;
-          ctx.fillStyle = shade(hv.wall, (n - 0.5) * 0.13);
-          ctx.fillRect(px, py, TILE, TILE);
-          ctx.strokeStyle = hv.wallDark + "66";
-          ctx.lineWidth = 1;
-          if (hv.material === "stone") {
-            // 바위는 결이 아니라 금이 간다
-            ctx.strokeRect(px + 0.5, py + 0.5, TILE - 1, TILE - 1);
-          } else if (hv.material === "clay") {
-            ctx.beginPath();
-            ctx.arc(px + 8, py + 8, 5 + n * 2, 0, Math.PI * 2);
-            ctx.stroke();
-          } else {
-            ctx.beginPath();
-            ctx.moveTo(px, py + 4 + n * 8);
-            ctx.lineTo(px + TILE, py + 3 + n * 9);
-            ctx.stroke();
-          }
-        } else if (v === WAX) {
-          const b = n * 16;
-          ctx.fillStyle = `rgb(${(214 + b * 0.4) | 0},${(166 + b) | 0},${(76 + b) | 0})`;
-          ctx.fillRect(px, py, TILE, TILE);
-        } else {
-          ctx.fillStyle = shade(this.region.soil, (n - 0.5) * 0.16);
-          ctx.fillRect(px, py, TILE, TILE);
-        }
+    ctx.save();
+    ctx.shadowColor = "rgba(0,0,0,0.45)";
+    ctx.shadowBlur = 26;
+    ctx.shadowOffsetY = 10;
+    const shell = ctx.createLinearGradient(bx, by, bx + bw, by + bh);
+    shell.addColorStop(0, shade(hv.wall, 0.16));
+    shell.addColorStop(0.5, hv.wall);
+    shell.addColorStop(1, shade(hv.wall, -0.26));
+    ctx.fillStyle = shell;
+    ctx.beginPath();
+    ctx.roundRect(bx, by, bw, bh, hv.material === "clay" ? 26 : 8);
+    ctx.fill();
+    ctx.restore();
+
+    // 재료의 결
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(bx, by, bw, bh, hv.material === "clay" ? 26 : 8);
+    ctx.clip();
+    ctx.strokeStyle = hv.wallDark + "44";
+    ctx.lineWidth = 1.4;
+    if (hv.material === "stone") {
+      for (let y = by + 20; y < by + bh; y += 26) {
+        ctx.beginPath();
+        ctx.moveTo(bx, y + Math.sin(y) * 3);
+        ctx.lineTo(bx + bw, y + Math.cos(y) * 3);
+        ctx.stroke();
       }
+    } else if (hv.material === "clay") {
+      for (let y = by + 24; y < by + bh; y += 30) {
+        ctx.beginPath();
+        ctx.ellipse(bx + bw / 2, y, bw * 0.48, 12, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    } else {
+      for (let y = by + 22; y < by + bh; y += 24) {
+        ctx.beginPath();
+        ctx.moveTo(bx, y);
+        ctx.lineTo(bx + bw, y + 2);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+
+    // 속을 파낸다
+    const ix = LAYOUT.interior.x * TILE;
+    const iy = LAYOUT.interior.y * TILE;
+    const iw = LAYOUT.interior.w * TILE;
+    const ih = LAYOUT.interior.h * TILE;
+    const inner = ctx.createLinearGradient(0, iy, 0, iy + ih);
+    inner.addColorStop(0, "#3a2510");
+    inner.addColorStop(1, "#201407");
+    ctx.fillStyle = inner;
+    ctx.fillRect(ix, iy, iw, ih);
+
+    // 입구 구멍과 착륙판
+    const e = LAYOUT.entry;
+    ctx.fillStyle = "#160e05";
+    ctx.fillRect(e.x * TILE - 2, e.y * TILE, e.w * TILE + 4, e.h * TILE);
+    ctx.fillStyle = shade(hv.wall, -0.1);
+    ctx.beginPath();
+    ctx.roundRect(e.x * TILE - 30, (e.y + e.h) * TILE - 3, 34, 6, 3);
+    ctx.fill();
+  }
+
+  /** 층을 나누는 소비 칸막이 */
+  private drawDividers() {
+    const ctx = this.ctx;
+    const ix = LAYOUT.interior.x * TILE;
+    const iw = LAYOUT.interior.w * TILE;
+    for (const d of LAYOUT.dividers) {
+      const y = d.y * TILE;
+      const segs: Array<[number, number]> = [];
+      let cur = LAYOUT.interior.x;
+      for (const g of [...d.gaps].sort((a, b) => a.x - b.x)) {
+        if (g.x > cur) segs.push([cur, g.x]);
+        cur = g.x + g.w;
+      }
+      if (cur < LAYOUT.interior.x + LAYOUT.interior.w) {
+        segs.push([cur, LAYOUT.interior.x + LAYOUT.interior.w]);
+      }
+      for (const [a, b] of segs) {
+        const x = a * TILE;
+        const w = (b - a) * TILE;
+        const g = ctx.createLinearGradient(0, y, 0, y + TILE);
+        g.addColorStop(0, "#f0c268");
+        g.addColorStop(0.45, "#d9a441");
+        g.addColorStop(1, "#8d6420");
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.roundRect(x, y, w, TILE, 4);
+        ctx.fill();
+      }
+      // 통로 가장자리에 그림자
+      ctx.strokeStyle = "rgba(0,0,0,0.3)";
+      ctx.lineWidth = 2;
+      for (const gp of d.gaps) {
+        ctx.beginPath();
+        ctx.moveTo(gp.x * TILE, y);
+        ctx.lineTo(gp.x * TILE, y + TILE);
+        ctx.moveTo((gp.x + gp.w) * TILE, y);
+        ctx.lineTo((gp.x + gp.w) * TILE, y + TILE);
+        ctx.stroke();
+      }
+      void ix;
+      void iw;
     }
   }
 
@@ -1401,12 +1523,14 @@ export class BeeGame {
     if (cached) return cached;
     const w = zone.w * TILE;
     const h = zone.h * TILE;
+    const k = this.scale;
     const cv = document.createElement("canvas");
-    cv.width = w;
-    cv.height = h;
+    cv.width = Math.round(w * k);
+    cv.height = Math.round(h * k);
     const c = cv.getContext("2d");
     if (!c) return cv;
-    c.fillStyle = "#5a3a18";
+    c.scale(k, k);
+    c.fillStyle = "#4a2f12";
     c.fillRect(0, 0, w, h);
     const r = 13;
     const stepX = Math.sqrt(3) * r;
@@ -1425,10 +1549,20 @@ export class BeeGame {
         }
         c.closePath();
         const n = hash2(col, row);
-        c.fillStyle = `rgb(${(120 + n * 26) | 0},${(84 + n * 20) | 0},${(34 + n * 14) | 0})`;
+        const g = c.createLinearGradient(cx - r, cy - r, cx + r, cy + r);
+        g.addColorStop(0, `rgb(${(132 + n * 26) | 0},${(94 + n * 20) | 0},${(40 + n * 14) | 0})`);
+        g.addColorStop(1, `rgb(${(88 + n * 20) | 0},${(60 + n * 16) | 0},${(24 + n * 10) | 0})`);
+        c.fillStyle = g;
         c.fill();
-        c.strokeStyle = "rgba(226,176,84,0.4)";
-        c.lineWidth = 1.4;
+        c.strokeStyle = "rgba(240,196,110,0.28)";
+        c.lineWidth = 1.2;
+        c.stroke();
+        // 위쪽 모서리에만 빛이 걸린다
+        c.strokeStyle = "rgba(255,226,160,0.22)";
+        c.beginPath();
+        c.moveTo(cx - r * 0.87, cy - r * 0.5);
+        c.lineTo(cx, cy - r);
+        c.lineTo(cx + r * 0.87, cy - r * 0.5);
         c.stroke();
       }
     }
@@ -1444,13 +1578,7 @@ export class BeeGame {
       const rw = z.w * TILE;
       const rh = z.h * TILE;
       if (rx > camX + this.vw || rx + rw < camX || ry > camY + this.vh || ry + rh < camY) continue;
-      ctx.drawImage(this.combCanvas(z), rx, ry);
-      ctx.save();
-      ctx.font = "bold 13px system-ui, sans-serif";
-      ctx.textAlign = "left";
-      ctx.fillStyle = "rgba(255,226,160,0.13)";
-      ctx.fillText(z.name, rx + 10, ry + 16);
-      ctx.restore();
+      ctx.drawImage(this.combCanvas(z), rx, ry, rw, rh);
     }
   }
 

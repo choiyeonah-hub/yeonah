@@ -121,6 +121,26 @@ export function isSolid(v: number) {
 const BOX = { x: 48, y: 8, w: 36, h: 36 }; // 타일 좌표, y+h 가 지면에 닿는다
 const WALL = 2;
 
+const IN_X = BOX.x + WALL;
+const IN_Y = BOX.y + WALL;
+const IN_W = BOX.w - WALL * 2;
+const IN_H = BOX.h - WALL * 2;
+const DIV_A = BOX.y + WALL + 11; // 계상 ↔ 육아권
+const DIV_B = BOX.y + WALL + 24; // 육아권 ↔ 입구 구역
+const ENTRY_Y = BOX.y + BOX.h - 6;
+
+/** 렌더가 매끈한 도형으로 그리기 위한 벌통 도면 (타일 좌표) */
+export const LAYOUT = {
+  box: BOX,
+  wall: WALL,
+  interior: { x: IN_X, y: IN_Y, w: IN_W, h: IN_H },
+  dividers: [
+    { y: DIV_A, gaps: [{ x: IN_X + 2, w: 7 }, { x: IN_X + IN_W - 9, w: 7 }] },
+    { y: DIV_B, gaps: [{ x: IN_X + Math.floor(IN_W / 2) - 5, w: 10 }] },
+  ],
+  entry: { x: BOX.x, y: ENTRY_Y, w: WALL, h: 4 },
+};
+
 const ZONES: Zone[] = [
   { id: "super", name: "꿀 저장권 (계상)", x: BOX.x + WALL, y: BOX.y + WALL, w: BOX.w - WALL * 2, h: 11 },
   { id: "brood", name: "육아권 (소비)", x: BOX.x + WALL, y: BOX.y + WALL + 12, w: BOX.w - WALL * 2, h: 12 },
@@ -180,21 +200,15 @@ export function generateHive(seed: number, region: Region): Hive {
   fill(tiles, BOX.x, BOX.y, BOX.w, BOX.h, WOOD);
   fill(tiles, BOX.x + WALL, BOX.y + WALL, BOX.w - WALL * 2, BOX.h - WALL * 2, AIR);
 
-  // 층 사이 소비(밀랍) 칸막이 — 양쪽에 통로를 남긴다
-  const inX = BOX.x + WALL;
-  const inW = BOX.w - WALL * 2;
-  const divA = BOX.y + WALL + 11; // 계상 ↔ 육아권
-  const divB = BOX.y + WALL + 24; // 육아권 ↔ 입구 구역
-  fill(tiles, inX, divA, inW, 1, WAX);
-  fill(tiles, inX + 2, divA, 7, 1, AIR); // 왼쪽 통로
-  fill(tiles, inX + inW - 9, divA, 7, 1, AIR); // 오른쪽 통로
-  fill(tiles, inX, divB, inW, 1, WAX);
-  fill(tiles, inX + Math.floor(inW / 2) - 5, divB, 10, 1, AIR); // 가운데 통로
+  // 층 사이 소비(밀랍) 칸막이 — 통로를 남긴다
+  for (const d of LAYOUT.dividers) {
+    fill(tiles, IN_X, d.y, IN_W, 1, WAX);
+    for (const g of d.gaps) fill(tiles, g.x, d.y, g.w, 1, AIR);
+  }
 
-  // 입구 (왼쪽 벽 아래) + 착륙판
-  const entryY = BOX.y + BOX.h - 6;
-  fill(tiles, BOX.x, entryY, WALL, 4, AIR);
-  h.entrance = { x: (BOX.x - 1) * TILE, y: (entryY + 2) * TILE };
+  // 입구 (왼쪽 벽 아래)
+  fill(tiles, LAYOUT.entry.x, LAYOUT.entry.y, LAYOUT.entry.w, LAYOUT.entry.h, AIR);
+  h.entrance = { x: (BOX.x - 1) * TILE, y: (ENTRY_Y + 2) * TILE };
 
   // 마누카 꽃밭 — 벌통 양옆
   const spots: number[] = [];
