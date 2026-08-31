@@ -66,3 +66,16 @@ model Message {
   @@index([sessionId])
   @@index([memberId])
 }
+
+// ── 퍼스널컬러·체형 스타일 진단 앱 (/style) ─────────────────────────────────
+// 진단 결과 전체를 JSON으로 보관한다. 결과 화면은 순수 계산 결과라서
+// 정규화해서 쪼갤 실익이 없고, 링크로 다시 열어보는 용도가 전부다.
+model StyleProfile {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  colorTypeId String
+  colorTypeKo String
+  height      Int
+  bodyShape   String
+  payload     Json
+}

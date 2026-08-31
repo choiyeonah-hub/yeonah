@@ -177,6 +177,14 @@ export default function HomePage() {
           {loading ? "처리 중..." : mode === "create" ? "가족 만들고 시작하기" : "참여하기"}
         </button>
       </form>
+
+      {/* 같은 프로젝트 안에 있는 다른 앱 */}
+      <a
+        href="/style"
+        className="mt-6 block text-center text-xs text-havruta-500 underline underline-offset-4 hover:text-havruta-700"
+      >
+        AI 퍼스널컬러 · 체형 스타일링 진단 열기 →
+      </a>
     </main>
   );
 }
