@@ -127,7 +127,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0901-av';
+const GATE_BUILD = '0901-aw';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1543,21 +1543,23 @@ const elderByApp = (st) => (((st.elders || [])[0] || {}).how === "app");
 function callBatches(st, when) {
   const rows = callItemsFor(st, when);
   if (!rows.length) return [];
-  /* 앱으로 받으시면 값이 안 드니 시각이 있는 것은 다 따로 보냅니다.
-     아침에 몰아 들으시면 오후 3시까지 기억하셔야 하는데, 그럴 이유가 없습니다. */
-  const byApp = elderByApp(st);
-  const solo = byApp ? rows.filter((r) => r.time) : rows.filter((r) => r.solo && r.time);
-  const rest = byApp ? rows.filter((r) => !r.time) : rows.filter((r) => !(r.solo && r.time));
+
+  /* 전화는 아침 한 통입니다. 통마다 220원이라 나눌 값어치가 없고,
+     하루에 여러 번 울리면 어른이 성가셔하십니다. */
+  if (!elderByApp(st)) return [{ at: st.callAt || "07:50", rows, kind: "아침" }];
+
+  /* 앱 알림은 값이 안 듭니다. 그래서 놓치면 안 되는 것은
+     30분 전에 한 번, 그 시각에 한 번 — 두 번 울립니다.
+     30분 전은 준비하시라고, 정각은 지금이라고. 하나만 있으면 둘 다 놓칩니다.
+     간식처럼 늦어도 되는 것은 아침 한 번에 실어 보냅니다. */
+  const two = rows.filter((r) => r.alert && r.time);
+  const rest = rows.filter((r) => !(r.alert && r.time));
   const out = [];
   if (rest.length) out.push({ at: st.callAt || "07:50", rows: rest, kind: "아침" });
-  /* 30분 전이냐 그 시각이냐는 몸을 움직여야 하느냐로 갈립니다.
-     하원·학원은 나가셔야 하니 30분 전이 맞고,
-     안약·연고는 그 자리에서 하시는 것이라 30분 전에 알려드리면 또 잊으십니다. */
-  solo.forEach((r) => out.push({
-    at: (byApp ? (r.kind === "med" ? "at" : "before") : r.solo) === "at" ? r.time : minus30(r.time),
-    rows: [r],
-    kind: (byApp ? (r.kind === "med" ? "at" : "before") : r.solo) === "at" ? "그때" : "따로",
-  }));
+  two.forEach((r) => {
+    out.push({ at: minus30(r.time), rows: [r], kind: "30분 전" });
+    out.push({ at: r.time, rows: [r], kind: "정각" });
+  });
   return out.sort((a, b) => String(a.at).localeCompare(String(b.at)));
 }
 
@@ -1606,7 +1608,7 @@ function callScript(st, when, rows) {
   const 뒤 = 가방.length
     ? ` ${가방.map((r) => (하나 ? "" : (nameOf(r.kid) ? nameOf(r.kid) + " " : "")) + r.what).join(", ")} 가방에 챙겨뒀어요. 현관에 두겠습니다.`
     : "";
-  const 곧 = list === rows && rows.length === 1 && rows[0].solo;
+  const 곧 = list === rows && rows.length === 1 && rows[0].alert;
   const 머리 = 하나 ? `${label}, ${첫아이} ` : `${label}, `;
   const 앞 = 일정.length
     ? `${머리}${곧 ? "곧 있을 일정입니다" : "오늘 일정입니다"}. ${몸통}.`
@@ -1893,7 +1895,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-av";
+const BUILD = "0901-aw";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -3494,7 +3496,7 @@ function Onboarding({ preview }) {
   const addRow = () => {
     const w = what.trim();
     if (!w) return;
-    setPlan((p) => ({ ...p, [dow]: (p[dow] || []).concat([{ id: uid("cl"), time: time.trim(), what: w.slice(0, 30), kind: "sked", kid: (kids[0] || {}).id, solo: "" }]) }));
+    setPlan((p) => ({ ...p, [dow]: (p[dow] || []).concat([{ id: uid("cl"), time: time.trim(), what: w.slice(0, 30), kind: "sked", kid: (kids[0] || {}).id, alert: false }]) }));
     setTime(""); setWhat("");
   };
 
@@ -6629,7 +6631,7 @@ function CallScreen() {
   const [time, setTime] = useState("");
   const [what, setWhat] = useState("");
   const [kind, setKind] = useState("sked");   /* sked 일정 · med 약 · bag 준비물 */
-  const [solo, setSolo] = useState("");       /* "" 안 함 · before 30분 전 · at 그 시각에 */
+  const [alert, setAlert] = useState(false);  /* 그 시각 30분 전과 정각, 두 번 울릴지 */
   const [med, setMed] = useState({ when: MED_WHEN[0], name: "", dose: "", how: MED_HOW[0] });
   const [kid, setKid] = useState(((st.children || [])[0] || {}).id || "");
   const [say1, setSay1] = useState("");
@@ -6662,10 +6664,10 @@ function CallScreen() {
       const plan = { ...(sv.callPlan || {}) };
       plan[dow] = (plan[dow] || []).concat([{
         id: uid("cl"), time: kind === "bag" ? "" : time.trim(),
-        what: w.slice(0, 30), kind, kid, solo: kind === "sked" ? solo : "" }]);
+        what: w.slice(0, 30), kind, kid, alert: kind === "sked" ? !!alert : false }]);
       return { ...sv, callPlan: plan, callOn: true };
     });
-    setTime(""); setWhat(""); setSolo("");
+    setTime(""); setWhat(""); setAlert(false);
     log("call_plan_add", { dow, kind });
   };
   /* 약은 이름만 적고 마는 일이 많습니다. 때·용량을 따로 받습니다 */
@@ -6678,7 +6680,8 @@ function CallScreen() {
         id: uid("cl"), time: med.when === "정한 시각에" ? time.trim() : "",
         what: line.slice(0, 40), kind: "med", kid,
         /* 시각을 정한 약(안약·연고)만 그 시각에 따로 겁니다 */
-        solo: med.when === "정한 시각에" && time.trim() ? "at" : "" }]);
+        /* 시각을 정한 약(안약·연고)은 놓치면 안 되니 두 번 울립니다 */
+        alert: med.when === "정한 시각에" && !!time.trim() }]);
       return { ...sv, callPlan: plan, callOn: true };
     });
     setMed({ when: MED_WHEN[0], name: "", dose: "", how: MED_HOW[0] });
@@ -6740,7 +6743,7 @@ function CallScreen() {
           kind: ["sked", "med", "bag"].includes(x.kind) ? x.kind : "sked",
           kid: ((st.children || []).find((k) => k.name && k.name === String(x.who || "")) || {}).id
                || ((st.children || []).length === 1 ? (st.children[0] || {}).id : ""),
-          solo: "",
+          alert: false,
         }))) };
         return { ...sv, callToday: t, callOn: true };
       });
@@ -6817,7 +6820,7 @@ function CallScreen() {
                     {((st.children || []).find((k) => k.id === r.kid) || {}).name}
                   </b> : null}
               {r.what}
-              {r.solo && r.time ? <b style={{ color: C.moss, fontSize: 11, marginLeft: 6, fontWeight: 500 }}>· {r.solo === "at" ? "그 시각에" : "30분 전"} 따로</b> : null}
+              {r.alert && r.time ? <b style={{ color: C.moss, fontSize: 11, marginLeft: 6, fontWeight: 500 }}>· 알림 2번</b> : null}
             </span>
             <button className="press" onClick={() => del(r.id)}
               style={{ background: "transparent", border: "none", color: C.ink3, fontSize: 12, flexShrink: 0 }}>빼기</button>
@@ -6857,23 +6860,30 @@ function CallScreen() {
                 <button className="press" onClick={add}
                   style={{ flexShrink: 0, padding: "0 16px", borderRadius: 12, background: C.moss, color: "#fff", border: "none", fontSize: 14, fontWeight: 600 }}>넣기</button>
               </div>
-              <div className="flex items-center gap-1.5" style={{ marginTop: 10, flexWrap: "wrap" }}>
-                <span style={{ fontSize: 12, color: C.ink3, marginRight: 2 }}>따로 전화</span>
-                {[["", "안 함"], ["before", "30분 전"], ["at", "그 시각에"]].map(([v, lab]) => (
-                  <button key={v} className="press" onClick={() => setSolo(v)}
-                    style={{ padding: "5px 11px", borderRadius: 999, fontSize: 11.5,
-                             border: `1px solid ${solo === v ? C.moss : C.line}`,
-                             background: solo === v ? C.mossSoft : "transparent",
-                             color: solo === v ? C.moss : C.ink3 }}>{lab}</button>
-                ))}
-              </div>
-              {solo ? (
-                <p style={{ fontSize: 11.5, color: C.ink3, marginTop: 7, lineHeight: 1.7 }}>
-                  한 통 더 나갑니다. {solo === "before"
-                    ? "하원·학원처럼 나가셔야 하는 것은 30분 전이 맞습니다."
-                    : "안약·연고처럼 그 자리에서 하시는 것은 그 시각에 걸어야 합니다 — 미리 알려드리면 또 잊으십니다."}
+              {byApp ? (
+                <>
+                  <button className="press flex items-center gap-2" onClick={() => setAlert((v) => !v)}
+                    style={{ marginTop: 10, background: "transparent", border: "none", padding: 0, textAlign: "left" }}>
+                    <span style={{ width: 15, height: 15, borderRadius: 4, flexShrink: 0,
+                                   border: `1.5px solid ${alert ? C.moss : C.line}`, background: alert ? C.moss : "transparent",
+                                   color: "#fff", fontSize: 10, lineHeight: "13px", textAlign: "center" }}>{alert ? "✓" : ""}</span>
+                    <span style={{ fontSize: 12.5, color: alert ? C.ink2 : C.ink3 }}>
+                      이건 <b style={{ color: C.ink2 }}>따로 알림</b> — 30분 전과 그 시각, 두 번
+                    </span>
+                  </button>
+                  <p style={{ fontSize: 11.5, color: C.ink3, marginTop: 7, lineHeight: 1.7 }}>
+                    30분 전은 준비하시라고, 정각은 지금이라고 울립니다. 하나만 있으면 둘 다 놓칩니다.
+                    간식처럼 늦어도 되는 것은 켜지 마세요 — 아침 알림에 같이 실립니다.
+                  </p>
+                </>
+              ) : (
+                <p style={{ fontSize: 11.5, color: C.ink3, marginTop: 10, lineHeight: 1.7 }}>
+                  전화는 <b style={{ color: C.ink2 }}>아침에 한 통</b>으로 그날 것을 다 읽어드립니다.
+                  항목마다 따로 걸지 않습니다 — 통마다 값이 들고, 여러 번 울리면 어른이 성가셔하십니다.<br />
+                  어른이 앱을 쓰시면 알림이 공짜라 항목마다 두 번씩 보내드릴 수 있습니다.
+                  설정에서 바꾸실 수 있어요.
                 </p>
-              ) : null}
+              )}
             </>
           )}
 
@@ -6937,7 +6947,7 @@ function CallScreen() {
           <div className="flex items-center gap-1.5" style={{ marginTop: 12, flexWrap: "wrap" }}>
             <span style={{ fontSize: 11.5, color: C.ink3 }}>이 요일을 그대로 복사 →</span>
             {["1", "2", "3", "4", "5"].filter((d) => d !== dow).map((d) => (
-              <button key={d} className="press" onClick={() => { copyTo(d); say(`${DOW_KR[Number(d)]}요일에 복사했습니다`); }}
+              <button key={d} className="press" onClick={() => { copyTo(d); setDow(d); say(`${DOW_KR[Number(d)]}요일에 복사했습니다`); }}
                 style={{ padding: "5px 11px", borderRadius: 999, border: `1px solid ${C.line}`, background: "transparent", fontSize: 11.5, color: C.ink2 }}>
                 {DOW_KR[Number(d)]}
               </button>
@@ -6968,7 +6978,7 @@ function CallScreen() {
             {batches.map((b, i) => (
               <div key={i} style={{ marginTop: i ? 10 : 0 }}>
                 <div className="mono" style={{ fontSize: 11, color: C.moss, marginBottom: 5 }}>
-                  {b.at} · {b.kind === "따로" ? "그 시각 30분 전" : b.kind === "그때" ? "그 시각에" : "아침 한 통"}
+                  {b.at} · {b.kind === "아침" ? (byApp ? "아침 알림" : "아침 한 통") : b.kind}
                 </div>
                 <div style={{ background: C.card, border: `1px solid ${C.moss}`, borderRadius: 14, padding: "14px 15px", fontSize: 14, lineHeight: 1.85, color: C.ink }}>
                   “{b.text}”
