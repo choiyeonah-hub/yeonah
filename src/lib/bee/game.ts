@@ -28,6 +28,9 @@ const GRAVITY = 0.05;
 const MAX_SPEED = 3.5;
 const BEE_W = 16;
 const BEE_H = 12;
+/** 왕대 몸통의 중심(앵커에서 아래로)과 접촉 반경 — 그림과 판정을 반드시 같이 움직인다. */
+const QUEEN_CELL_MID = 17;
+const QUEEN_CELL_R = 42;
 
 export type Status = "playing" | "wedding" | "ending";
 
@@ -56,7 +59,7 @@ export const STAGES: Stage[] = [
   {
     job: "육아벌",
     age: "3~11일령",
-    task: "애벌레를 먹이고, 왕대에는 로열젤리만 주자",
+    task: "애벌레를 먹이고, 왕대(여왕이 될 방)에 로열젤리를 주자",
     where: "육아권",
     target: 9,
     fact: {
@@ -634,15 +637,23 @@ export class BeeGame {
     if (this.stage === 1) {
       if (this.jelly < 3 && near(px, py, h.jellyPool.x, h.jellyPool.y, 32)) {
         this.jelly++;
-        this.actCooldown = 0.35;
+        this.actCooldown = 0.22;
         this.audio.sfx("sip");
         this.say(`로열젤리를 떴다 (${this.jelly}/3)`, 1.2);
         this.burst(h.jellyPool.x, h.jellyPool.y - 6, "#fff4d0", 8);
         return;
       }
+      // 빈손으로 애벌레를 건드리면 왜 안 되는지 알려 준다
+      if (this.jelly <= 0 && this.messageTimer <= 0) {
+        const hungry =
+          h.brood.some((c) => c.larva && !c.fed && near(px, py, c.x, c.y, 30)) ||
+          (h.queenCell.jelly < 3 &&
+            near(px, py, h.queenCell.x, h.queenCell.y + QUEEN_CELL_MID, QUEEN_CELL_R));
+        if (hungry) this.say("로열젤리가 없다! 젤리 웅덩이에서 떠 오자", 2);
+      }
       if (this.jelly > 0) {
         for (const c of h.brood) {
-          if (c.dirty || !c.larva || c.fed || !near(px, py, c.x, c.y, 27)) continue;
+          if (c.dirty || !c.larva || c.fed || !near(px, py, c.x, c.y, 30)) continue;
           c.fed = true;
           this.jelly--;
           this.actCooldown = 0.25;
@@ -652,7 +663,8 @@ export class BeeGame {
           return;
         }
         const q = h.queenCell;
-        if (q.jelly < 3 && near(px, py, q.x, q.y, 34)) {
+        // 왕대는 q.y 에서 아래로 늘어지게 그려진다. 판정도 그 몸통 한가운데에 둔다.
+        if (q.jelly < 3 && near(px, py, q.x, q.y + QUEEN_CELL_MID, QUEEN_CELL_R)) {
           q.jelly++;
           this.jelly--;
           this.actCooldown = 0.35;
@@ -661,7 +673,7 @@ export class BeeGame {
           this.say(
             q.jelly >= 3
               ? "왕대의 애벌레는 로열젤리만 먹었다. 이 아이가 여왕이 된다."
-              : `왕대에 로열젤리 (${q.jelly}/3)`,
+              : `여왕이 될 애벌레에게 로열젤리 (${q.jelly}/3)`,
             q.jelly >= 3 ? 3.5 : 1.4
           );
           if (q.jelly >= 3) q.capped = true;
@@ -816,7 +828,10 @@ export class BeeGame {
         h.brood.forEach((c) => {
           if (!c.dirty) c.larva = true;
         });
-        this.say("여왕이 닦아 둔 방마다 알을 낳았다. 이제 육아벌이다.", 4);
+        this.say(
+          "여왕이 닦아 둔 방마다 알을 낳았다. 젤리 웅덩이에서 젤리를 떠서 애벌레에게 가자.",
+          5
+        );
         break;
       case 2:
         this.say("밀랍샘이 자랐다. 가만히 있으면 밀랍이 모인다.", 4);
@@ -975,7 +990,9 @@ export class BeeGame {
         if (this.jelly <= 0) return h.jellyPool;
         return (
           nearest(h.brood.filter((c) => c.larva && !c.fed)) ??
-          (h.queenCell.jelly < 3 ? h.queenCell : null)
+          (h.queenCell.jelly < 3
+            ? { x: h.queenCell.x, y: h.queenCell.y + QUEEN_CELL_MID }
+            : null)
         );
       case 2:
         return nearest(h.honey.filter((c) => !c.built));
@@ -1331,6 +1348,12 @@ export class BeeGame {
           ctx.font = "9px system-ui, sans-serif";
           ctx.textAlign = "center";
           ctx.fillText("♪", c.x, c.y - 12);
+        } else if (this.stage === 1 && this.jelly > 0) {
+          ctx.strokeStyle = `rgba(255,226,150,${0.4 + Math.sin(this.elapsed * 4 + c.x) * 0.18})`;
+          ctx.lineWidth = 1.6;
+          ctx.beginPath();
+          ctx.arc(c.x, c.y, 24, 0, Math.PI * 2);
+          ctx.stroke();
         }
       } else {
         this.hex(c.x, c.y, 15, "rgba(96,66,28,0.75)", "rgba(226,176,84,0.6)");
@@ -1354,7 +1377,12 @@ export class BeeGame {
       ctx.fill();
       ctx.font = "bold 10px system-ui, sans-serif";
       ctx.textAlign = "center";
-      ctx.fillStyle = "rgba(255,247,220,0.8)";
+      const jw = ctx.measureText("로열젤리").width;
+      ctx.fillStyle = "rgba(12,7,2,0.7)";
+      ctx.beginPath();
+      ctx.roundRect(j.x - jw / 2 - 6, j.y - 26, jw + 12, 15, 7);
+      ctx.fill();
+      ctx.fillStyle = "rgba(255,247,220,0.95)";
       ctx.fillText("로열젤리", j.x, j.y - 15);
     }
 
@@ -1377,20 +1405,57 @@ export class BeeGame {
       ctx.beginPath();
       ctx.ellipse(0, 18, 10, 12, 0, 0, Math.PI * 2);
       ctx.fill();
-      ctx.beginPath();
-      ctx.ellipse(0, 31, 7, 8, 0, 0, Math.PI * 2);
-      ctx.fill();
+      if (q.capped) {
+        // 봉인된 왕대는 끝까지 밀랍으로 막혀 있다
+        ctx.beginPath();
+        ctx.ellipse(0, 31, 7, 8, 0, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        // 아직 열려 있다 — 안의 애벌레가 입을 내밀고 있어야 먹일 대상으로 읽힌다
+        const wig = Math.sin(this.elapsed * 4) * 1.2;
+        ctx.fillStyle = "#f7e9c4";
+        ctx.beginPath();
+        ctx.ellipse(wig * 0.4, 30, 7, 7.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#5b4327";
+        ctx.beginPath();
+        ctx.arc(-2.4 + wig * 0.4, 30, 1.1, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(2.4 + wig * 0.4, 30, 1.1, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "rgba(91,67,39,0.8)";
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.arc(wig * 0.4, 32, 2.4, 0.15 * Math.PI, 0.85 * Math.PI);
+        ctx.stroke();
+      }
       ctx.strokeStyle = "rgba(120,78,20,0.5)";
       ctx.lineWidth = 1.5;
-      for (let i = 0; i < 4; i++) {
+      for (let i = 0; i < 3; i++) {
         ctx.beginPath();
         ctx.arc(0, 2 + i * 9, 9, 0.15 * Math.PI, 0.85 * Math.PI);
         ctx.stroke();
       }
-      ctx.fillStyle = "rgba(255,244,206,0.9)";
+      // 젤리를 들고 있으면 어디를 건드려야 하는지 고리로 알려 준다
+      if (!q.capped && this.stage === 1) {
+        const on = this.jelly > 0;
+        ctx.strokeStyle = `rgba(255,226,150,${on ? 0.45 + Math.sin(this.elapsed * 4) * 0.2 : 0.14})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, QUEEN_CELL_MID, QUEEN_CELL_R - 6, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      const label = q.capped ? "왕대 · 봉인됨" : `왕대 — 여왕이 될 애벌레 ${q.jelly}/3`;
       ctx.font = "bold 10px system-ui, sans-serif";
       ctx.textAlign = "center";
-      ctx.fillText(q.capped ? "왕대 (봉인)" : `왕대 ${q.jelly}/3`, 0, -14);
+      const lw = ctx.measureText(label).width;
+      ctx.fillStyle = "rgba(12,7,2,0.72)";
+      ctx.beginPath();
+      ctx.roundRect(-lw / 2 - 6, 44, lw + 12, 15, 7);
+      ctx.fill();
+      ctx.fillStyle = "rgba(255,244,206,0.95)";
+      ctx.fillText(label, 0, 55);
       ctx.restore();
     }
 

@@ -228,8 +228,9 @@ export function generateHive(seed: number): Hive {
   }
   h.jellyPool = { x: (brood.x + brood.w - 3) * TILE, y: (brood.y + brood.h - 2) * TILE };
   // 왕대는 육아권 소비 아래 가장자리에 매달린다
+  // 애벌레 방 격자(+7 / +16 / +25)와 겹치지 않도록 사이에 매단다
   h.queenCell = {
-    x: (brood.x + Math.floor(brood.w / 2)) * TILE,
+    x: (brood.x + 11) * TILE + TILE / 2,
     y: (brood.y + brood.h - 3) * TILE,
     jelly: 0,
     capped: false,
