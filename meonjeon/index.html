@@ -127,7 +127,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0901-ad';
+const GATE_BUILD = '0901-ae';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -785,19 +785,22 @@ const SEED = [
   { id: "L030", cat: "finance", kid: 1, w: [10, 36], lead: 14, st: "now", t: "보육료 자격 신청", tg: "입소일", ask: "입소일이 15일 전/후인지 확인할까요?", cy: "1회", g: "어린이집", src: "S02" },
   { id: "L031", cat: "edu", kid: 1, w: [12, 96], lead: 21, an: "03-02", st: "repeat", t: "가방·여벌옷·준비물 리셋", tg: "새 학기 전 (2월)", ask: "새 학기 준비물 공지가 왔나요?", cy: "연 1회", g: "기관준비물", src: "" },
   { id: "L032", cat: "edu", kid: 1, w: [12, 180], lead: 0, st: "conditional", t: "가정통신문 일정 추출", tg: "공지 수신 시", ask: "공지에서 날짜·준비물·마감을 뽑아드릴까요?", cy: "수시", g: "학교문서", src: "" },
-  { id: "L033", cat: "event", kid: 1, w: [3, 9], lead: 180, st: "decide", t: "돌잔치 장소 조사", tg: "돌 무렵 행사", ask: "돌잔치를 할 계획인가요?", cy: "1회", g: "돌잔치", src: "" },
+  { id: "L033", cat: "event", kid: 1, w: [3, 9], lead: 180, st: "decide", t: "돌잔치 장소 조사", tg: "돌 무렵 행사", ask: "돌잔치를 하실 거면 지금이 자리를 고를 수 있는 때입니다. 주말 낮은 6개월 전에도 차 있는 곳이 있어요. 안 하기로 정하셔도 됩니다 — 그럼 이 줄은 사라집니다", cy: "1회", g: "돌잔치", src: "" },
   { id: "L034", cat: "event", kid: 1, w: [8, 12], lead: 60, st: "week", t: "돌잔치 촬영·의상·답례품", tg: "행사일", ask: "장소는 예약했나요?", cy: "1회", g: "돌잔치", src: "" },
   { id: "L035", cat: "edu", kid: 1, w: [60, 72], lead: 14, st: "remember", t: "취학통지 확인", tg: "입학 전 12월", ask: "취학통지서를 받았나요?", cy: "연 1회", g: "취학", src: "S05" },
   { id: "L036", cat: "edu", kid: 1, w: [60, 73], lead: 14, st: "remember", t: "예비소집 참석", tg: "입학 전 12~1월", ask: "예비소집 날짜를 캘린더에 넣을까요?", cy: "1회", g: "취학", src: "S05" },
   { id: "L037", cat: "edu", kid: 1, w: [60, 73], lead: 30, st: "decide", t: "돌봄교실·방과후 신청", tg: "입학 전", ask: "퇴근시간과 방과후 공백을 계산할까요?", cy: "학기별", g: "취학", src: "" },
-  { id: "L038", cat: "edu", kid: 1, w: [73, 144], lead: 14, st: "repeat", t: "학사일정 등록", tg: "학기 시작 전", ask: "학교 학사일정을 가져올까요?", cy: "학기별", g: "학교일정", src: "S06" },
+  /* 예전 제목은 "학사일정 등록"이었습니다. 무엇을 하라는 건지 알기 어렵고,
+     학기마다 뜨는데 정작 챙겨야 할 것은 하나입니다 — 재량휴업일입니다.
+     학교가 3월에 한 해치를 다 공지합니다. 그때 적어두지 않으면
+     10월에 "다음 주 재량휴업일"을 알림장으로 알게 되고, 그때는 연차가 늦습니다.
+     맞벌이 가정에서 제일 곤란한 날이 이 날입니다. */
+  { id: "L038", cat: "edu", kid: 1, w: [73, 144], mo: [3], lead: 30, st: "remember", t: "올해 재량휴업일 적어두기", tg: "3월 학사일정 공지", ask: "학교가 3월에 한 해 학사일정을 냅니다. 재량휴업일·단축수업일 날짜를 말하기로 넣어두시면, 각각 한 달 전에 연차 알림을 드립니다", cy: "연 1회", g: "학교일정", src: "S06" },
   { id: "L039", cat: "edu", kid: 1, w: [73, 144], lead: 7, st: "conditional", t: "체험학습 안내문 오면 스캔", tg: "안내문 수신 시", ask: "알림장 사진을 올리면 도시락·복장·제출 서류를 할 일로 나눕니다", cy: "수시", g: "학교일정", src: "", scan: 1 },
   { id: "L040", cat: "edu", kid: 1, w: [73, 180], lead: 1, st: "remember", t: "준비물·제출물 D-1 확인", tg: "제출일", ask: "", cy: "수시", g: "학교일정", src: "" },
   { id: "L041", cat: "edu", kid: 1, w: [73, 216], lead: 30, st: "remember", t: "학원 재등록·레벨테스트", tg: "새 학기", ask: "다음 학기 등록 공지가 왔나요?", cy: "학기별", g: "학원", src: "" },
   { id: "L042", cat: "edu", kid: 1, w: [73, 156], lead: 14, st: "repeat", t: "신발·실내화 사이즈 확인", tg: "학기/계절 시작", ask: "지금 발 사이즈를 재볼까요?", cy: "2~3개월", g: "성장", src: "" },
   { id: "L043", cat: "edu", kid: 1, w: [145, 216], lead: 14, st: "repeat", t: "학원·학교 시간표 통합", tg: "학기 시작", ask: "시간표 변경이 잦은가요?", cy: "학기별", g: "학원", src: "" },
-  { id: "L044", cat: "edu", kid: 1, w: [145, 216], lead: 28, st: "remember", t: "시험기간 역산 계획", tg: "시험일", ask: "시험일 기준 가족일정을 조정할까요?", cy: "시험별", g: "시험", src: "" },
-  { id: "L045", cat: "edu", kid: 1, w: [145, 216], lead: 7, st: "conditional", t: "수행평가·제출기한 추출", tg: "제출일", ask: "문서에서 기한과 준비물을 뽑을까요?", cy: "수시", g: "시험", src: "" },
   { id: "L046", cat: "edu", kid: 1, w: [145, 228], lead: 30, an: "03-02", st: "repeat", t: "교복 사이즈·수선 점검", tg: "새 학기 전 (2월 초)", ask: "최근 키가 많이 컸나요?", cy: "연 1회", g: "성장", src: "" },
   { id: "L047", cat: "food", f: null, lead: 2, st: "now", t: "유통기한 임박 재료 소진", tg: "소진기한", ask: "빨리 써야 할 재료가 있나요?", cy: "주 3회", g: "냉장고", src: "" },
   { id: "L048", cat: "food", f: null, lead: 1, st: "repeat", t: "주간 밀키트 준비", tg: "평일 저녁", ask: "바쁜 요일 기준 2~3개만 준비할까요?", cy: "주 1회", g: "냉장고", src: "" },
@@ -946,10 +949,8 @@ const SEED = [
   { id: "R032", cat: "kid", kid: 1, w: [12, 84], lead: 0, st: "repeat", t: "낮잠이불 세탁", tg: "격주", ask: "", cy: "2주", g: "보육정기", src: "" },
   { id: "R033", cat: "kid", kid: 1, w: [48, 96], lead: 0, st: "repeat", t: "가정통신문 확인", tg: "주간", ask: "사진으로 올려주시면 할 일만 뽑습니다", cy: "주 1회", g: "보육정기", src: "" },
   { id: "R034", cat: "kid", kid: 1, w: [0, 72], lead: 0, st: "repeat", t: "목욕·머리 감기기", tg: "주기", ask: "", cy: "2~3일", g: "보육정기", src: "" },
-  { id: "R035", cat: "edu", kid: 1, w: [73, 216], lead: 0, st: "repeat", t: "숙제·학습 점검", tg: "평일", ask: "", cy: "매일", g: "교육정기", src: "" },
   { id: "R036", cat: "edu", kid: 1, w: [73, 216], lead: 0, st: "repeat", t: "학원비 납부 확인", tg: "납부일", ask: "자동이체가 걸려 있나요?", cy: "월 1회", g: "교육정기", src: "" },
   { id: "R037", cat: "edu", kid: 1, w: [73, 216], lead: 0, st: "repeat", t: "학교 공지·알림장 확인", tg: "주간", ask: "", cy: "주 1회", g: "교육정기", src: "" },
-  { id: "R038", cat: "edu", kid: 1, w: [60, 180], lead: 0, st: "repeat", t: "독서·학습 기록", tg: "주간", ask: "", cy: "주 1회", g: "교육정기", src: "" },
   { id: "R039", tp: 1, cat: "home", f: null, lead: 0, st: "repeat", t: "분리수거", tg: "배출일", ask: "우리 동 배출 요일이 언제인가요?", cy: "주 1회", g: "집안일정기", src: "" },
   { id: "R040", cat: "home", f: null, lead: 0, st: "repeat", t: "바닥 청소·물걸레", tg: "주간", ask: "", cy: "주 1회", g: "집안일정기", src: "" },
   { id: "R041", cat: "home", f: null, lead: 0, st: "repeat", t: "침구 교체·세탁", tg: "격주", ask: "", cy: "2주", g: "집안일정기", src: "" },
@@ -973,8 +974,6 @@ const SEED = [
   /* 약정이 끝난 줄 모르고 몇 년을 그대로 내는 집이 많습니다.
      아무도 안 알려줍니다 — 통신사가 알려줄 이유가 없으니까요. */
   { id: "R050", cat: "finance", f: null, lead: 30, st: "check", t: "통신·인터넷 약정 만료일 확인", tg: "약정 끝나는 때", ask: "약정이 언제 끝나는지 아세요? 끝나도 요금이 안 내려갑니다 — 직접 바꿔야 합니다", cy: "연 1회", g: "금융정기", src: "" },
-  { id: "T004", cat: "edu", kid: 1, w: [72, 216], lead: 0, st: "repeat", t: "성교육 대화 나누기", tg: "연령대별", ask: "지금 나이에 맞는 주제로 자연스럽게 이야기 나눠볼까요?", cy: "6개월", g: "청소년정기", src: "" },
-  { id: "T005", cat: "edu", kid: 1, w: [120, 216], lead: 0, st: "repeat", t: "스마트폰·SNS 사용 점검", tg: "사춘기", ask: "사용 시간과 규칙을 같이 정해볼까요?", cy: "3개월", g: "청소년정기", src: "" },
   { id: "S001", cat: "appliance", f: null, season: "summer", lead: 0, st: "repeat", t: "제습기 물 버리기", tg: "장마·여름", ask: "요즘 하루에 한 번은 비우시죠?", cy: "매일", g: "계절정기", src: "" },
   { id: "S002", tp: 1, cat: "appliance", f: null, season: "summer", lead: 0, st: "repeat", t: "에어컨 필터 청소", tg: "냉방 사용기", ask: "냄새 나기 전에 볼까요?", cy: "월 1회", g: "계절정기", src: "" },
   { id: "S003", cat: "appliance", f: null, season: "summer", lead: 0, st: "repeat", t: "선풍기 청소·보관", tg: "시즌 시작·종료", ask: "", cy: "연 2회", g: "계절정기", src: "" },
@@ -1190,11 +1189,45 @@ const PET_TYPES = {
    "추천" = 민간 서비스인데 대가를 받지 않음
    "광고" = 대가를 받는 제휴 — 표시광고법상 반드시 이렇게 표기해야 합니다
    url에 {q}가 있으면 할 일 제목이 검색어로 들어갑니다. */
+/* ── 한 번에 채우기 ────────────────────────────────
+   한국은 정보가 흩어져 있습니다. 학교는 앱, 학원은 문자, 보험은 메일.
+   그런데 흩어진 것을 한 화면에 모아 보여주는 곳이 몇 군데 있습니다.
+   그 화면을 캡처해서 올리시면 여러 건이 한 번에 들어옵니다 —
+   보험사 여덟 곳을 돌지 않으셔도 됩니다.
+
+   자동전달이나 전용번호보다 이게 빠릅니다. 그리고 남이 알려주기를
+   기다리지 않습니다. 보험사는 만기 한 달 전에야 알려주는데,
+   여기서는 지금 압니다. */
+const CAPTURE_SPOTS = [
+  { name: "내보험찾아줌", url: "https://cont.insure.or.kr/",
+    what: "보험 만기일 · 숨은 보험금",
+    desc: "가입한 보험이 회사 상관없이 한 화면에 다 나옵니다. 본인인증 한 번이면 되고 무료예요.",
+    why: "보험사마다 로그인해서 찾지 않으셔도 됩니다." },
+  { kid: 1, name: "예방접종도우미", url: "https://nip.kdca.go.kr/",
+    what: "아이 접종 이력 · 남은 차수",
+    desc: "질병관리청입니다. 맞은 것과 남은 것이 같이 나옵니다.",
+    why: "다음 차수를 하나씩 옮겨 적지 않으셔도 됩니다." },
+  { mo: [1, 2], name: "홈택스 연말정산 간소화", url: "https://www.hometax.go.kr/",
+    what: "빠진 공제 항목",
+    desc: "1월 중순에 열립니다. 화면을 올려주시면 의료비·교육비에 빠진 게 있는지 봐드려요.",
+    why: "학원비는 취학 전과 초등 1~2학년 예체능만 됩니다. 헷갈리는 자리예요." },
+  /* 연동은 안 됩니다 — e알리미·아이엠스쿨·키즈노트 모두 공개 API가 없습니다.
+     그런데 캡처가 오히려 낫습니다. 그 화면들은 글씨가 작아서 잘 안 읽히는데,
+     캡처를 올리면 기한 있는 것만 뽑아 큰 글씨로 담아드립니다.
+     "수고로움"이 아니라 읽어주는 일입니다. */
+  { kid: 1, name: "학교·어린이집 공지 앱", url: "",
+    what: "이번 달 공지 · 신청 마감",
+    desc: "e알리미·아이엠스쿨·키즈노트 공지 화면을 캡처해서 올려주세요. 방과후 신청처럼 기한 있는 것만 뽑아 담아드립니다.",
+    why: "글씨가 작아 놓치기 쉬운 자리입니다. 2~3월과 8~9월에 공지가 몰립니다." },
+  { flag: "car", name: "자동차민원 대국민포털", url: "https://www.ecar.go.kr/",
+    what: "정기검사 만료일 · 과태료",
+    desc: "검사 유효기간이 언제까지인지 나옵니다.",
+    why: "안내 문자를 놓치면 과태료가 붙습니다." },
+];
+
 const LINKS = [
   { always: 1, ad: 1, name: "쿠팡에서 장보기", desc: "담아둔 목록 그대로 검색", url: "https://www.coupang.com/np/search?q={q}", tag: "추천",
     kw: ["장보기", "구매", "사기", "주문", "생수", "휴지", "세제", "기저귀", "분유", "사료", "모래"], g: ["식단정기", "소모품", "육아소모품", "반려정기"] },
-  { always: 1, name: "냉장고 관리 앱 찾기", desc: "재고 등록하면 유통기한 알림에 식단까지", url: "https://apps.apple.com/kr/search?term=냉장고 관리", tag: "추천",
-    kw: ["냉장고", "재고", "유통기한", "식재료", "장보기"], g: ["냉장고", "식단정기"] },
   { always: 1, name: "유튜브 레시피 보기", desc: "따라 하기 쉬운 영상부터", url: "https://www.youtube.com/results?search_query={q}+레시피", tag: "추천",
     kw: ["식단", "반찬", "요리", "밀키트", "레시피"], g: ["식단정기", "냉장고"] },
   { name: "예방접종도우미", desc: "질병관리청 · 접종 이력과 다음 일정", url: "https://nip.kdca.go.kr/", tag: "정보",
@@ -1209,16 +1242,10 @@ const LINKS = [
     kw: ["문화센터", "돌봄센터", "가족 프로그램"], g: ["보육정기", "놀이"] },
   { name: "아자스쿨", desc: "아이 체험·방과후 프로그램 예약", url: "https://www.azaschool.com/", tag: "추천",
     kw: ["체험", "놀러", "나들이", "방학", "캠프", "주말 활동"], g: ["놀이", "학교일정"] },
-  { name: "놀이의 발견", desc: "주말에 아이랑 갈 곳 골라보기", url: "https://apps.apple.com/kr/search?term=놀이의발견", tag: "추천",
-    kw: ["체험", "놀러", "나들이", "키즈카페", "주말 활동"], g: ["놀이"] },
   { name: "차이의 놀이", desc: "0~7세 나이에 맞는 집놀이·발달 정보", url: "https://www.chaisplay.com/", tag: "추천",
     kw: ["놀이", "집놀이", "발달", "교구", "오감", "감각놀이", "비 오는 날"], g: ["놀이", "유아생활"] },
-  { name: "베이비빌리", desc: "임신 주차·월령별 정보와 준비물", url: "https://apps.apple.com/kr/app/id1497301126", tag: "추천",
-    kw: ["임신", "태교", "출산준비", "산후조리", "주차별", "월령"], g: ["임신", "출산준비", "조리원"] },
   { name: "키즈노트", desc: "알림장·공지 확인 (사진으로 올리면 준비물만 뽑습니다)", url: "https://www.kidsnote.com/", tag: "추천",
     kw: ["알림장", "준비물", "공지"], g: ["기관준비물", "보육정기"] },
-  { name: "e알리미", desc: "학교 가정통신문·설문 (캡처해 올리면 할 일만 뽑습니다)", url: "https://apps.apple.com/kr/search?term=e알리미", tag: "추천",
-    kw: ["가정통신문", "학교 공지", "체험학습", "제출"], g: ["학교일정", "교육정기"] },
   { name: "학교알리미", desc: "학사일정·방학 날짜 확인", url: "https://www.schoolinfo.go.kr/", tag: "정보",
     kw: ["학사일정", "방학", "개학"], g: ["학교일정"] },
   { name: "오피넷", desc: "한국석유공사 · 근처 싼 주유소", url: "https://www.opinet.co.kr/", tag: "정보",
@@ -1236,17 +1263,11 @@ const LINKS = [
     kw: ["정리", "정리수납", "집 정리", "수납", "짐 정리", "옷장 정리", "입주청소"], g: ["이사", "청소정기"] },
   { ad: 1, name: "미니창고 다락", desc: "계절옷·이불·이삿짐을 필요한 크기만큼 맡기기", url: "https://www.dalock.kr/", tag: "추천",
     kw: ["짐 보관", "옷 보관", "계절옷 보관", "창고", "이삿짐 보관"], g: ["이사", "옷관리", "정리"] },
-  { ad: 1, name: "스프링클", desc: "돌잔치 장소·돌상·스냅·답례품", url: "https://apps.apple.com/kr/search?term=스프링클 돌잔치", tag: "추천",
-    kw: ["돌잔치", "돌상", "돌스냅", "답례품", "백일"], g: ["돌잔치"] },
-  { name: "냠냠일기", desc: "먹은 재료·알레르기 반응 기록", url: "https://apps.apple.com/kr/search?term=냠냠일기", tag: "추천",
-    kw: ["이유식", "미음", "유아식", "알레르기"], g: ["이유식"] },
   { name: "코레일+", desc: "KTX·SRT를 한 앱에서 · 명절 예매는 보통 한 달 전부터", url: "https://www.letskorail.com/", tag: "정보",
     kw: ["기차", "KTX", "승차권", "명절 교통", "귀성"], g: ["행사정기"] },
   /* 계획 짜기는 이 앱이 할 일이 아닙니다. 잘하는 곳으로 데려다줍니다. */
   { name: "대한민국 구석구석", desc: "한국관광공사 · 지역별 여행지와 축제", url: "https://korean.visitkorea.or.kr/", tag: "정보",
     kw: ["여행", "나들이", "휴가", "여행지", "축제", "당일치기", "국내여행"], g: ["놀이", "여행", "휴일"] },
-  { ad: 1, name: "트리플", desc: "가는 곳만 고르면 일정을 짜줘요", url: "https://apps.apple.com/kr/search?term=트리플 여행", tag: "추천",
-    kw: ["여행 계획", "여행 일정", "일정 짜", "코스"], g: ["여행", "휴일"] },
   { name: "복지로", desc: "받을 수 있는 복지를 한 곳에서 찾아봐요", url: "https://www.bokjiro.go.kr", tag: "추천",
     kw: ["복지", "돌봄", "지원금", "수당", "기초연금", "안심", "말벗", "다자녀", "감면", "우대"], g: ["독거", "부모님", "부모님정기", "다자녀"] },
   { name: "보건복지상담센터 129", desc: "어디에 신청하는지 전화로 물어보는 게 제일 빨라요", url: "tel:129", tag: "추천",
@@ -1480,6 +1501,25 @@ const WEEKDAY = ["일", "월", "화", "수", "목", "금", "토"];
 
 /* ── ① 반복 업무 ──────────────────────────────── */
 const ROUTINE_SEEDS = SEED.filter((s) => s.st === "repeat");
+/* ── 무엇을 목록에 넣고, 무엇을 AI에게 맡길 것인가 ─────────
+   교육 쪽에서 한 번 넘쳤습니다. 시험기간 역산·숙제 점검·독서 기록까지
+   넣었었는데, 그건 살림이 아니라 훈수입니다. 그리고 초등은 시험이 없고,
+   어디까지 챙기는지는 집집마다 다릅니다.
+
+   기준은 이겁니다 —
+
+     목록(씨앗)에 넣는 것 → 집집마다 같고, 때가 정해져 있고, 부모가 움직여야 하는 것
+       예: 취학통지·예비소집, 재량휴업일, 현장학습 준비물, 학원비 납부일,
+           공개수업 연차, 알림장 확인, 실내화 사이즈
+
+     AI(말하기)에 맡기는 것 → 집마다 다르고, 그때그때인 것
+       예: 어느 문제집을 살지, 숙제를 봐줄지, 학원을 옮길지, 시험 계획
+
+   새 항목을 넣기 전에 물어보세요:
+     "이걸 우리 집 아이 나이의 모든 집이 똑같이 하는가?"
+     아니라면 넣지 않습니다. 물어보면 AI가 답합니다.
+
+   교육에 깊이 들어가면 이 앱은 학습관리 앱이 됩니다. 그건 다른 앱이 잘합니다. */
 const LIFE_SEEDS = SEED.filter((s) => s.st !== "repeat");
 /* 안 하면 그날 바로 티가 나는 일입니다. 싱크대에 그릇이 쌓이면 보이니까요.
    지워도 되지만, 있어야 담당을 정하거나 배우자에게 넘길 수 있습니다.
@@ -1488,9 +1528,15 @@ const LIFE_SEEDS = SEED.filter((s) => s.st !== "repeat");
 const NEVER_FORGET = { N058: 1, R043: 1, R040: 1, N001: 1, N002: 1, R004: 1, R001: 1,
   N061: 1, N011: 1, R009: 1, R010: 1, P012: 1, N069: 1, N070: 1 };
 
-/* 계절 항목은 그 계절에만 올라옵니다 */
+/* 계절 항목은 그 계절에만 올라옵니다.
+   mo는 그보다 좁습니다 — 딱 그 달에만. 재량휴업일처럼 "3월에만 하는 일"에 씁니다.
+   여름·겨울로는 못 잡습니다. 3월은 겨울에도 들어 있어서 11월부터 떠버립니다. */
 const SEASON = { summer: [5, 6, 7, 8, 9], winter: [11, 12, 1, 2, 3] };
-const inSeason = (seed, month) => !seed.season || (SEASON[seed.season] || []).includes(month || (new Date().getMonth() + 1));
+const inSeason = (seed, month) => {
+  const m = month || (new Date().getMonth() + 1);
+  if (seed.mo && seed.mo.indexOf(m) < 0) return false;
+  return !seed.season || (SEASON[seed.season] || []).includes(m);
+};
 
 /* 이 가구에 해당하는 반복 업무만 추림 */
 function eligibleRoutines(st, ignoreSeason) {
@@ -1622,6 +1668,9 @@ function buildRecommendations(st) {
     /* 복지는 유용정보에서 읽는 것입니다. 마감이 없어서 할 일로 담기면
        "시점 미정"만 쌓입니다. 추천 카드로 권하지 않습니다. */
     if (seed.wf) return;
+    /* 계절·달 항목은 그때만. 예전에는 반복 항목에만 이 문이 있어서,
+       생활 항목은 열두 달 내내 떴습니다. */
+    if (!inSeason(seed)) return;
     if (seed.kid) {
       st.children.forEach((ch) => {
         const m = childMonths(ch), [a, b] = seed.w;
@@ -1654,7 +1703,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-ad";
+const BUILD = "0901-ae";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -6693,7 +6742,7 @@ const AHEAD = [
     use: "10개월 뒤 (12월)", risk: "high",
     tip: "발표회는 거의 매년 있습니다. 색만 맞으면 되는 물건이니 물려받을 데가 있는지 먼저 보세요.", buy: 1 },
   { id: "B05", mo: [4, 10], cat: "kid", w: [12, 96], t: "부모참여수업 — 연차를 미리 비워두세요",
-    why: "평일 오전입니다. 공지는 보통 2주 전에 오는데, 그때 연차를 내려면 이미 늦습니다.",
+    why: "평일 오전이라 연차가 필요합니다. 공지를 받고 나서 내려고 하면 이미 자리가 없을 수 있어요.",
     use: "1~2개월 뒤",
     ask: "알림장에 부모참여수업·공개수업 공지가 있는지 확인해보세요." },
   /* 예전에는 "5월이 7월보다 싸다"고 적어두고 사라고 했습니다. 근거를 못 찾았습니다.
@@ -6704,14 +6753,18 @@ const AHEAD = [
     use: "1~2개월 뒤",
     ask: "알림장에 물놀이·여름행사 공지가 있는지 확인해보세요.",
     tip: "수영복은 늘어나서 한 해 더 되는 경우가 많습니다. 안 맞으면 그때 사셔도 늦지 않습니다 — 인터넷에 사이즈가 다 있습니다.", buy: 0 },
-  { id: "B09", mo: [7], cat: "kid", w: [12, 108], g: "한복", t: "추석 한복 사이즈 점검·대여 예약",
-    why: "추석 직전에는 인기 사이즈가 없습니다. 대여도 다 나갑니다.", use: "2개월 뒤",
-    tip: "작년 한복을 지금 입혀보세요. 당일 아침에 알면 방법이 없습니다.", buy: 1 },
+  /* 예전에는 "추석 직전에는 인기 사이즈가 없습니다. 대여도 다 나갑니다"라고 적고
+     사라고 했습니다. 찾아봤지만 근거를 못 찾았습니다. 그래서 값 얘기를 빼고,
+     래시가드처럼 집에 있는 것부터 보는 항목으로 바꿨습니다.
+     미리 해서 달라지는 것은 값이 아니라 시간입니다 — 당일 아침이 아니라 두 달 전에 알게 되는 것. */
+  { id: "B09", mo: [7], cat: "kid", w: [12, 108], g: "한복", t: "작년 한복 입혀보기",
+    why: "지금 입혀보시면 살지 빌릴지 물려받을지 정할 시간이 두 달 있습니다. 추석 당일 아침에 안 맞는 걸 알면 방법이 없어요.", use: "2개월 뒤",
+    tip: "안 맞으면 그때 알아보셔도 됩니다. 지금 사두실 필요는 없어요.", buy: 0 },
   /* 9월에 뜨는 항목 중 이게 제일 먼저 눈에 들어옵니다.
      예전 제목은 "최종 점검"이라 이미 산 사람에게 하는 말이었고,
      한마디도 "2월에 사두신 게 있으면"이었습니다 — 2월에는 이 앱이 없었습니다. */
   { id: "B11", mo: [9], cat: "kid", w: [24, 108], g: "할로윈", t: "할로윈 의상 — 10월엔 매장가뿐입니다",
-    why: "해외배송은 지금 주문해야 10월 안에 옵니다. 당근에 작년 것이 올라오는 것도 9월이 마지막입니다. 10월 중순부터는 인터넷에서 아이 사이즈가 먼저 빠집니다.",
+    why: "해외에서 사실 거면 지금이 마지막입니다 — 배송에 2~4주 걸립니다. 국내에서 사시거나 당근으로 구하실 거면 아직 시간이 있어요.",
     use: "10월 31일",
     tip: "원에서 준비물 안내가 오는 건 보통 10월 중순입니다. 그때는 이미 늦습니다. 한 달 뒤에 입힐 옷이니 지금 딱 맞는 건 피하세요.", buy: 1 },
   /* 10월은 "무엇을 줄지 정하는" 달이고, 사는 건 11월 블프입니다.
@@ -7281,6 +7334,43 @@ function Useful() {
           </Card>
         </Section>
       ))}
+
+      {/* 흩어진 것을 한 화면에 모아둔 곳들. 캡처 한 장이면 여러 건이 들어옵니다 */}
+      {(() => {
+        const now = new Date().getMonth() + 1;
+        const spots = CAPTURE_SPOTS.filter((x) =>
+          (!x.kid || (st.children || []).length) &&
+          (!x.flag || st.flags[x.flag]) &&
+          (!x.mo || x.mo.indexOf(now) >= 0));
+        if (!spots.length) return null;
+        return (
+          <Section eyebrow="ONE SHOT" title="한 번에 채우기" right="캡처 한 장이면 됩니다">
+            <div style={{ fontSize: 12.5, color: C.ink2, lineHeight: 1.75, marginBottom: 12, paddingLeft: 2 }}>
+              아래는 <b style={{ color: C.ink }}>흩어진 걸 한 화면에 모아 보여주는 곳</b>입니다.
+              그 화면을 캡처해서 올리시면 여러 건이 한꺼번에 들어옵니다.
+            </div>
+            {spots.map((x) => (
+              <Card key={x.name} style={{ marginBottom: 9 }}>
+                <div style={{ padding: 15 }}>
+                  <div className="flex items-baseline justify-between gap-2">
+                    <div style={{ fontSize: 14.5, fontWeight: 600 }}>{x.name}</div>
+                    <span className="mono" style={{ fontSize: 10.5, color: C.moss, whiteSpace: "nowrap" }}>{x.what}</span>
+                  </div>
+                  <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 7, lineHeight: 1.7 }}>{x.desc}</div>
+                  <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 5, lineHeight: 1.7 }}>{x.why}</div>
+                  <div className="flex gap-2" style={{ marginTop: 11 }}>
+                    {/* 앱만 있고 웹이 없는 곳(공지 앱)은 열어드릴 데가 없습니다 */}
+                    {x.url && <a className="press" href={x.url} target="_blank" rel="noopener noreferrer"
+                      style={{ flex: 1, textAlign: "center", background: C.bg, color: C.ink2, border: `1px solid ${C.line}`, borderRadius: R.sm, padding: "11px 0", fontSize: 12.5, textDecoration: "none" }}>열어보기</a>}
+                    <button className="press" onClick={() => { setTab("speak"); say("📄 사진 버튼을 눌러 캡처한 화면을 올려주세요"); }}
+                      style={{ flex: 1, background: C.ink, color: "#fff", border: "none", borderRadius: R.sm, padding: "11px 0", fontSize: 12.5, fontWeight: 600 }}>캡처 올리기</button>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </Section>
+        );
+      })()}
 
       {/* 달마다 새로 찾아오는 것 — 버튼 하나로 끝냅니다 */}
       <div style={{ marginTop: 18 }}>
