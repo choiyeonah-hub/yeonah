@@ -127,7 +127,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0901-ac';
+const GATE_BUILD = '0901-ad';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -823,6 +823,9 @@ const SEED = [
   { id: "L068", cat: "parents", f: "parents", lead: 7, st: "remember", t: "정기진료 일정 공유", tg: "진료일", ask: "다음 진료와 동행 담당자를 정할까요?", cy: "진료별", g: "부모님", src: "" },
   { id: "L069", cat: "parents", f: "parentsWith", lead: 7, st: "repeat", t: "약 처방일·잔량 확인", tg: "약 소진 전", ask: "약이 며칠 남았나요?", cy: "주/월", g: "부모님", src: "" },
   { id: "L070", cat: "parents", f: "parents", lead: 45, st: "remember", t: "건강검진 예약", tg: "연간 검진", ask: "연말 전에 예약할까요?", cy: "연 1회", g: "부모님", src: "" },
+  /* 부모님 검진은 있었는데 정작 본인 것이 없었습니다.
+     2년에 한 번이라 더 잘 까먹고, 12월에 몰려서 그때는 예약이 안 잡힙니다. */
+  { id: "L075", cat: "health", f: null, lead: 60, st: "remember", t: "국가건강검진 받기", tg: "2년에 한 번 · 출생연도가 짝수면 짝수 해", ask: "올해가 검진 해인지 보셨나요? 12월에 몰려서 그때는 예약이 어렵습니다", cy: "2년 1회", g: "건강정기", src: "S14" },
   { id: "L071", cat: "parents", f: "parents", wf: 1, lead: 14, st: "conditional", t: "장기요양등급 신청 알아보기", tg: "거동이 예전 같지 않으실 때", ask: "최근 돌봄 필요가 커졌나요?", cy: "상태변화시", g: "부모님", src: "S04" },
   /* 혼자 계신 부모님 — 몰라서 못 받는 것이 많은 자리입니다.
      "대상입니다"라고 말하지 않습니다. 조건은 지자체마다 다르고, 판단은 기관이 합니다. */
@@ -933,8 +936,13 @@ const SEED = [
   /* 떨어져 살면 약통을 못 봅니다. 대신 처방받은 날을 알면 언제 떨어지는지 셀 수 있습니다 */
   { id: "R030", tp: 1, cat: "parents", f: "parents", lead: 3, st: "repeat", t: "다음 진료일 물어보기", tg: "월 1회", ask: "", cy: "월 1회", g: "부모정기", src: "" },
   { id: "R031", tp: 1, cat: "parents", f: "parents", lead: 7, st: "repeat", t: "생신·기념일 확인", tg: "연 1회", ask: "", cy: "연 1회", g: "부모정기", src: "" },
-  { id: "R030", cat: "kid", kid: 1, w: [12, 84], lead: 0, st: "repeat", t: "알림장·앱 공지 확인", tg: "등원일", ask: "", cy: "매일", g: "보육정기", src: "" },
-  { id: "R031", cat: "kid", kid: 1, w: [12, 84], lead: 0, st: "repeat", t: "가방·수건·여벌옷 세탁", tg: "주간", ask: "", cy: "주 1회", g: "보육정기", src: "" },
+  /* 이 둘은 R030·R031이었습니다. 위 부모님 항목과 번호가 겹쳐 있었습니다.
+     정기 일정은 씨앗 번호를 열쇠로 저장합니다(st.routines[id]). 그래서 부모님을
+     챙기면서 아이도 있는 집에서는 "다음 진료일 물어보기"(월 1회)와
+     "알림장 확인"(매일)이 같은 칸을 나눠 쓰고 있었습니다 —
+     하나를 켜면 둘 다 켜지고, 주기를 바꾸면 둘 다 바뀌었습니다. */
+  { id: "R052", cat: "kid", kid: 1, w: [12, 84], lead: 0, st: "repeat", t: "알림장·앱 공지 확인", tg: "등원일", ask: "", cy: "매일", g: "보육정기", src: "" },
+  { id: "R053", cat: "kid", kid: 1, w: [12, 84], lead: 0, st: "repeat", t: "가방·수건·여벌옷 세탁", tg: "주간", ask: "", cy: "주 1회", g: "보육정기", src: "" },
   { id: "R032", cat: "kid", kid: 1, w: [12, 84], lead: 0, st: "repeat", t: "낮잠이불 세탁", tg: "격주", ask: "", cy: "2주", g: "보육정기", src: "" },
   { id: "R033", cat: "kid", kid: 1, w: [48, 96], lead: 0, st: "repeat", t: "가정통신문 확인", tg: "주간", ask: "사진으로 올려주시면 할 일만 뽑습니다", cy: "주 1회", g: "보육정기", src: "" },
   { id: "R034", cat: "kid", kid: 1, w: [0, 72], lead: 0, st: "repeat", t: "목욕·머리 감기기", tg: "주기", ask: "", cy: "2~3일", g: "보육정기", src: "" },
@@ -952,6 +960,19 @@ const SEED = [
   { id: "R046", cat: "health", f: null, lead: 0, st: "repeat", t: "체중·혈압 기록", tg: "주간", ask: "", cy: "주 1회", g: "건강정기", src: "" },
   { id: "R047", cat: "finance", f: null, lead: 0, st: "repeat", t: "실손보험 서류 청구", tg: "병원 다녀온 뒤", ask: "이번 달 병원·약국 영수증이 남아 있나요?", cy: "월 1회", g: "금융정기", src: "" },
   { id: "R048", cat: "finance", f: null, lead: 0, st: "repeat", t: "보험료·자동이체 확인", tg: "결제일", ask: "", cy: "월 1회", g: "금융정기", src: "" },
+  /* ── 문자·카톡으로 오는 돈 ─────────────────────────
+     이 셋은 "남편에게 넘길 것"이 아니라 "까먹으면 손해인 것"입니다.
+     넘기든 안 넘기든, 그때가 왔다는 걸 아는 것 자체가 값어치입니다.
+
+     금액은 넣지 않습니다. 학원비는 달마다 다릅니다.
+     39만원이라고 박아뒀는데 41만원이면 안 알리느니만 못합니다.
+     그래서 "낼 때"만 알리고, 얼마인지는 그달 문자를 보시게 합니다. */
+  /* nkid:1 — 아이가 있는 집에만. kid:1로 하면 아이별로 갈라져서
+     "돈은 남편" 담당 설정이 안 걸립니다. 이건 돈이지 아이 일이 아닙니다. */
+  { id: "R049", cat: "finance", nkid: 1, lead: 3, st: "repeat", t: "학원비·수강료 납부", tg: "학원 지정 납부일", ask: "보통 며칠에 내시나요? 날짜를 넣으면 그 전에 알립니다. 금액은 달마다 다를 수 있어서, 그달 문자를 보세요", cy: "월 1회", g: "금융정기", src: "" },
+  /* 약정이 끝난 줄 모르고 몇 년을 그대로 내는 집이 많습니다.
+     아무도 안 알려줍니다 — 통신사가 알려줄 이유가 없으니까요. */
+  { id: "R050", cat: "finance", f: null, lead: 30, st: "check", t: "통신·인터넷 약정 만료일 확인", tg: "약정 끝나는 때", ask: "약정이 언제 끝나는지 아세요? 끝나도 요금이 안 내려갑니다 — 직접 바꿔야 합니다", cy: "연 1회", g: "금융정기", src: "" },
   { id: "T004", cat: "edu", kid: 1, w: [72, 216], lead: 0, st: "repeat", t: "성교육 대화 나누기", tg: "연령대별", ask: "지금 나이에 맞는 주제로 자연스럽게 이야기 나눠볼까요?", cy: "6개월", g: "청소년정기", src: "" },
   { id: "T005", cat: "edu", kid: 1, w: [120, 216], lead: 0, st: "repeat", t: "스마트폰·SNS 사용 점검", tg: "사춘기", ask: "사용 시간과 규칙을 같이 정해볼까요?", cy: "3개월", g: "청소년정기", src: "" },
   { id: "S001", cat: "appliance", f: null, season: "summer", lead: 0, st: "repeat", t: "제습기 물 버리기", tg: "장마·여름", ask: "요즘 하루에 한 번은 비우시죠?", cy: "매일", g: "계절정기", src: "" },
@@ -1108,6 +1129,7 @@ const SOURCE_NAME = {
   S01: "아이사랑", S02: "한국사회보장정보원", S03: "찾기쉬운 생활법령정보", S04: "정부24",
   S05: "교육부", S06: "학교알리미", S07: "TS한국교통안전공단", S08: "TS한국교통안전공단",
   S09: "외교부", S10: "외교부", S11: "국세청", S12: "국세청", S13: "찾기쉬운 생활법령정보",
+  S14: "국민건강보험공단",
 };
 
 const FLAGS = {
@@ -1632,7 +1654,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.0";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-ac";
+const BUILD = "0901-ad";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
