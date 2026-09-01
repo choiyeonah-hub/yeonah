@@ -127,7 +127,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0901-cn';
+const GATE_BUILD = '0901-co';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#A0A096;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1737,6 +1737,24 @@ function CALL_SPLIT(st, today) {
   · alert는 **데려오기만 true**로. 데려다주기는 늦어도 아이가 학원에 있지만,
     데려오기를 놓치면 아이가 혼자 기다립니다.
   · 아이가 여럿이면 who에 누구인지 꼭 넣으세요.
+  · **"주간일정 메모저장" "학원시간표 확인" 같은 할 일을 만들지 마세요.**
+    부모는 그런 일을 시킨 적이 없습니다. 시간표를 붙여넣은 것은
+    그대로 요일 계획에 넣어달라는 뜻이지, 저장해두라는 뜻이 아닙니다.
+
+  이렇게 들어오면
+    "월 1-2 피아노 2-3 태권도 / 화 1:30-2:30 폴리어학원 3-5 소마셈"
+  이렇게 내보내세요
+    plan: [
+      {"dows":[1],"time":"13:00","what":"피아노 데려다주기","alert":false},
+      {"dows":[1],"time":"14:00","what":"피아노 데려오기","alert":true},
+      {"dows":[1],"time":"14:00","what":"태권도 데려다주기","alert":false},
+      {"dows":[1],"time":"15:00","what":"태권도 데려오기","alert":true},
+      {"dows":[2],"time":"13:30","what":"폴리어학원 데려다주기","alert":false},
+      {"dows":[2],"time":"14:30","what":"폴리어학원 데려오기","alert":true},
+      {"dows":[2],"time":"15:00","what":"소마셈 데려다주기","alert":false},
+      {"dows":[2],"time":"17:00","what":"소마셈 데려오기","alert":true}
+    ]
+  같은 학원이 여러 요일이면 dows에 묶어서 한 줄로 보내세요.
 - 예약 잡기·체육복 빨아두기·학원비 내기처럼 **부모가 직접 할 일**은 그대로 items로.
   어른께 시킬 수 없는 것, 시켜서는 안 되는 것이 여기입니다.
 - 오늘은 ${today}입니다. 날짜가 오늘이나 내일이 아니면 call이 아니라 items로 보내세요.
@@ -2209,7 +2227,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-cn";
+const BUILD = "0901-co";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -5163,6 +5181,9 @@ function Speak() {
   const [justPlan, setJustPlan] = useState(null);
   const [ex, setEx] = useState(0);
   const [edit, setEdit] = useState(null);
+  /* 고치기 화면에 선택지가 일흔 개였습니다. 부모가 실제로 고치는 것은
+     이름·언제·누구 셋이고, 나머지는 옛 앱의 유산입니다. 접어둡니다. */
+  const [editMore, setEditMore] = useState(false);
   /* 공유하기로 들어온 글인지. 결과 화면에서 "몇 번째인지"를 말해주려고 들고 있습니다 */
   const [fromShare, setFromShare] = useState(false);
   const [seenAgain, setSeenAgain] = useState(0);
@@ -5880,8 +5901,9 @@ ${CALL_SPLIT(st, todayStr())}
               placeholder="왜 해야 하는지 짧게"
               style={{ width: "100%", marginTop: 8, border: `1px solid ${C.line}`, borderRadius: 12, padding: "11px 13px", fontSize: 13.5, background: C.bg, color: C.ink }} />
 
+            {editMore && <>
             <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 20 }}>그날이 언제인가요? <span style={{ color: C.ink3, fontWeight: 400 }}>선택</span></div>
-            <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 3, lineHeight: 1.6 }}>단수·소풍·마감처럼 <b style={{ color: C.ink2 }}>그날</b>이 있으면 넣어주세요. 며칠 전에 알려드릴지 정하면 올릴 날짜는 저희가 계산합니다.</div>
+            <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 3, lineHeight: 1.6 }}>소풍·마감처럼 <b style={{ color: C.ink2 }}>그날</b>이 있으면 넣어주세요. 며칠 전에 알려드릴지 정하면 올릴 날짜는 저희가 계산합니다.</div>
             <input type="date" className="hae" value={t.eventAt ? new Date(t.eventAt - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10) : ""}
               onChange={(e) => { const ev = parseWhen(e.target.value); upd(ev ? { eventAt: ev, lead: t.lead != null ? t.lead : 1, dueAt: dueFromEvent(ev, t.lead != null ? t.lead : 1) } : { eventAt: null }); }}
               style={{ width: "100%", marginTop: 9, border: `1px solid ${C.line}`, borderRadius: 12, padding: "12px 13px", fontSize: 15, background: C.bg, color: C.ink, fontFamily: "inherit" }} />
@@ -5902,6 +5924,7 @@ ${CALL_SPLIT(st, todayStr())}
                 </div>
               </>
             ) : null}
+            </>}
             <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 18 }}>{t.eventAt ? "올려드릴 날짜를 직접 고치기" : "며칠에 올려드릴까요?"}</div>
             <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 3 }}>
               {t.dueAt ? `지금은 ${dueLabel(t.dueAt).date}예요. ` : ""}이 날이 되면 오늘 화면 맨 위로 올라옵니다.
@@ -5916,6 +5939,7 @@ ${CALL_SPLIT(st, todayStr())}
               ))}
             </div>
 
+            {editMore && <>
             <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 20 }}>어떤 종류인가요?</div>
             <div className="flex flex-wrap gap-2" style={{ marginTop: 10 }}>
               {STATUS_ORDER.filter((k) => k !== "repeat").map((k) => (
@@ -5934,7 +5958,8 @@ ${CALL_SPLIT(st, todayStr())}
               </div>
             )}
 
-            <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 20 }}>어느 영역에 넣을까요?</div>
+            </>}
+            <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 20 }}>누구 것인가요?</div>
             <div className="flex flex-wrap gap-2" style={{ marginTop: 10 }}>
               {[...cats, { id: "etc", emoji: "🗂", label: "기타" }].map((c) => (
                 <button key={c.id} className="press" onClick={() => upd({ category: c.id })}
@@ -5944,6 +5969,7 @@ ${CALL_SPLIT(st, todayStr())}
                 </button>
               ))}
             </div>
+            {editMore && <>
             <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 20 }}>반복되는 일인가요?</div>
             <div className="grid grid-cols-4 gap-2" style={{ marginTop: 10 }}>
               <button className="press" onClick={() => upd({ repeatDays: null, repeatDow: "", repeatDom: "" })}
@@ -5996,7 +6022,13 @@ ${CALL_SPLIT(st, todayStr())}
             <input className="hae" value={t.anchor || ""} onChange={(e) => upd({ anchor: e.target.value, repeatDays: t.repeatDays || 365 })}
               placeholder="MM-DD (예: 09-28)"
               style={{ width: "100%", marginTop: 9, border: `1px solid ${C.line}`, borderRadius: 11, padding: "11px 12px", fontSize: 14, background: C.bg, color: C.ink }} />
-            <Btn onClick={() => setEdit(null)} style={{ marginTop: 18 }}>확인</Btn>
+            </>}
+            <button className="press" onClick={() => setEditMore((v) => !v)}
+              style={{ width: "100%", marginTop: 16, background: "transparent", border: "none",
+                       color: C.ink3, fontSize: 12.5, padding: "8px 0" }}>
+              {editMore ? "접기" : "그날·종류·반복까지 고치기"}
+            </button>
+            <Btn onClick={() => setEdit(null)} style={{ marginTop: 4 }}>확인</Btn>
             <Btn kind="quiet" onClick={() => { setResult((rs) => rs.filter((_, i) => i !== edit)); setEdit(null); say("이 항목은 뺐어요"); }}>이 항목은 담지 않기</Btn>
           </Sheet>
         );
