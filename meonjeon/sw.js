@@ -6,7 +6,7 @@ self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
 
 self.addEventListener("push", (event) => {
-  let data = { title: "먼저ON", body: "오늘 챙길 일이 있어요" };
+  let data = { title: "손주한통", body: "오늘 챙길 일이 있어요" };
   try { if (event.data) data = { ...data, ...event.data.json() }; } catch {}
   event.waitUntil(
     self.registration.showNotification(data.title, {

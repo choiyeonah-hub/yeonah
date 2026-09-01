@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────
-   먼저ON · 조부모 돌봄 — 모집 폼 한 벌 (16문항 · 3분)
+   손주한통 · 조부모 돌봄 — 모집 폼 한 벌 (30문항 · 5분)
 
    설문이 아니라 모집입니다. "쓰시겠어요?"는 묻지 않습니다.
    실제로 전화를 걸어볼 30집을 찾는 것이 전부입니다.
@@ -24,8 +24,8 @@ function short(f, t, req)   { var q=f.addTextItem().setTitle(t);          if(req
 function head(f, t, h)      { var s=f.addSectionHeaderItem().setTitle(t); if(h)s.setHelpText(h); return s; }
 
 function makeForm() {
-  var f = FormApp.create('먼저ON 베타 참여 신청 — 조부모 돌봄');
-  f.setTitle('먼저ON 베타 참여 신청')
+  var f = FormApp.create('손주한통 베타 참여 신청 — 조부모 돌봄');
+  f.setTitle('손주한통 베타 참여 신청')
    .setDescription(
      '어른께 아이를 맡기는 부모를 위한 앱입니다.\n' +
      '매일 아침 말씀드리지 않으셔도 되게, 요일 일정을 한 번 넣어두면\n' +
@@ -36,7 +36,7 @@ function makeForm() {
      '(12~23개월도 앱은 쓰실 수 있지만, 이번 베타는 아닙니다 —\n' +
      ' 그 시기는 수유·이유식·낮잠처럼 안전이 크고 일정 종류는 단순해서,\n' +
      ' 이 앱이 하려는 일과 조금 다릅니다.)\n\n' +
-     '· 2분이면 끝납니다\n' +
+     '· 5분이면 끝납니다\n' +
      '· 완주하시면 커피 기프티콘 5,000원\n' +
      '· 선착순이 아니라 가구 형태를 보고 뽑습니다')
    .setCollectEmail(true).setProgressBar(true);

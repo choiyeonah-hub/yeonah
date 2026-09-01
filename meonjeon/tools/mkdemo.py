@@ -5,7 +5,7 @@ src = io.open("index.html", encoding="utf-8").read()
 s = src
 
 # ── 제목: 갤러리·탭에 이름만 ─────────────────────────────
-s = s.replace("<title>먼저ON — 내가 생각하기 전에 먼저 오는 것</title>", "<title>먼저ON</title>")
+s = s.replace("<title>손주한통 — 어머니께 오늘 일정을 전화로 읽어드립니다</title>", "<title>손주한통</title>")
 s = s.replace('<link rel="manifest" href="/manifest.json" />\n', "")
 
 # ── 스크립트 호스트: unpkg(차단) → cdnjs, supabase 제거 ──

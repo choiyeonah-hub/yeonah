@@ -1,7 +1,7 @@
 {
-  "name": "먼저ON",
-  "short_name": "먼저ON",
-  "description": "내가 생각하기 전에 먼저 오는 것",
+  "name": "손주한통",
+  "short_name": "손주한통",
+  "description": "어머니께 오늘 일정을 전화로 읽어드립니다",
   "start_url": "/",
   "display": "standalone",
   "share_target": {

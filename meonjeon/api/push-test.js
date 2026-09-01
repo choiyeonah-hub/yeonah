@@ -36,7 +36,7 @@ export default async function handler(req, res) {
 
   webpush.setVapidDetails(mail, pub, priv);
   const body = JSON.stringify({
-    title: "먼저ON · 테스트",
+    title: "손주한통 · 테스트",
     body: "잘 옵니다. 내일 아침 8시부터 그날 살펴둘 일을 보내드릴게요.",
   });
 
