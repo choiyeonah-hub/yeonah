@@ -90,8 +90,8 @@ Vercel 프로젝트 설정 → Environment Variables:
 3. **Authentication → Sign In / Providers → Email** — 활성화하고,
    비밀번호 없이 링크로 들어오는 방식(매직링크)을 씁니다.
 4. **Authentication → URL Configuration**
-   - Site URL: 배포 주소 (예: `https://meonjeon.vercel.app`)
-   - Redirect URLs: 같은 주소와 `https://meonjeon.vercel.app/**`
+   - Site URL: 배포 주소 (예: `https://sonjuhantong.com`)
+   - Redirect URLs: 같은 주소와 `https://sonjuhantong.com/**`, 그리고 옛 주소도 함께 남겨둡니다
    가족 초대 링크가 `/?join=CODE` 형태라 와일드카드가 필요합니다.
 5. **Authentication → Emails → Magic Link** — 로그인 숫자가 담긴 메일입니다.
    앱은 `verifyOtp`로 여섯 자리를 받으므로 본문에 `{{ .Token }}`이 꼭 있어야 합니다.
