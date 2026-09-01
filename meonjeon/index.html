@@ -127,7 +127,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0901-ct';
+const GATE_BUILD = '0901-cu';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#A0A096;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -2246,7 +2246,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-ct";
+const BUILD = "0901-cu";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -5681,9 +5681,13 @@ ${CALL_SPLIT(st, todayStr())}
         {justPlan && justPlan.length > 0 && (() => {
           const 이름 = (kid) => ((st.children || []).find((c) => c.id === kid) || {}).name || "";
           const 하나 = (st.children || []).length <= 1;
-          const 이미 = (r) => (r.dows || []).every((d) => ((st.callPlan || {})[d] || [])
-            .some((x) => callKey(x) === callKey(r) && x.time === r.time));
-          const 새것 = justPlan.filter((r) => !이미(r));
+          /* 요일을 통째로 보고 있었습니다. 월에는 있고 수에는 없으면
+             "새것"이 되어 월에 하나가 더 들어갑니다. 요일마다 따로 봅니다. */
+          const 있나 = (r, d) => ((st.callPlan || {})[d] || [])
+            .some((x) => callKey(x) === callKey(r) && x.time === r.time);
+          const 새것 = justPlan
+            .map((r) => ({ ...r, dows: (r.dows || []).filter((d) => !있나(r, d)) }))
+            .filter((r) => r.dows.length);
           return (
             <Card style={{ marginTop: 14, borderColor: C.moss }}>
               <div style={{ padding: "14px 16px" }}>
@@ -7200,14 +7204,6 @@ function CallScreen() {
     return { ...sv, callPlan: plan };
   });
 
-  /* 알아서 → 전화 → 문자 → 알아서. 한 자리에서 돌립니다 */
-  const setWay = (id) => setSt((sv) => {
-    const plan = { ...(sv.callPlan || {}) };
-    plan[dow] = (plan[dow] || []).map((r) => r.id !== id ? r
-      : { ...r, way: r.way === "call" ? "sms" : r.way === "sms" ? "app" : r.way === "app" ? "" : "call" });
-    return { ...sv, callPlan: plan };
-  });
-
   const del = (id) => setSt((sv) => {
     const plan = { ...(sv.callPlan || {}) };
     plan[dow] = (plan[dow] || []).filter((r) => r.id !== id);
@@ -7268,12 +7264,17 @@ function CallScreen() {
         <div className="flex gap-1.5" style={{ marginBottom: 12 }}>
           {["1", "2", "3", "4", "5"].map((d) => {
             const n = ((st.callPlan || {})[d] || []).length;
+            /* 요일 계획만 세고 있었습니다. 수요일이 0인데 5건이 나가면
+               부모는 어디에 있는 5건인지 알 수가 없습니다. */
+            const m = (((st.callToday || {})[dayForDow(d, 다음전화)] || {}).add || []).length;
             return (
               <button key={d} className="press" onClick={() => setDow(d)}
                 style={{ flex: 1, padding: "9px 0", borderRadius: 12, fontSize: 13, fontWeight: dow === d ? 600 : 400,
                          border: `1px solid ${dow === d ? C.moss : C.line}`, background: dow === d ? C.moss : "transparent",
-                         color: dow === d ? "#fff" : (n ? C.ink2 : C.ink3) }}>
-                {DOW_KR[Number(d)]}{n ? <span style={{ fontSize: 10, marginLeft: 3, opacity: .8 }}>{n}</span> : null}
+                         color: dow === d ? "#fff" : (n || m ? C.ink2 : C.ink3) }}>
+                {DOW_KR[Number(d)]}
+                {n ? <span style={{ fontSize: 10, marginLeft: 3, opacity: .8 }}>{n}</span> : null}
+                {m ? <span style={{ fontSize: 10, marginLeft: 2, color: dow === d ? "#fff" : C.sun, opacity: dow === d ? .85 : 1 }}>+{m}</span> : null}
               </button>
             );
           })}
@@ -7302,12 +7303,14 @@ function CallScreen() {
               {r.what}
               {r.alert && r.time ? <b style={{ color: C.moss, fontSize: 11, marginLeft: 6, fontWeight: 500 }}>· 알림 2번</b> : null}
             </button>
-            {/* 복직 초반엔 다 전화로 듣고 싶으시다가, 한 달쯤 지나 외우시면
-                "피아노는 이제 문자로"가 됩니다. 그 자리를 여기 둡니다.
-                기본은 "알아서" — 앱이 그날 형편대로 정합니다. */}
-            <button className="press" onClick={() => setWay(r.id)}
-              style={{ background: "transparent", border: "none", flexShrink: 0, padding: "0 8px",
-                       fontSize: 11, color: r.way === "call" ? C.moss : r.way === "sms" ? C.sun : r.way === "app" ? C.sea : C.ink3 }}>
+            {/* 11px 글자를 여러 번 눌러 돌리게 해뒀습니다. 손가락이 안 닿습니다.
+                여기서는 보여주기만 하고, 고치는 것은 줄을 눌러 여는 시트에서
+                큰 버튼으로 합니다. */}
+            <button className="press" onClick={() => setRowEdit(r.id)}
+              style={{ flexShrink: 0, padding: "5px 9px", borderRadius: 999, fontSize: 11.5,
+                       border: `1px solid ${r.way ? "transparent" : C.line}`,
+                       background: r.way === "call" ? C.mossSoft : r.way === "sms" ? C.sunSoft : r.way === "app" ? C.seaSoft : "transparent",
+                       color: r.way === "call" ? C.moss : r.way === "sms" ? C.sun : r.way === "app" ? C.sea : C.ink3 }}>
               {r.way === "call" ? "전화" : r.way === "sms" ? "문자" : r.way === "app" ? "앱" : "알아서"}
             </button>
             <button className="press" onClick={() => del(r.id)}
