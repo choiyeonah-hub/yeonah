@@ -158,9 +158,6 @@ export default function ChatPage() {
           </p>
         </div>
         <div className="flex items-center gap-3 text-xs">
-          <Link href="/game" className="text-havruta-600 underline underline-offset-2">
-            정자의 여행
-          </Link>
           <Link href="/history" className="text-havruta-600 underline underline-offset-2">
             지난 기록
           </Link>

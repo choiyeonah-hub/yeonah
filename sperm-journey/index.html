@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>정자의 여행 — 난자를 찾아서</title>
+    <meta name="description" content="난자를 찾아가는 20cm의 모험. 가족이 함께 하는 생명 탄생 미니게임." />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🥚</text></svg>" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="wrap">
+      <header class="head">
+        <div>
+          <h1>정자의 여행</h1>
+          <p class="sub">난자를 찾아가는 20cm의 모험</p>
+        </div>
+        <p class="sub">🥚 목표: 난자 도착</p>
+      </header>
+
+      <div class="stage">
+        <canvas id="game" width="720" height="420" aria-label="정자의 여행 게임 화면"></canvas>
+
+        <div id="overlay" class="overlay">
+          <div id="overlay-card" class="card">
+            <div id="overlay-body"></div>
+            <button id="start-btn" type="button" class="btn">출발하기</button>
+            <p class="dim tiny">스페이스바 또는 화면 터치로도 시작해요.</p>
+          </div>
+        </div>
+      </div>
+
+      <section class="panel">
+        <h2>구간 안내</h2>
+        <ul id="stage-list"></ul>
+        <p class="dim tiny">
+          조작: 화면을 위아래로 쓸기 / 마우스 움직이기 / 방향키 ↑↓ · 최고 기록은 이 브라우저에만
+          저장됩니다.
+        </p>
+      </section>
+    </main>
+
+    <script src="./js/rules.js"></script>
+    <script src="./js/render.js"></script>
+    <script src="./js/main.js"></script>
+  </body>
+</html>
