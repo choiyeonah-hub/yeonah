@@ -70,7 +70,13 @@ export default async function handler(req, res) {
 
   const { prompt, images, search } = req.body || {};
   if (!prompt || typeof prompt !== "string") return res.status(400).json({ error: "prompt 없음" });
-  if (prompt.length > 8000) return res.status(400).json({ error: "prompt too long" });
+  /* 8,000자였습니다. 그런데 지시문만 7,800자여서, 부모가 한 글자도
+     안 써도 상한의 98%를 먹고 있었습니다. 통신문을 붙여넣으면 그대로
+     막혔어요. 지시문이 자랄 여지까지 두고 넉넉히 올립니다.
+     값은 글자 수가 아니라 사진이 좌우합니다 — 그건 아래에서 막습니다. */
+  if (prompt.length > 30000) {
+    return res.status(400).json({ error: "붙여넣으신 글이 너무 길어요. 필요한 부분만 잘라서 다시 넣어주세요" });
+  }
 
   /* 사진은 개수·크기·형식을 서버에서 다시 확인합니다 */
   let shots = [];
