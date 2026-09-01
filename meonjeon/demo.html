@@ -658,14 +658,14 @@ const SEED = [
   { id: "N020", cat: "laundry", f: null, lead: 0, st: "repeat", t: "새 옷 택 제거·세탁", tg: "구매 직후", ask: "", cy: "월 1회", g: "옷관리", src: "" },
   { id: "N021", cat: "laundry", kid: 1, w: [12, 96], lead: 21, an: "03-02", st: "repeat", t: "아이옷 이름표 붙이기", tg: "새 학기 전 (2월)", ask: "새로 산 옷에 이름표를 붙였나요?", cy: "연 1회", g: "옷관리", src: "" },
   { id: "N022", cat: "laundry", kid: 1, w: [12, 144], lead: 21, st: "repeat", t: "수영복·물놀이 준비", tg: "물놀이 시작 전", ask: "작년 수영복이 아직 맞나요?", cy: "연 1회", g: "옷관리", src: "" },
-  { id: "N023", cat: "kid", kid: 1, w: [12, 144], lead: 14, st: "remember", t: "스승의날 선물 준비", tg: "5월 15일", ask: "어린이집·유치원에서 선물을 받는 곳인가요? 아니면 이 제안을 꺼두셔도 돼요.", cy: "기관별", g: "기관행사", src: "" },
-  { id: "N024", cat: "kid", kid: 1, w: [12, 108], lead: 21, st: "remember", t: "할로윈 의상 준비", tg: "10월 말 행사", ask: "올해 할로윈 행사가 있는 기관인가요?", cy: "기관별", g: "기관행사", src: "" },
+  { id: "N023", cat: "kid", kid: 1, mo: [4, 5], w: [12, 144], lead: 14, st: "remember", t: "스승의날 선물 준비", tg: "5월 15일", ask: "어린이집·유치원에서 선물을 받는 곳인가요? 아니면 이 제안을 꺼두셔도 돼요.", cy: "기관별", g: "기관행사", src: "" },
+  { id: "N024", cat: "kid", kid: 1, mo: [9, 10], w: [12, 108], lead: 21, st: "remember", t: "할로윈 의상 준비", tg: "10월 말 행사", ask: "올해 할로윈 행사가 있는 기관인가요?", cy: "기관별", g: "기관행사", src: "" },
   { id: "N025", cat: "kid", kid: 1, w: [12, 96], lead: 30, an: "03-02", st: "repeat", t: "물품 이름표 주문", tg: "새 학기 전 (2월 초)", ask: "이름표 수량이 충분한가요?", cy: "연 1회", g: "기관준비물", src: "" },
   { id: "N026", cat: "kid", kid: 1, w: [12, 96], lead: 3, st: "repeat", t: "물품 이름표 붙이기", tg: "등원 전", ask: "", cy: "학기별", g: "기관준비물", src: "" },
   { id: "N027", cat: "kid", kid: 1, w: [12, 84], lead: 1, st: "repeat", t: "어린이집 준비물 챙기기", tg: "등원 전날", ask: "이번 주 알림장에 준비물이 있었나요?", cy: "주 1회", g: "기관준비물", src: "" },
   { id: "N028", cat: "kid", kid: 1, w: [0, 96], lead: 14, st: "repeat", t: "아이 로션·크림 고르기", tg: "계절 바뀔 때", ask: "지금 쓰는 제품이 계절에 맞나요?", cy: "계절별", g: "육아소모품", src: "" },
   { id: "N029", cat: "kid", kid: 1, w: [0, 84], lead: 14, st: "repeat", t: "예방접종 일정 확인", tg: "월령별 접종일", ask: "다음 접종이 언제인지 알고 계신가요?", cy: "월령별", g: "영유아검진", src: "S03" },
-  { id: "N030", cat: "kid", kid: 1, w: [12, 108], lead: 21, st: "remember", t: "명절 한복 준비", tg: "설·추석", ask: "명절에 한복을 입히는 편인가요?", cy: "기관별", g: "유아생활", src: "" },
+  { id: "N030", cat: "kid", kid: 1, mo: [1, 2, 9, 10], w: [12, 108], lead: 21, st: "remember", t: "명절 한복 준비", tg: "설·추석", ask: "명절에 한복을 입히는 편인가요?", cy: "기관별", g: "유아생활", src: "" },
   { id: "N031", cat: "kid", kid: 1, w: [48, 96], lead: 1, st: "repeat", t: "유치원 준비물 챙기기", tg: "등원 전날", ask: "", cy: "주 1회", g: "기관준비물", src: "" },
   { id: "N032", cat: "kid", kid: 1, w: [12, 156], lead: 30, st: "repeat", t: "생일잔치 준비", tg: "생일", ask: "장소·초대 인원부터 정할까요?", cy: "연 1회", g: "유아생활", src: "" },
   { id: "N033", cat: "kid", kid: 1, w: [0, 108], lead: 0, st: "repeat", t: "손발톱 깎아주기", tg: "길어지기 전", ask: "", cy: "2주", g: "유아생활", src: "" },
@@ -1998,6 +1998,10 @@ function buildRecommendations(st) {
   const now = Date.now();
   const out = [];
   const push = (seed, child, dday, dateKnown) => {
+    /* 조건형("공지 수신 시", "방문일")은 언제인지를 모릅니다. 그걸 날짜 아는
+       일로 올리면 미리 살필 일에 매일 떠서 결정을 요구합니다.
+       할 일이 아니라 기능 안내가 카드 행세를 하던 자리입니다. */
+    if (seed.st === "conditional") dateKnown = false;
     const p = st.prefs[keyOf(seed, child)] || {};
     if (p.enabled === false || st.groupsOff[seed.g] || p.accepted || p.dismissedOnce) return;
     if (p.snoozedUntil && p.snoozedUntil > now) return;
@@ -2042,7 +2046,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-cg";
+const BUILD = "0901-ch";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
