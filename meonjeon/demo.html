@@ -1278,8 +1278,11 @@ function callItemsFor(st, when) {
      빈 문자열이 "11:50"보다 앞서 정렬돼서, 넘칠 때 잘리는 쪽이
      준비물이 아니라 하원이 되고 있었습니다. */
   const key = (r) => (/^\d{1,2}:\d{2}$/.test(String(r.time || "")) ? r.time : "99:99");
+  /* 예전에 넣어둔 것에는 띄어쓰기가 없습니다. 고쳐 쓰라고 하지 않고
+     읽을 때 띄웁니다 — 저장된 글자는 그대로 두고요. */
   return rows
     .filter((r) => r && r.what)
+    .map((r) => ({ ...r, what: callSpace(r.what) }))
     .sort((a, b) => key(a).localeCompare(key(b)))
     .slice(0, CALL_MAX);
 }
@@ -1355,6 +1358,7 @@ function callAllFor(st, when) {
   const key = (r) => (/^\d{1,2}:\d{2}$/.test(String(r.time || "")) ? r.time : "99:99");
   return base.concat(t.add || [])
     .filter((r) => r && r.what)
+    .map((r) => ({ ...r, what: callSpace(r.what) }))
     .sort((a, b) => key(a).localeCompare(key(b)));
 }
 
@@ -1481,7 +1485,10 @@ function callBatches(st, when) {
      부모에게는 이걸 안 알립니다. "오늘 전화 2통 다 쓰셨어요"는
      우리 사정이지 부모 사정이 아니고, 그걸 읽는 순간 부모 일이 하나 늡니다.
      미리보기에 전화인지 문자인지만 보이면 됩니다. */
-  if (byApp) return out;
+  /* 앱으로 받는 집은 예산을 안 씁니다. 다만 app 표시를 안 달고 돌려주고
+     있었습니다. 화면에는 0원이라고 뜨는데 발송 서버는 앱인 줄 모르고
+     진짜 전화를 걸었습니다. 값도 틀리고 행동도 틀렸습니다. */
+  if (byApp) return out.map((b2) => ({ ...b2, app: true }));
 
   /* 부모가 항목마다 정해둔 것이 예산보다 앞섭니다.
      복직 초반엔 다 전화로 듣고 싶으시다가, 한 달쯤 지나 외우시면
@@ -2006,7 +2013,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-bz";
+const BUILD = "0901-ca";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -6093,7 +6100,9 @@ function CallScreen() {
   const [kid, setKid] = useState(((st.children || [])[0] || {}).id || "");
   const inp = { border: `1px solid ${C.line}`, borderRadius: 12, padding: "11px 12px", fontSize: 14.5, background: C.bg, color: C.ink, width: "100%" };
   const elder = (st.elders || [])[0] || { label: "", phone: "" };
-  const rows = ((st.callPlan || {})[dow] || []).slice().sort((a, b) => String(a.time || "").localeCompare(String(b.time || "")));
+  const rows = ((st.callPlan || {})[dow] || []).slice()
+    .map((r) => ({ ...r, what: callSpace(r.what) }))
+    .sort((a, b) => String(a.time || "").localeCompare(String(b.time || "")));
   const day = nextCallDay(st);
   const tomorrow = day > todayKey();
   const byApp = elderByApp(st);
