@@ -127,7 +127,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0901-bi';
+const GATE_BUILD = '0901-bj';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1379,6 +1379,10 @@ const isoDay = (s) => (s && /^\d{4}-\d{2}-\d{2}$/.test(s) ? new Date(s + "T00:00
    그날 것을 한 통에 다 담습니다. 한 항목이 8~10초라 대여섯 개가 한계고,
    그것보다 많으면 어른이 못 외우십니다. 그래서 여섯 개에서 끊습니다. */
 const CALL_MAX = 6;
+/* 원가를 화면에 띄울지. 베타 동안 만드는 사람은 봐야 하고,
+   부모에게는 보일 이유가 없습니다 — 통신사도 문자마다 22원이라고 안 알려줍니다.
+   주소 뒤에 ?cost 를 붙이면 켜집니다. */
+const DEV_COST = typeof location !== "undefined" && /[?&]cost\b/.test(location.search);
 const DOW_KR = ["일", "월", "화", "수", "목", "금", "토"];
 
 /* 다음에 전화가 나갈 날. 오늘 나갈 시각이 아직이면 오늘, 지났으면 내일입니다.
@@ -1408,6 +1412,17 @@ function callItemsFor(st, when) {
 
 /* 시각을 어른이 들으시는 대로 읽습니다. "15:20"을 "십오 시"라고 하면
    되물으십니다. "오후 세 시 이십 분"이 귀에 들어오는 말입니다. */
+/* "서연는 오후 4시 하원입니다"가 나갔습니다. 받침을 안 봤거든요.
+   어른이 귀로 들으시는 문장이라 조사 하나가 그대로 티가 납니다.
+   한글 받침은 (글자코드 - 0xAC00) % 28 로 압니다. 0이면 받침이 없습니다. */
+const 은는 = (w) => {
+  const t = String(w || "").trim();
+  if (!t) return "";
+  const c = t.charCodeAt(t.length - 1);
+  if (c < 0xac00 || c > 0xd7a3) return t + "는";     /* 한글이 아니면 그냥 는 */
+  return t + ((c - 0xac00) % 28 ? "은" : "는");
+};
+
 const callTime = (t) => {
   const m = /^(\d{1,2}):(\d{2})$/.exec(String(t || ""));
   if (!m) return "";
@@ -1574,23 +1589,58 @@ function callScript(st, when, rows) {
   const 일정 = list.filter((r) => r.kind !== "bag" && r.kind !== "ask");
   const 가방 = list.filter((r) => r.kind === "bag");
 
-  /* 아이가 둘이면 통을 나누지 않습니다 — 한 통에 담고 이름을 앞에 붙입니다.
-     "지호 3시 20분 태권도, 서연이 4시 하원". 나누면 값이 두 배가 되고,
-     어른께도 전화가 두 번 오는 것이라 성가십니다. */
-  const 줄 = (r) => {
-    const nm = 하나 ? "" : (nameOf(r.kid) ? nameOf(r.kid) + " " : "");
-    return nm + (r.time ? `${callTime(r.time)} ${r.what}` : r.what);
+  /* ── 아이별로 묶고, 그 안에서 시간순 ────────────────
+     전에는 들어온 차례대로 이어붙였습니다. 그래서 이런 게 나갔습니다 —
+     "태권도, 첫째 오후 1시 30분 피아노, 첫째 오후 2시 30분 하원, 첫째 오후 3시 간식"
+     시각 없는 것이 맨 앞에 오고, 같은 아이인데 "첫째"가 매 줄에 붙습니다.
+     귀로 들으면 누구 것인지 따라가기가 어렵습니다.
+
+     이제 아이마다 한 덩이로 묶고 이름은 그 앞에 한 번만 부릅니다 —
+     "첫째는 1시 30분 피아노 데려다주기, 2시 30분 하원, 3시 간식입니다."
+     시각이 없는 것은 뒤로 보냅니다. 시각이 있는 것이 먼저 들려야
+     어른이 시계를 보실 수 있습니다. */
+  const mm = (r) => {
+    const m = /^(\d{1,2}):(\d{2})$/.exec(String(r.time || ""));
+    return m ? Number(m[1]) * 60 + Number(m[2]) : 9999;   /* 시각 없는 것은 맨 뒤 */
   };
-  const 몸통 = 일정.map(줄).join(", ");
-  const 뒤 = 가방.length
+  const 시간순 = (a2, b2) => mm(a2) - mm(b2);
+
+  /* 아이 차례는 등록 순서 그대로. 그래야 매일 같은 차례로 들리십니다 */
+  const 묶음 = [];
+  if (하나) {
+    묶음.push({ name: "", rows: 일정.slice().sort(시간순) });
+  } else {
+    kids.forEach((k) => {
+      const mine = 일정.filter((r) => r.kid === k.id).sort(시간순);
+      if (mine.length) 묶음.push({ name: k.name || "아이", rows: mine });
+    });
+    /* 누구 것인지 안 정해진 것은 이름 없이 뒤에 붙입니다 */
+    const 미정 = 일정.filter((r) => !kids.some((k) => k.id === r.kid)).sort(시간순);
+    if (미정.length) 묶음.push({ name: "", rows: 미정 });
+  }
+
+  /* 시각이 없는 것을 시각 있는 것 뒤에 그냥 이어붙이면
+     "오후 3시 간식 주기, 태권도입니다"가 되어 3시에 태권도인 줄 아십니다.
+     문장을 끊고 "그밖에"로 시작합니다. */
+  const 문장 = 묶음.map((g) => {
+    const 때있 = g.rows.filter((r) => r.time);
+    const 때없 = g.rows.filter((r) => !r.time);
+    const 앞말 = g.name ? `${은는(g.name)} ` : "";
+    const 조각 = [];
+    if (때있.length) 조각.push(`${앞말}${때있.map((r) => `${callTime(r.time)} ${r.what}`).join(", ")}입니다.`);
+    if (때없.length) 조각.push(`${때있.length ? "그밖에 " : 앞말}${때없.map((r) => r.what).join(", ")}가 있습니다.`);
+    return 조각.join(" ");
+  }).join(" ");
+
+  const 가방줄 = 가방.length
     ? ` ${가방.map((r) => (하나 ? "" : (nameOf(r.kid) ? nameOf(r.kid) + " " : "")) + r.what).join(", ")} 가방에 챙겨뒀어요. 현관에 두겠습니다.`
     : "";
   const 곧 = list === rows && rows.length === 1 && rows[0].alert;
   const 머리 = 하나 ? `${label}, ${첫아이} ` : `${label}, `;
   const 앞 = 일정.length
-    ? `${머리}${곧 ? "곧 있을 일정입니다" : "오늘 일정입니다"}. ${몸통}.`
+    ? `${머리}${곧 ? "곧 있을 일정입니다" : "오늘 일정입니다"}. ${문장}`
     : `${머리}오늘입니다.`;
-  return `${앞}${뒤} 끊으셔도 됩니다.`;
+  return `${앞}${가방줄} 끊으셔도 됩니다.`;
 }
 
 /* 약은 이름·용량·때를 따로 받습니다. 자유롭게 적게 두면
@@ -1872,7 +1922,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-bi";
+const BUILD = "0901-bj";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -6706,24 +6756,26 @@ function CallScreen() {
                 <div style={{ background: C.card, border: `1px solid ${b.sms ? C.sun : C.moss}`, borderRadius: 14, padding: "14px 15px", fontSize: 14, lineHeight: 1.85, color: C.ink, whiteSpace: b.sms ? "pre-wrap" : "normal" }}>
                   {b.sms ? b.text : `“${b.text}”`}
                 </div>
+                {/* 부모에게 "기본료 220원, 348원"을 보여줄 이유가 없습니다.
+                    통신사가 문자마다 22원이라고 알려주지 않는 것과 같습니다.
+                    남은 통 수만 보이면 됩니다. 원가는 만드는 사람 것이라 접힌 자리로. */}
                 <p className="mono" style={{ fontSize: 11, color: C.ink3, marginTop: 5 }}>
-                  {b.sms ? `문자 ${b.cost.bytes}바이트` : `약 ${b.cost.sec}초`} · {b.cost.won.toLocaleString()}원
+                  {b.sms ? "문자" : `약 ${b.cost.sec}초`}
                 </p>
               </div>
             ))}
             <div style={{ marginTop: 14, background: C.mossSoft, borderRadius: 12, padding: "13px 15px" }}>
               <div style={{ fontSize: 13.5, fontWeight: 600, color: C.moss }}>
                 하루 {callN ? `전화 ${callN}통` : ""}{callN && smsN ? " · " : ""}{smsN ? `문자 ${smsN}통` : ""}
-                {" · "}{byApp ? "0원" : dayWon.toLocaleString() + "원"}
               </div>
               <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 5, lineHeight: 1.7 }}>
                 {byApp
                   ? <>어른이 앱으로 받으시니 <b style={{ color: C.ink }}>값이 들지 않습니다.</b>
                       그래서 시각이 있는 것은 다 그 시각 30분 전에 따로 보내드립니다 —
                       아침에 몰아 들으시고 오후까지 기억하실 이유가 없으니까요.</>
-                  : <>평일 매일이면 한 달 <b style={{ color: C.ink }}>{(dayWon * 22).toLocaleString()}원</b>입니다.
-                      통 수가 곧 돈입니다 — 기본료 220원이 통마다 붙습니다.
-                      “30분 전에 따로”를 켤 때마다 한 통씩 늘어납니다.</>}
+                  : <>병원·하교처럼 놓치면 되돌릴 수 없는 것만 <b style={{ color: C.ink }}>전화</b>로 가고,
+                      나머지는 문자로 갑니다. 어른이 받으시는 것은 그대로예요 — 오는 길만 다릅니다.
+                      {DEV_COST ? <><br />원가 {dayWon.toLocaleString()}원 · 평일 매일이면 한 달 {(dayWon * 22).toLocaleString()}원</> : null}</>}
               </div>
             </div>
           </>
