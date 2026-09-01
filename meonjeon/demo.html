@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<meta name="theme-color" content="#F2F8F6" />
+<meta name="theme-color" content="#F3F2EE" />
 <title>손주한통</title>
 <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -14,25 +14,25 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.4/babel.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600;700&family=IBM+Plex+Sans+KR:wght@300;400;500;600&display=swap');
-  html,body{margin:0;background:#F2F8F6;font-family:'IBM Plex Sans KR',-apple-system,BlinkMacSystemFont,sans-serif;color:#17302C;-webkit-font-smoothing:antialiased}
+  html,body{margin:0;background:#F3F2EE;font-family:'IBM Plex Sans KR',-apple-system,BlinkMacSystemFont,sans-serif;color:#20211D;-webkit-font-smoothing:antialiased}
   #gate{max-width:440px;margin:0 auto;padding:64px 22px calc(40px + env(safe-area-inset-bottom))}
   #gate h1{font-family:'Noto Serif KR',serif;font-size:28px;font-weight:600;letter-spacing:-.035em;line-height:1.42;margin:0}
-  #gate p{font-size:13.5px;color:#4E6B66;line-height:1.78;margin-top:14px}
-  #gate input{width:100%;border:1px solid #DCEAE6;border-radius:16px;padding:15px 16px;font-size:15px;background:#fff;font-family:inherit;box-sizing:border-box;transition:border-color .15s,box-shadow .15s}
-  #gate input:focus{outline:none;border-color:#0D7368;box-shadow:0 0 0 3px #DDF2EE}
-  #gate button{width:100%;border:none;border-radius:16px;padding:16px 0;font-size:15px;font-weight:600;font-family:inherit;background:#17302C;color:#fff;margin-top:10px;cursor:pointer;transition:transform .12s ease}
+  #gate p{font-size:13.5px;color:#565952;line-height:1.78;margin-top:14px}
+  #gate input{width:100%;border:1px solid #E1DFD7;border-radius:16px;padding:15px 16px;font-size:15px;background:#fff;font-family:inherit;box-sizing:border-box;transition:border-color .15s,box-shadow .15s}
+  #gate input:focus{outline:none;border-color:#1F4B73;box-shadow:0 0 0 3px #E2EBF4}
+  #gate button{width:100%;border:none;border-radius:16px;padding:16px 0;font-size:15px;font-weight:600;font-family:inherit;background:#20211D;color:#fff;margin-top:10px;cursor:pointer;transition:transform .12s ease}
   #gate button:active{transform:scale(.985)}
-  #gate .ghost{background:transparent;color:#6E8C86;font-weight:400;font-size:13px}
-  #gate .msg{margin-top:16px;font-size:13px;line-height:1.7;padding:14px 15px;border-radius:14px;background:#DDF2EE;color:#0D7368}
+  #gate .ghost{background:transparent;color:#767A6F;font-weight:400;font-size:13px}
+  #gate .msg{margin-top:16px;font-size:13px;line-height:1.7;padding:14px 15px;border-radius:14px;background:#E2EBF4;color:#1F4B73}
   /* 버튼이 넷이 되면 좁은 폰에서 밀립니다. 줄바꿈을 허용합니다 */
   #bar{position:fixed;top:0;left:0;right:0;z-index:80;display:none;justify-content:center;gap:6px;flex-wrap:wrap;
        background:rgba(255,255,255,.86);backdrop-filter:saturate(1.6) blur(14px);-webkit-backdrop-filter:saturate(1.6) blur(14px);
-       border-bottom:1px solid #DCEAE6;padding:8px 12px;font-size:11.5px;color:#4E6B66;align-items:center}
-  #bar button{border:1px solid #DCEAE6;background:#F2F8F6;border-radius:99px;padding:6px 10px;font-size:11px;white-space:nowrap;color:#4E6B66;font-family:inherit;cursor:pointer}
+       border-bottom:1px solid #E1DFD7;padding:8px 12px;font-size:11.5px;color:#565952;align-items:center}
+  #bar button{border:1px solid #E1DFD7;background:#F3F2EE;border-radius:99px;padding:6px 10px;font-size:11px;white-space:nowrap;color:#565952;font-family:inherit;cursor:pointer}
   #sync{position:fixed;bottom:calc(112px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);z-index:90;display:none;
-        background:#17302C;color:#fff;border-radius:99px;padding:11px 16px;font-size:12.5px;align-items:center;gap:10px;
+        background:#20211D;color:#fff;border-radius:99px;padding:11px 16px;font-size:12.5px;align-items:center;gap:10px;
         box-shadow:0 2px 4px rgba(15,26,21,.06), 0 22px 48px -22px rgba(15,26,21,.4)}
-  #sync button{background:#0D7368;color:#fff;border:none;border-radius:99px;padding:6px 12px;font-size:12px;font-family:inherit;cursor:pointer}
+  #sync button{background:#1F4B73;color:#fff;border:none;border-radius:99px;padding:6px 12px;font-size:12px;font-family:inherit;cursor:pointer}
 </style>
 </head>
 <body>
@@ -327,25 +327,27 @@ const C = {
      밝은 색만 쓰면 글자가 안 보여서, 각 색마다 "글자용 진한 것"과
      "배경용 연한 것"을 짝지어 둡니다. 뒤 이름(moss/persim/sea)은 그대로 둡니다.
      값만 바뀌면 화면 전체가 따라옵니다. */
-  bg: "#F2F8F6", card: "#FFFFFF", ink: "#17302C", ink2: "#4E6B66", ink3: "#6E8C86",
-  line: "#DCEAE6", lineSoft: "#EBF3F1",
-  /* 민트 — 주 강조. 버튼과 브랜드 */
-  moss: "#0D7368", mossSoft: "#DDF2EE", sprout: "#4FBFAC",
-  /* 로즈 — 오늘 안 하면 큰일 나는 것. 민트의 반대편이라 가장 먼저 눈에 걸립니다 */
-  persim: "#A84362", persimSoft: "#F9E9EE",
-  /* 연레몬 — 알아볼 것. 배경이 레몬이고 글자는 겨자입니다 */
-  sun: "#7D6A15", sunSoft: "#FCF4D9",
-  /* 연보라 — 이번 주·구매처럼 급하지 않은 것 */
-  sea: "#6B4E9E", seaSoft: "#EFE9F8",
+  bg: "#F3F2EE", card: "#FFFFFF", ink: "#20211D", ink2: "#565952", ink3: "#767A6F",
+  line: "#E1DFD7", lineSoft: "#EEEDE7",
+  /* 쪽빛 — 주 강조. 버튼과 브랜드.
+     민트는 병원 같았습니다. 이 앱은 밤에 부모가 넣고 아침에 어른이 받는 것이라
+     차분하고 믿음이 가는 쪽이 맞습니다. */
+  moss: "#1F4B73", mossSoft: "#E2EBF4", sprout: "#5A93C6",
+  /* 대추 — 오늘 안 하면 큰일 나는 것. 쪽빛의 반대편이라 가장 먼저 눈에 걸립니다 */
+  persim: "#A8324A", persimSoft: "#F8E7EA",
+  /* 겨자 — 알아둘 것. 배경이 연레몬이고 글자는 겨자입니다 */
+  sun: "#7A5C10", sunSoft: "#FBF2D6",
+  /* 솔 — 이번 주·구매처럼 급하지 않은 것 */
+  sea: "#3F6B4A", seaSoft: "#E5EFE5",
   /* 식단 화면 전용. 다른 화면은 "잊지 마세요"인데 여기는 "고르세요"입니다.
-     같은 민트를 쓰면 장보기까지 재촉으로 읽혀서, 이 한 화면만 연보라로 둡니다. */
-  leaf: "#6B4E9E", leafMid: "#9B85C9", leafSoft: "#EFE9F8", bgMeal: "#F5F1FC",
+     같은 쪽빛을 쓰면 장보기까지 재촉으로 읽혀서, 이 한 화면만 솔빛으로 둡니다. */
+  leaf: "#3F6B4A", leafMid: "#7FA88A", leafSoft: "#E5EFE5", bgMeal: "#F0F3EC",
 };
 /* 그림자는 두 겹으로: 얇은 윤곽 + 넓고 옅은 확산 (요즘 앱 느낌) */
-const SHADOW = "0 1px 1.5px rgba(23,48,44,.05), 0 12px 32px -18px rgba(23,48,44,.20)";
-const SHADOW_LIFT = "0 2px 4px rgba(23,48,44,.06), 0 22px 48px -22px rgba(23,48,44,.28)";
+const SHADOW = "0 1px 1.5px rgba(32,33,29,.05), 0 12px 32px -18px rgba(32,33,29,.20)";
+const SHADOW_LIFT = "0 2px 4px rgba(32,33,29,.06), 0 22px 48px -22px rgba(32,33,29,.28)";
 const R = { xs: 10, sm: 14, md: 18, lg: 22, xl: 28, pill: 999 };
-const MEMBER_COLORS = ["#2E7D72", "#6B5BA8", "#8A7327", "#A85477"];
+const MEMBER_COLORS = ["#8A5A2B", "#6B5BA8", "#8A7327", "#A85477"];
 
 const FONTS = `
 @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600;700&family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
@@ -1282,6 +1284,19 @@ function callItemsFor(st, when) {
     .slice(0, CALL_MAX);
 }
 
+/* 뺀 것까지 다 돌려줍니다. 반차처럼 "몇 개만" 빼는 화면에서는
+   이미 뺀 것도 보여야 다시 켜실 수 있습니다. */
+function callAllFor(st, when) {
+  const day = startOfDay(when || Date.now());
+  const dow = String(new Date(day).getDay());
+  const base = ((st.callPlan || {})[dow] || []).slice();
+  const t = (st.callToday || {})[day] || {};
+  const key = (r) => (/^\d{1,2}:\d{2}$/.test(String(r.time || "")) ? r.time : "99:99");
+  return base.concat(t.add || [])
+    .filter((r) => r && r.what)
+    .sort((a, b) => key(a).localeCompare(key(b)));
+}
+
 /* 상한에 걸려 안 나가는 것이 있으면 부모가 알아야 합니다.
    조용히 자르면 어른이 못 들으신 줄도 모릅니다. */
 function callDropped(st, when) {
@@ -1466,13 +1481,18 @@ function CALL_SPLIT(st, today) {
   어른께 시킬 수 없는 것, 시켜서는 안 되는 것이 여기입니다.
 - 오늘은 ${today}입니다. 날짜가 오늘이나 내일이 아니면 call이 아니라 items로 보내세요.
 
-- 그날 아예 안 맡기실 것 같으면 offDay를 true로 하세요.
-  "내일 아빠 연차야", "내일은 내가 볼게", "어린이집 안 가", "우리가 데리고 있어" 같은 말이요.
+- 그날 안 맡기실 것 같으면 offDay를 true로 하세요.
+  누가 쉬는지는 상관없습니다 — "아빠 연차", "엄마 연차", "내가 쉬어",
+  "우리 둘 다 쉬는 날", "내일은 내가 볼게", "어린이집 안 가", "우리가 데리고 있어".
+  반차·오전만·오후만처럼 **반쪽인 말도 offDay를 true로** 하세요.
+  전부 끄자는 뜻이 아니라, 부모께 여쭤볼 자리를 만드는 것입니다.
   다만 이건 확인용입니다 — 앱이 마음대로 끄지 않고 부모께 한 번 물어봅니다.
   "연차"가 반드시 "안 맡긴다"는 뜻은 아니거든요.
   아빠가 연차인데 병원에 가시고 아이는 그대로 어른께 갈 수도 있습니다.
   잘못 꺼서 하원을 아무도 안 가는 것이 이 앱에서 제일 나쁜 실패입니다.
   offDay가 true여도 call은 평소대로 뽑으세요. 끄는 것은 부모가 정합니다.
+  다만 **재택근무는 offDay가 아닙니다.** 집에 있어도 회의 중이면 하원은 어른이 가십니다.
+  "재택", "집에서 일해"만 있는 말에는 offDay를 false로 두세요.
 `;
 }
 
@@ -1913,7 +1933,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-bt";
+const BUILD = "0901-bu";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -4036,7 +4056,7 @@ function Home() {
   return (
     <>
       <div className="rise" style={{ marginTop: 12, borderRadius: R.xl, overflow: "hidden", position: "relative",
-                                     background: "radial-gradient(120% 100% at 100% 0%, #17564C 0%, #10403950 45%, transparent 70%), linear-gradient(165deg, #124038 0%, #17302C 70%)",
+                                     background: "radial-gradient(120% 100% at 100% 0%, #17564C 0%, #10403950 45%, transparent 70%), linear-gradient(165deg, #124038 0%, #20211D 70%)",
                                      boxShadow: SHADOW_LIFT }}>
         <div style={{ position: "absolute", top: -40, right: -30, width: 160, height: 160, borderRadius: 999, background: "rgba(120,220,200,.14)", filter: "blur(6px)" }} />
         <div style={{ padding: "22px 21px 21px", position: "relative" }}>
@@ -4048,7 +4068,7 @@ function Home() {
               ? <>{callTomorrow ? "내일" : "오늘"} {((st.elders || [])[0] || {}).label || "어른"}께<br />{callBatchN}통 나갑니다.</>
               : <>{meName} 님, 오늘<br />살펴둘 일은 {think.length}가지예요.</>}
           </div>
-          <div style={{ color: "#9DBDB5", fontSize: 13, marginTop: 10, lineHeight: 1.65 }}>
+          <div style={{ color: "#A8A79C", fontSize: 13, marginTop: 10, lineHeight: 1.65 }}>
             {st.callOn
               ? (callBatchN
                   ? `${st.callAt || "07:50"}에 첫 통이 나갑니다. 달라진 게 있으면 지금 고쳐두세요.`
@@ -4685,7 +4705,7 @@ ${CALL_SPLIT(st, todayStr())}
                     </div>
                     <div style={{ fontSize: 12.5, color: C.ink3, lineHeight: 1.75, marginBottom: 11 }}>
                       그렇게 들려서 여쭙니다. <b style={{ color: C.ink2 }}>끄면 {justCall.label}께 갈 {n}건이 안 나갑니다.</b><br />
-                      아빠가 연차셔도 아이는 그대로 맡기시는 날이면 그냥 두세요 —
+                      연차셔도 아이는 그대로 맡기시는 날이면 그냥 두세요 —
                       <b style={{ color: C.ink2 }}>안 나가는 쪽이 더 위험합니다.</b>
                     </div>
                     <div className="flex gap-2">
@@ -4694,13 +4714,61 @@ ${CALL_SPLIT(st, todayStr())}
                         return { ...sv, callToday: t };
                       }); say(`${justCall.when}은 쉬는 것으로 했어요`); log("call_off_day", {}); }}
                         style={{ flex: 1, background: C.persimSoft, color: C.persim, border: "none", borderRadius: 12, padding: "11px 0", fontSize: 13.5, fontWeight: 600 }}>
-                        네, {justCall.when}은 쉽니다
+                        네, 하루 다 쉽니다
                       </button>
                       <button className="press" onClick={() => setJustCall((v) => ({ ...v, offAsk: false }))}
                         style={{ flex: 1, background: "transparent", color: C.ink2, border: `1px solid ${C.line}`, borderRadius: 12, padding: "11px 0", fontSize: 13.5 }}>
                         아니요, 그대로
                       </button>
                     </div>
+                    {/* 반차가 제일 흔합니다. 오전 반차면 등원만 빠지고 하원은 그대로예요.
+                        하루를 통째로 끄면 하원이 같이 꺼져서, 그게 제일 위험한 실수입니다. */}
+                    <button className="press" onClick={() => setJustCall((v) => ({ ...v, part: !v.part }))}
+                      style={{ width: "100%", marginTop: 8, background: "transparent", color: C.moss, border: "none", padding: "8px 0", fontSize: 12.5, fontWeight: 600 }}>
+                      {justCall.part ? "접기" : "반차라 몇 개만 뺄게요"}
+                    </button>
+                    {justCall.part && (() => {
+                      const all = callAllFor(st, day);
+                      const skip = ((st.callToday || {})[day] || {}).skip || [];
+                      if (!all.length) return (
+                        <div style={{ fontSize: 12.5, color: C.ink3, padding: "4px 2px 2px" }}>
+                          {justCall.when} {justCall.label}께 갈 것이 없습니다.
+                        </div>
+                      );
+                      return (
+                        <div style={{ borderTop: `1px solid ${C.lineSoft}`, paddingTop: 8 }}>
+                          <div style={{ fontSize: 11.5, color: C.ink3, marginBottom: 7 }}>
+                            뺄 것을 눌러주세요. 나머지는 그대로 나갑니다.
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            {all.map((r) => {
+                              const gone = skip.indexOf(r.id) >= 0;
+                              return (
+                                <button key={r.id} className="press" onClick={() => setSt((sv) => {
+                                  const t = { ...(sv.callToday || {}) };
+                                  const cur = (t[day] || {}).skip || [];
+                                  const next = gone ? cur.filter((x) => x !== r.id) : cur.concat([r.id]);
+                                  t[day] = { ...(t[day] || {}), skip: next };
+                                  return { ...sv, callToday: t };
+                                })}
+                                  style={{ display: "flex", alignItems: "center", gap: 8, textAlign: "left",
+                                           background: gone ? C.lineSoft : "transparent",
+                                           border: `1px solid ${gone ? C.line : C.lineSoft}`,
+                                           borderRadius: 10, padding: "8px 10px", fontSize: 13,
+                                           color: gone ? C.ink3 : C.ink,
+                                           textDecoration: gone ? "line-through" : "none" }}>
+                                  <span style={{ fontSize: 11.5, color: gone ? C.ink3 : C.moss, minWidth: 42, fontWeight: 600 }}>
+                                    {/^\d{1,2}:\d{2}$/.test(String(r.time || "")) ? r.time : "시각없음"}
+                                  </span>
+                                  <span style={{ flex: 1 }}>{r.what}</span>
+                                  <span style={{ fontSize: 11.5, color: C.ink3 }}>{gone ? "뺐음" : "뺄까요"}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </>
                 )}
               </div>
@@ -4959,7 +5027,7 @@ ${CALL_SPLIT(st, todayStr())}
       {result.length > 0 && (
         <div style={{ position: "fixed", left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 440,
                       bottom: "calc(60px + env(safe-area-inset-bottom))", zIndex: 40, padding: "16px 20px 12px",
-                      background: "linear-gradient(to top, #F2F8F6 58%, rgba(242,248,246,0))", pointerEvents: "none" }}>
+                      background: "linear-gradient(to top, #F3F2EE 58%, rgba(243,242,238,0))", pointerEvents: "none" }}>
           <button className="press w-full" onClick={commit}
             style={{ pointerEvents: "auto", background: C.ink, color: "#fff", border: "none", borderRadius: R.pill,
                      padding: "15px 0", fontSize: 14.5, fontWeight: 600, boxShadow: SHADOW_LIFT }}>

@@ -77,10 +77,6 @@
     {
       "path": "/api/push-send",
       "schedule": "0 23 * * *"
-    },
-    {
-      "path": "/api/voice-send",
-      "schedule": "*/5 * * * *"
     }
   ]
 }

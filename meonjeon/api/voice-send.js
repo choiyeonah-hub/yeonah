@@ -15,8 +15,15 @@
       브라우저에는 절대 안 내려갑니다. push-send.js 와 같은 방식입니다.
    ⚠ 브라우저에서 못 부릅니다. CRON_SECRET 으로 막습니다.
 
-   vercel.json 의 crons 에 이렇게 넣습니다 (Pro 요금제여야 분 단위가 됩니다):
-     { "path": "/api/voice-send", "schedule": "*&#47;5 * * * *" }
+   ── 누가 5분마다 깨우는가 ───────────────────────────
+   vercel.json 에는 넣지 않았습니다. Hobby 요금제는 크론이 하루 한 번뿐이라
+   분 단위 크론을 적어두면 배포 자체가 실패합니다 — 그렇게 여덟 판을 날렸습니다.
+
+   그래서 바깥에서 부릅니다. 무료 스케줄러(cron-job.org 등)에
+     주소 : https://<배포주소>/api/voice-send
+     주기 : 5분
+     헤더 : Authorization: Bearer <CRON_SECRET>
+   Vercel Pro 로 올리면 vercel.json 의 crons 로 되돌려도 됩니다.
 */
 import crypto from "crypto";
 import webpush from "web-push";
