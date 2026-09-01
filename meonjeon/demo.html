@@ -1235,6 +1235,17 @@ const isoDay = (s) => (s && /^\d{4}-\d{2}-\d{2}$/.test(s) ? new Date(s + "T00:00
    이제는 넘는 것이 문자(20원)로 내려가니 그럴 이유가 없습니다.
    아이 둘이면 하원 둘·학원 둘·하원 둘로 여섯이 그냥 차고,
    거기에 준비물이 붙으면 하원 하나가 조용히 잘렸습니다. */
+/* 놓쳤을 때 되돌릴 수 없는 정도. 큰 것이 전화를 먼저 씁니다.
+   병원(3)은 예약이 날아가고 아이가 아픕니다.
+   하원·데려오기(2)는 아이가 혼자 기다립니다.
+   데려다주기(1)는 수업 하나를 빠집니다. */
+const URGENT = (r) => {
+  const w = String((r && r.what) || "");
+  if (/병원|의원|치과|소아과|한의원|검진|보건소|진료|약국/.test(w)) return 3;
+  if (/하원|하교|데려오기|데리러|픽업/.test(w)) return 2;
+  return 1;
+};
+
 const CALL_MAX = 12;
 /* 원가를 화면에 띄울지. 베타 동안 만드는 사람은 봐야 하고,
    부모에게는 보일 이유가 없습니다 — 통신사도 문자마다 22원이라고 안 알려줍니다.
@@ -1527,7 +1538,16 @@ function callBatches(st, when) {
   const 전화 = new Set(고정전화);
   left -= 고정전화.length;                                      /* 꼭 전화가 예산을 먼저 먹습니다 */
   if (!byApp && !elderBySms(st)) {
-    나머지.filter((b2) => b2.must).forEach((b2) => { if (left > 0) { 전화.add(b2); left--; } });
+    /* must끼리는 순서가 없어서 이른 시각이 예산을 먼저 먹었습니다.
+       오후 3시 병원이 오후 1시 피아노에 밀렸어요. 놓쳤을 때 되돌릴 수
+       없는 정도로 줄을 세웁니다. */
+    const 급함 = (b2) => Math.max(0, ...b2.rows.map((r) => URGENT(r)));
+    const must = 나머지.filter((b2) => b2.must).slice()
+      .sort((a2, b2) => 급함(b2) - 급함(a2));
+    /* 병원은 예산 밖입니다. 한 달에 한두 번이고, 문자로 내려가서
+       못 보시면 예약이 날아가고 아이가 아픕니다. 300원이 아깝지 않습니다. */
+    must.filter((b2) => 급함(b2) === 3).forEach((b2) => { 전화.add(b2); left--; });
+    must.filter((b2) => 급함(b2) !== 3).forEach((b2) => { if (left > 0) { 전화.add(b2); left--; } });
     나머지.filter((b2) => !b2.must).forEach((b2) => { if (left > 0) { 전화.add(b2); left--; } });
   }
   return out.map((b2) =>
@@ -2078,7 +2098,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-co";
+const BUILD = "0901-cp";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -6307,6 +6327,7 @@ function CallScreen() {
   /* 넣을 때 고른 요일들. 비어 있으면 지금 보고 있는 요일에만 넣습니다.
      피아노가 월·수·금이면 세 번 넣게 하지 않습니다. */
   const [alsoDows, setAlsoDows] = useState([]);
+  const [rowEdit, setRowEdit] = useState(null);   /* 고치고 있는 줄 */
 
   const add = () => {
     const w = what.trim();
@@ -6365,6 +6386,14 @@ function CallScreen() {
     setTime("");
     log("call_plan_add", { dow, kind: "med" });
   };
+  /* 줄 하나를 고치는 자리. 시각·이름·갈래를 한 화면에서 봅니다 */
+  const rowOf = (id) => ((st.callPlan || {})[dow] || []).find((r) => r.id === id);
+  const patchRow = (id, patch) => setSt((sv) => {
+    const plan = { ...(sv.callPlan || {}) };
+    plan[dow] = (plan[dow] || []).map((r) => r.id === id ? { ...r, ...patch } : r);
+    return { ...sv, callPlan: plan };
+  });
+
   /* 알아서 → 전화 → 문자 → 알아서. 한 자리에서 돌립니다 */
   const setWay = (id) => setSt((sv) => {
     const plan = { ...(sv.callPlan || {}) };
@@ -6455,14 +6484,18 @@ function CallScreen() {
             <span className="mono" style={{ fontSize: 12.5, color: C.moss, width: 46, flexShrink: 0 }}>
               {r.kind === "bag" ? "가방" : r.kind === "med" ? "약" : (r.time || "—")}
             </span>
-            <span style={{ fontSize: 14, flex: 1, minWidth: 0 }}>
+            {/* 눌러서 고칠 수 있게. 전에는 시각이나 이름을 고치려면
+                빼고 다시 넣는 수밖에 없었습니다. */}
+            <button className="press" onClick={() => setRowEdit(r.id)}
+              style={{ fontSize: 14, flex: 1, minWidth: 0, background: "transparent", border: "none",
+                       textAlign: "left", color: C.ink, padding: 0 }}>
               {(st.children || []).length > 1 && r.kid
                 ? <b style={{ color: C.ink3, fontWeight: 500, marginRight: 5 }}>
                     {((st.children || []).find((k) => k.id === r.kid) || {}).name}
                   </b> : null}
               {r.what}
               {r.alert && r.time ? <b style={{ color: C.moss, fontSize: 11, marginLeft: 6, fontWeight: 500 }}>· 알림 2번</b> : null}
-            </span>
+            </button>
             {/* 복직 초반엔 다 전화로 듣고 싶으시다가, 한 달쯤 지나 외우시면
                 "피아노는 이제 문자로"가 됩니다. 그 자리를 여기 둡니다.
                 기본은 "알아서" — 앱이 그날 형편대로 정합니다. */}
@@ -6761,6 +6794,85 @@ function CallScreen() {
           아침에 알면 준비물은 이미 늦으니까요.
         </p>
       </Section>
+
+      {/* 줄 하나 고치기 — 시각·이름·갈래를 한 화면에서. 전에는 갈래만
+          글자 눌러 돌릴 수 있었고, 시각과 이름은 빼고 다시 넣어야 했습니다. */}
+      {rowEdit && rowOf(rowEdit) && (() => {
+        const r = rowOf(rowEdit);
+        const 시각있 = r.kind !== "bag" && r.kind !== "med";
+        return (
+          <Sheet onClose={() => setRowEdit(null)}>
+            <div className="disp" style={{ fontSize: 19, fontWeight: 600 }}>이 줄 고치기</div>
+            <div style={{ fontSize: 12, color: C.ink3, marginTop: 5 }}>
+              {DOW_KR[Number(dow)]}요일마다 {((st.elders || [])[0] || {}).label || "어른"}께 갑니다
+            </div>
+
+            {시각있 && <>
+              <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 16 }}>몇 시</div>
+              <input className="hae" value={r.time || ""} placeholder="1430 또는 14:30"
+                onChange={(e) => patchRow(r.id, { time: e.target.value.slice(0, 8) })}
+                onBlur={(e) => patchRow(r.id, { time: toTime(e.target.value) || r.time })}
+                style={{ width: "100%", marginTop: 8, border: `1px solid ${C.line}`, borderRadius: 12, padding: "12px 13px", fontSize: 15, background: C.bg, color: C.ink }} />
+            </>}
+
+            <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 14 }}>무엇을</div>
+            <input className="hae" value={r.what || ""}
+              onChange={(e) => patchRow(r.id, { what: e.target.value.slice(0, 30) })}
+              onBlur={(e) => patchRow(r.id, { what: callSpace(e.target.value) })}
+              style={{ width: "100%", marginTop: 8, border: `1px solid ${C.line}`, borderRadius: 12, padding: "12px 13px", fontSize: 15, background: C.bg, color: C.ink }} />
+
+            {/^.*(병원|의원|치과|소아과|한의원|검진|보건소).*$/.test(r.what || "") && <>
+              <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 14 }}>왜 가는지</div>
+              <input className="hae" value={r.why || ""} placeholder="예: 어금니 왼쪽 아래 충치"
+                onChange={(e) => patchRow(r.id, { why: e.target.value.slice(0, 30) })}
+                style={{ width: "100%", marginTop: 8, border: `1px solid ${C.line}`, borderRadius: 12, padding: "11px 13px", fontSize: 14, background: C.bg, color: C.ink }} />
+            </>}
+
+            {(st.children || []).length > 1 && <>
+              <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 16 }}>누구</div>
+              <div className="flex gap-1.5" style={{ marginTop: 8, flexWrap: "wrap" }}>
+                {(st.children || []).map((k) => (
+                  <button key={k.id} className="press" onClick={() => patchRow(r.id, { kid: k.id })}
+                    style={{ padding: "8px 14px", borderRadius: 999, fontSize: 13,
+                             border: `1px solid ${r.kid === k.id ? C.moss : C.line}`,
+                             background: r.kid === k.id ? C.mossSoft : "transparent",
+                             color: r.kid === k.id ? C.moss : C.ink2 }}>{k.name || "아이"}</button>
+                ))}
+              </div>
+            </>}
+
+            <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 16 }}>어떻게 갈까요</div>
+            <div className="flex gap-1.5" style={{ marginTop: 8, flexWrap: "wrap" }}>
+              {[["", "알아서"], ["call", "전화"], ["sms", "문자"], ["app", "앱"]].map(([v, lb]) => {
+                const on = (r.way || "") === v;
+                return (
+                  <button key={v || "auto"} className="press" onClick={() => patchRow(r.id, { way: v })}
+                    style={{ padding: "9px 15px", borderRadius: 999, fontSize: 13, fontWeight: on ? 600 : 400,
+                             border: `1px solid ${on ? C.moss : C.line}`,
+                             background: on ? C.mossSoft : "transparent", color: on ? C.moss : C.ink2 }}>{lb}</button>
+                );
+              })}
+            </div>
+            <p style={{ fontSize: 11.5, color: C.ink3, marginTop: 7, lineHeight: 1.7 }}>
+              <b style={{ color: C.ink2 }}>알아서</b>는 설정에서 고르신 대로 갑니다.
+              하나를 골라두시면 그게 이깁니다 — 설정이 문자여도 <b style={{ color: C.ink2 }}>전화</b>로 찍어두면 전화로 갑니다.
+            </p>
+
+            {시각있 && (
+              <button className="press flex items-center gap-2" onClick={() => patchRow(r.id, { alert: !r.alert })}
+                style={{ marginTop: 16, background: "transparent", border: "none", padding: 0, textAlign: "left" }}>
+                <span style={{ width: 16, height: 16, borderRadius: 4, flexShrink: 0,
+                               border: `1.5px solid ${r.alert ? C.moss : C.line}`, background: r.alert ? C.moss : "transparent",
+                               color: "#fff", fontSize: 11, lineHeight: "14px", textAlign: "center" }}>{r.alert ? "✓" : ""}</span>
+                <span style={{ fontSize: 13, color: r.alert ? C.ink2 : C.ink3 }}>이건 30분 전에 따로 알리기</span>
+              </button>
+            )}
+
+            <Btn onClick={() => setRowEdit(null)} style={{ marginTop: 20 }}>확인</Btn>
+            <Btn kind="quiet" onClick={() => { del(r.id); setRowEdit(null); say("뺐어요"); }}>이 줄 빼기</Btn>
+          </Sheet>
+        );
+      })()}
     </div>
   );
 }
@@ -7004,7 +7116,7 @@ function Settings() {
               하루에 전화는 <b style={{ color: C.ink }}>몇 통까지</b> 걸까요?
             </div>
             <div className="flex gap-1.5">
-              {[1, 2, 3, 4].map((n) => (
+              {[1, 2, 3, 4, 6].map((n) => (
                 <button key={n} className="press" onClick={() => setSt((sv) => ({ ...sv, callMax: n }))}
                   style={{ padding: "7px 15px", borderRadius: 999, fontSize: 13,
                            fontWeight: (st.callMax || 2) === n ? 600 : 400,
