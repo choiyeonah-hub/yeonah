@@ -1,0 +1,66 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Vercel Postgres(Neon)의 Storage 연동을 켜면 아래 두 환경변수가 자동으로 주입된다.
+// 로컬 개발은 docker-compose의 postgres 서비스(5433)를 가리키면 된다.
+datasource db {
+  provider  = "postgresql"
+  url       = env("POSTGRES_PRISMA_URL")
+  directUrl = env("POSTGRES_URL_NON_POOLING")
+}
+
+// ─────────────────────────────────────────────────────────────
+// 개인정보 설계 원칙
+//  - 얼굴 사진과 처방전 이미지 원본은 절대 저장하지 않는다.
+//    (요청을 처리하는 동안 메모리에서만 쓰고 응답과 함께 버린다)
+//  - 얼굴 분석은 "얼굴형/비율" 같은 파생 수치만 남긴다.
+//  - 도수(처방 정보)는 민감정보이므로, 사용자가 예약을 확정하며
+//    별도 동의(sensitiveConsent)를 준 경우에만 저장한다.
+// ─────────────────────────────────────────────────────────────
+
+// 주문 한 건. 테와 렌즈의 판매 주체가 다르다.
+//  - 테: 플랫폼이 공장에 발주해 판매한다 (안경사 면허 불필요)
+//  - 렌즈: 제휴 안경원의 안경사가 조제·판매한다 (면허 필요)
+// 그래서 한 화면에서 시작해도 금액과 책임 주체를 분리해 기록한다.
+model FitOrder {
+  id   String @id @default(cuid())
+  code String @unique // 매장에 보여주는 6자리 코드
+
+  // 얼굴 분석 파생 결과 (원본 사진은 저장하지 않음)
+  faceShape   String?
+  faceSummary String? @db.Text
+  faceMetrics Json?
+
+  // 테: 기성품(stock) 또는 맞춤 제작(custom)
+  frameMode  String // "stock" | "custom"
+  frameId    String? // frameMode=stock일 때
+  factoryId  String? // frameMode=custom일 때 제작 공장
+  customSpec Json? // frameMode=custom일 때 설계 치수(mm)와 재질/색상
+
+  // 렌즈
+  lensIndex   String // "1.56" | "1.60" | "1.67" | "1.74"
+  lensOptions String[]
+
+  // 도수. sensitiveConsent가 true일 때만 채워진다.
+  prescription     Json?
+  sensitiveConsent Boolean @default(false)
+
+  // 금액 (원)
+  storeId    String // 렌즈를 조제할 제휴 안경원
+  framePrice Int // 플랫폼이 받는 테 값
+  lensPrice  Int // 안경원이 받는 렌즈 값
+  totalPrice Int
+
+  // 연락처 (예약 확인용 최소 정보)
+  contactName  String
+  contactPhone String
+
+  // 맞춤 제작은 공장 리드타임이 붙는다.
+  estimatedDays Int      @default(1)
+  status        String   @default("requested") // requested | in_production | ready | done | canceled
+  createdAt     DateTime @default(now())
+
+  @@index([storeId])
+  @@index([factoryId])
+}

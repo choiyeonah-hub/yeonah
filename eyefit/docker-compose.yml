@@ -1,0 +1,16 @@
+# 로컬 개발용 Postgres.
+# 하브루타 톡(5432)과 포트를 다르게 잡아 두 프로젝트를 동시에 띄울 수 있게 했다.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: eyefit
+      POSTGRES_PASSWORD: eyefit
+      POSTGRES_DB: eyefit
+    ports:
+      - "5433:5432"
+    volumes:
+      - eyefit-pgdata:/var/lib/postgresql/data
+
+volumes:
+  eyefit-pgdata:

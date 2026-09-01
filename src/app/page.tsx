@@ -177,13 +177,6 @@ export default function HomePage() {
           {loading ? "처리 중..." : mode === "create" ? "가족 만들고 시작하기" : "참여하기"}
         </button>
       </form>
-
-      <a
-        href="/glasses"
-        className="mt-6 block text-center text-xs text-havruta-600 underline"
-      >
-        안경 추천 앱 &quot;아이핏&quot; 열기 &rarr;
-      </a>
     </main>
   );
 }
