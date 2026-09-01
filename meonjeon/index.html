@@ -127,7 +127,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0901-cp';
+const GATE_BUILD = '0901-cq';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#A0A096;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -2247,7 +2247,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-cp";
+const BUILD = "0901-cq";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -7240,7 +7240,7 @@ function CallScreen() {
 
         {rows.length === 0 && (
           <p style={{ fontSize: 12.5, color: C.ink3, padding: "6px 0 12px" }}>
-            {DOW_KR[Number(dow)]}요일에 넣은 것이 없습니다. 학원·하원 시각처럼 그날 어른이 아셔야 할 것을 넣으세요.
+            {DOW_KR[Number(dow)]}요일마다 되풀이될 것은 아직 없습니다. 학원·하원 시각처럼 매주 같은 것을 넣으세요.
           </p>
         )}
         {rows.map((r) => (
@@ -7273,6 +7273,55 @@ function CallScreen() {
               style={{ background: "transparent", border: "none", color: C.ink3, fontSize: 12, flexShrink: 0 }}>빼기</button>
           </div>
         ))}
+
+        {/* 말하기로 담긴 그날치는 여기 안 보이고 있었습니다. 요일 계획이 비었는데
+            "3통 나갑니다"가 뜨니 어긋나 보였어요. 같은 자리에 같이 보여줍니다. */}
+        {(() => {
+          const 그날것 = ((st.callToday || {})[day] || {}).add || [];
+          if (!그날것.length) return null;
+          const key = (r) => (/^\d{1,2}:\d{2}$/.test(String(r.time || "")) ? r.time : "99:99");
+          return (
+            <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${C.line}` }}>
+              <div style={{ fontSize: 12, color: C.sun, fontWeight: 600, marginBottom: 2 }}>
+                {dayLabel}만 — {그날것.length}건
+              </div>
+              <div style={{ fontSize: 11.5, color: C.ink3, marginBottom: 6, lineHeight: 1.7 }}>
+                말하기로 담긴 그날치입니다. 매주 되풀이되지 않고 이날만 나갑니다.
+              </div>
+              {그날것.slice().sort((a2, b2) => key(a2).localeCompare(key(b2))).map((r) => (
+                <div key={r.id} className="flex items-center gap-2.5"
+                  style={{ padding: "8px 0", borderBottom: `1px solid ${C.lineSoft || C.line}` }}>
+                  <span className="mono" style={{ fontSize: 12.5, color: C.sun, width: 46, flexShrink: 0 }}>
+                    {r.kind === "bag" ? "가방" : r.kind === "med" ? "약" : (r.time || "—")}
+                  </span>
+                  <span style={{ fontSize: 14, flex: 1, minWidth: 0 }}>
+                    {(st.children || []).length > 1 && r.kid
+                      ? <b style={{ color: C.ink3, fontWeight: 500, marginRight: 5 }}>
+                          {((st.children || []).find((k) => k.id === r.kid) || {}).name}
+                        </b> : null}
+                    {callSpace(r.what)}
+                  </span>
+                  <button className="press" onClick={() => setSt((sv) => {
+                    const t2 = { ...(sv.callToday || {}) };
+                    const cur = t2[day] || {};
+                    t2[day] = { ...cur, add: (cur.add || []).filter((x) => x.id !== r.id) };
+                    return { ...sv, callToday: t2 };
+                  })} style={{ background: "transparent", border: "none", color: C.ink3, fontSize: 12, flexShrink: 0 }}>빼기</button>
+                </div>
+              ))}
+              <button className="press" onClick={() => { if (!confirm(`${dayLabel} 것 ${그날것.length}건을 모두 뺄까요?`)) return;
+                setSt((sv) => {
+                  const t2 = { ...(sv.callToday || {}) };
+                  t2[day] = { ...(t2[day] || {}), add: [] };
+                  return { ...sv, callToday: t2 };
+                }); say(`${dayLabel} 것을 모두 뺐어요`); }}
+                style={{ marginTop: 9, background: "transparent", border: `1px solid ${C.line}`,
+                         borderRadius: 999, padding: "6px 13px", fontSize: 12, color: C.ink2 }}>
+                {dayLabel} 것 모두 빼기
+              </button>
+            </div>
+          );
+        })()}
 
         <div style={{ marginTop: 14, paddingTop: 13, borderTop: `1px solid ${C.line}` }}>
           {(st.children || []).length > 1 && (
