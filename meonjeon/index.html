@@ -127,7 +127,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0901-cd';
+const GATE_BUILD = '0901-ce';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#A0A096;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -2182,7 +2182,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-cd";
+const BUILD = "0901-ce";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -7575,6 +7575,9 @@ function Settings() {
                            color: "#fff", fontSize: 10, lineHeight: "13px", textAlign: "center" }}>{d.callOn ? "✓" : ""}</span>
             <span style={{ fontSize: 13, color: d.callOn ? C.ink2 : C.ink3 }}>전화 걸기 켬</span>
           </button>
+          {/* 문자나 앱으로 받는 집에는 전화 예산이 아무 일도 안 합니다.
+              안 먹는 손잡이를 보여주면 그것도 거짓말입니다. */}
+          {(((d.elders || [])[0] || {}).how || "call") === "call" && (
           <div style={{ marginTop: 13, paddingTop: 13, borderTop: `1px solid ${C.lineSoft}` }}>
             <div style={{ fontSize: 12.5, color: C.ink2, marginBottom: 8, lineHeight: 1.7 }}>
               하루에 전화는 <b style={{ color: C.ink }}>몇 통까지</b> 걸까요?
@@ -7589,11 +7592,26 @@ function Settings() {
                            color: (st.callMax || 2) === n ? C.moss : C.ink3 }}>{n}통</button>
               ))}
             </div>
+            {/* 4통이면 한 달 이만오천원입니다. 숫자만 고르게 하고 값을 안 보여주면
+                고르는 게 아니라 찍는 것입니다. 천장이라고 분명히 적습니다. */}
+            {(() => {
+              const 통 = Number(st.callMax || 2);
+              const 천장 = 통 * 285 * 22;
+              return (
+                <p style={{ fontSize: 12, color: C.ink2, marginTop: 9, lineHeight: 1.8 }}>
+                  하루 {통}통이면 <b style={{ color: 통 >= 3 ? C.persim : C.ink }}>한 달에 최대 {천장.toLocaleString()}원</b>입니다.
+                  평일 22일에 한 통 285원으로 셈한 <b style={{ color: C.ink2 }}>천장</b>이에요 —
+                  그날 걸 것이 {통}개보다 적으면 그만큼 덜 나갑니다.
+                  {통 >= 3 && <><br /><b style={{ color: C.persim }}>아이 한 명이면 2통으로 대개 됩니다.</b> 셋 이상은 아이가 둘이거나 병원이 잦은 집이에요.</>}
+                </p>
+              );
+            })()}
             <p style={{ fontSize: 12, color: C.ink3, marginTop: 9, lineHeight: 1.75 }}>
               넘는 것은 <b style={{ color: C.ink2 }}>문자</b>로 갑니다. 어른이 받으시는 내용은 그대로예요 — 오는 길만 달라집니다.
               병원·하교처럼 놓치면 되돌릴 수 없는 것이 전화를 먼저 씁니다.
             </p>
           </div>
+          )}
           <p style={{ fontSize: 12, color: C.ink3, marginTop: 11, lineHeight: 1.75 }}>
             요일별 일정과 약·준비물은 <b style={{ color: C.ink2 }}>전화</b> 탭에서 넣습니다.
           </p>
