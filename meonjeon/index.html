@@ -130,7 +130,7 @@ const bar  = document.getElementById('bar');
 /* 첫 화면에 놓는 마크. 아이콘과 같은 그림이라 따로 안 받아도 되고,
    글자만 있던 화면이 앱처럼 보입니다. */
 const MARK = `<svg width="62" height="62" viewBox="0 0 512 512" aria-hidden="true"><defs><linearGradient id="mkb" x1="0" y1="0" x2="512" y2="512"><stop offset="0" stop-color="#D5C3F2"/><stop offset="1" stop-color="#F1E7FC"/></linearGradient><linearGradient id="mkp" x1="150" y1="150" x2="360" y2="360"><stop offset="0" stop-color="#249C7C"/><stop offset="1" stop-color="#7FE3C2"/></linearGradient></defs><rect width="512" height="512" rx="115" fill="url(#mkb)"/><circle cx="256" cy="256" r="180" fill="white" fill-opacity="0.2"/><path d="M180 120C160 120 140 140 140 160V220C140 300 210 370 290 370H350C370 370 390 350 390 330V290C390 275 378 263 363 263L315 263C300 263 288 275 288 290V300C240 290 220 270 210 220H222C237 220 249 208 249 193V145C249 130 237 118 222 118L180 120Z" fill="url(#mkp)"/><circle cx="290" cy="180" r="45" fill="#FBE3BD"/><path d="M250 175C250 145 270 130 290 130C310 130 330 145 330 175C320 165 305 165 290 170C275 165 260 165 250 175Z" fill="#5B4394"/><circle cx="275" cy="180" r="5" fill="#3A2A5C"/><circle cx="305" cy="180" r="5" fill="#3A2A5C"/><circle cx="268" cy="190" r="6" fill="#E8CE3E" opacity="0.6"/><circle cx="312" cy="190" r="6" fill="#E8CE3E" opacity="0.6"/><path d="M283 193Q290 202 297 193" stroke="#3A2A5C" stroke-width="3" stroke-linecap="round" fill="none"/><path d="M370 140C390 160 400 185 400 210" stroke="#E8CE3E" stroke-width="12" stroke-linecap="round" fill="none"/></svg>`;
-const GATE_BUILD = '0901-dh';
+const GATE_BUILD = '0901-di';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#A0A096;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -2285,7 +2285,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-dh";
+const BUILD = "0901-di";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -3875,7 +3875,7 @@ function App() {
                 {tab === "home" && <Home />}
                 {tab === "speak" && <Speak />}
                 {tab === "news" && <NewsScreen />}
-                {tab === "call" && <CallScreen />}
+                {tab === "call" && <ElderScreen />}
                 {tab === "set" && <Settings />}
                 </LinkClaims>
               </div>
@@ -5215,6 +5215,9 @@ function Home() {
 
       {/* 요일마다 되풀이될 것 — 부모가 한 번 앉아서 정하는 일이라 여기입니다 */}
       {(st.elders || []).length > 0 && <PlanEditor />}
+      {/* 그날 나갈 말 미리보기와 고치기. 조부모님 탭은 읽기만 하는 곳이라
+          손대는 것은 전부 여기 있어야 합니다 */}
+      {(st.elders || []).length > 0 && <CallPreview />}
 
       <Section eyebrow="TODAY" title="오늘 살펴둘 일" right={think.length ? "나머지는 접어뒀어요" : null}>
         {thinkShown.length ? (
@@ -5800,7 +5803,7 @@ ${CALL_SPLIT(st, todayStr())}
                       </button>
                     </div>
                     <p style={{ fontSize: 11.5, color: C.ink3, marginTop: 9, lineHeight: 1.7 }}>
-                      하루만 다르면 <b style={{ color: C.ink2 }}>챙기기</b> 탭의 요일 계획에서 그 요일을 골라 되돌리시면 됩니다.
+                      하루만 다르면 <b style={{ color: C.ink2 }}>부모님</b> 탭의 요일 계획에서 그 요일을 골라 되돌리시면 됩니다.
                     </p>
                   </>
                 ) : (
@@ -6425,7 +6428,7 @@ function NewsScreen() {
 
   return (
     <>
-      <PageHead onBack={() => setTab("home")} backLabel="챙기기" />
+      <PageHead onBack={() => setTab("home")} backLabel="부모님" />
       <div style={{ marginTop: 14, paddingLeft: 2 }}>
         <div className="disp" style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-.03em" }}>이달의 소식</div>
         <p style={{ fontSize: 13.5, color: C.ink2, marginTop: 9, lineHeight: 1.7 }}>
@@ -7726,7 +7729,110 @@ function PlanEditor() {
   );
 }
 
-function CallScreen() {
+
+/* ── 조부모님 탭 ────────────────────────────────────────
+   이 화면은 조부모님이 보신다고 치고 만들었습니다.
+   앱 알림으로 받기로 하신 집에서는 어른이 직접 여기를 여십니다.
+   그래서 누를 것을 두지 않았고, 글씨를 키웠습니다.
+   부모가 고칠 것은 전부 부모님 탭에 있습니다. */
+function ElderScreen() {
+  const { st, setTab } = use();
+  const lab = ((st.elders || [])[0] || {}).label || "어른";
+  const day = nextCallDay(st);
+  const 오늘 = day === todayKey();
+  const d = new Date(day);
+  const 날 = `${d.getMonth() + 1}월 ${d.getDate()}일 ${DOW_KR[d.getDay()]}요일`;
+  const off = ((st.callToday || {})[day] || {}).off;
+  const byApp = elderByApp(st);
+  const batches = callBatches(st, day).map((b) => ({
+    ...b,
+    text: (b.sms || b.app) ? smsText(st, day, b.rows) : callScript(st, day, b.rows),
+  }));
+  /* 시각이 있는 것만 차례로. 시각 없는 것은 아침 통에 실려 갑니다 */
+  const 할일 = callAllFor(st, day)
+    .filter((r) => !r.skip)
+    .slice()
+    .sort((a, b) => String(a.time || "99:99").localeCompare(String(b.time || "99:99")));
+
+  const 이름 = (kid) => ((st.children || []).find((c) => c.id === kid) || {}).name || "";
+  const 하나 = (st.children || []).length <= 1;
+
+  return (
+    <div style={{ "--ac": C.moss, paddingBottom: 30 }}>
+      <div style={{ marginTop: 22 }}>
+        <div className="mono" style={{ fontSize: 12, color: C.moss, letterSpacing: ".08em" }}>
+          {오늘 ? "오늘" : "다음"}
+        </div>
+        <h1 className="disp" style={{ fontSize: 27, fontWeight: 600, letterSpacing: "-.02em", marginTop: 6, lineHeight: 1.35 }}>
+          {날}
+        </h1>
+        <p style={{ fontSize: 15, color: C.ink2, marginTop: 9, lineHeight: 1.75 }}>
+          {lab}께 <b style={{ color: C.ink }}>{할일.length}가지</b>를 알려드립니다.
+        </p>
+      </div>
+
+      {off ? (
+        <Card style={{ marginTop: 20, borderColor: C.persim }}>
+          <div style={{ padding: "20px 18px", fontSize: 18, color: C.persim, lineHeight: 1.7 }}>
+            이 날은 <b>쉬는 날</b>입니다.<br />아무것도 안 나갑니다.
+          </div>
+        </Card>
+      ) : (
+        <>
+          {/* 실제로 읽힐 말. 제일 위, 제일 크게 */}
+          {batches.map((b, i) => (
+            <Card key={b.at + i} style={{ marginTop: i ? 12 : 20, borderColor: C.moss }}>
+              <div style={{ padding: "18px 18px 20px" }}>
+                <div className="mono" style={{ fontSize: 13, color: C.moss, letterSpacing: ".06em", marginBottom: 10 }}>
+                  {b.at} · {b.app ? "앱 알림" : b.sms ? "문자" : "전화"}
+                </div>
+                <div style={{ fontSize: 19, lineHeight: 1.9, color: C.ink, whiteSpace: (b.sms || b.app) ? "pre-wrap" : "normal" }}>
+                  {b.text}
+                </div>
+              </div>
+            </Card>
+          ))}
+
+          <div className="mono" style={{ fontSize: 11, color: C.ink3, letterSpacing: ".1em", marginTop: 30, marginBottom: 10 }}>
+            {lab} 할 일
+          </div>
+          <Card>
+            <div style={{ padding: "6px 18px" }}>
+              {할일.length === 0 && (
+                <div style={{ padding: "18px 0", fontSize: 17, color: C.ink3, lineHeight: 1.7 }}>
+                  이 날은 알려드릴 것이 없습니다.
+                </div>
+              )}
+              {할일.map((r, i, a) => (
+                <div key={r.id} style={{ display: "grid", gridTemplateColumns: "64px 1fr", gap: 14,
+                                         padding: "16px 0", borderBottom: i === a.length - 1 ? "none" : `1px solid ${C.lineSoft}` }}>
+                  <span className="mono" style={{ fontSize: 16, color: C.moss, paddingTop: 2 }}>{r.time || "—"}</span>
+                  <div>
+                    <div style={{ fontSize: 18, lineHeight: 1.5, color: C.ink }}>
+                      {!하나 && 이름(r.kid) ? <span style={{ color: C.ink2 }}>{이름(r.kid)} </span> : null}
+                      {callSpace(r.what)}
+                    </div>
+                    {r.why ? <div style={{ fontSize: 15, color: C.ink2, marginTop: 5, lineHeight: 1.6 }}>{String(r.why).trim()} 때문이에요</div> : null}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </>
+      )}
+
+      {/* 부모가 잘못 들어왔을 때만 나가는 길. 어른께는 누를 일이 없습니다 */}
+      <button className="press" onClick={() => setTab("home")}
+        style={{ display: "block", width: "100%", marginTop: 26, background: "transparent",
+                 border: `1px solid ${C.line}`, borderRadius: R.pill, padding: "12px 0",
+                 fontSize: 13, color: C.ink3 }}>
+        고치려면 · 부모님 탭
+      </button>
+    </div>
+  );
+}
+
+function CallPreview() {
   const { st, setSt, say, setTab, log } = use();
   /* 앱을 열면 다음 전화 날의 요일부터 보입니다 — 예전과 같은 화면입니다.
      요일을 바꾸면 미리보기도 따라갑니다. */
@@ -7777,12 +7883,11 @@ function CallScreen() {
 
   return (
     <div style={{ "--ac": C.moss }}>
-      <PageHead title={`${((st.elders || [])[0] || {}).label || "어른"}께 나갈 것`} onBack={() => setTab("home")} backLabel="챙기기" />
-      <p style={{ fontSize: 13, color: C.ink3, marginTop: 8, lineHeight: 1.7 }}>
-<b style={{ color: C.ink2 }}>다음 전화 때 나갈 말입니다.</b> 그대로 읽힙니다.
+      <div className="mono" style={{ fontSize: 10.5, color: C.moss, letterSpacing: ".1em", marginTop: 30 }}>NEXT CALL</div>
+      <p style={{ fontSize: 12.5, color: C.ink3, marginTop: 7, lineHeight: 1.75 }}>
+        <b style={{ color: C.ink2 }}>다음 전화 때 나갈 말입니다.</b> 그대로 읽힙니다.
         매일 아침 부모가 보내는 것이 아니라, 정해진 시각에 앱이 어른께 걸어 읽어드립니다.<br />
-        요일마다 되풀이될 것은 <b style={{ color: C.ink2 }}>챙기기</b> 탭에서 정하시고,
-        여기서는 <b style={{ color: C.ink2 }}>그날만 다른 것</b>만 손보시면 됩니다 — 약이 바뀌거나 학원 시간이 옮겨졌을 때요.
+        여기서 고치시는 것은 <b style={{ color: C.ink2 }}>그날 것만</b>입니다 — 요일마다 되풀이될 것은 위 요일 계획에서요.
       </p>
 
       <Section eyebrow="CALL-01" title="어느 분께 걸까요">
@@ -8286,9 +8391,9 @@ function TabBar() {
      그런데 감추는 조건만 남아 있어서, 혼자 등록한 집은 이 탭을 아예 못 봤습니다.
      복지는 오히려 혼자 사는 집에 더 필요하고, 미리 사두기도 여기에만 있습니다. */
   const items = [
-    { id: "home", label: "챙기기", icon: "◉" },
+    { id: "home", label: "부모님", icon: "◉" },
     { id: "speak", label: "말하기", icon: "✦", primary: true },
-    { id: "call", label: `${((st.elders || [])[0] || {}).label || "어른"}께`, icon: "☏" },
+    { id: "call", label: "조부모님", icon: "☏" },
   ];
   return (
     <nav style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 440,
