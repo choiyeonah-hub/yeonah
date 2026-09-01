@@ -253,6 +253,34 @@ demo_boot = '''<script>
     return realFetch(url, opts);
   };
 
+  /* ── 예시 집안을 미리 채워둡니다 ──────────────────────
+     체험판을 열면 첫 설정부터 나왔습니다. 구경하러 오신 분은
+     거기서 그냥 닫으십니다 — 이 앱이 무엇을 하는지 못 보고요.
+     그래서 한 집을 미리 넣어 "오늘" 화면부터 보이게 합니다.
+     번호는 000-0000-0000 입니다. 진짜 번호를 넣지 마세요.
+     맨 위 "처음부터"를 누르면 지워지고 첫 설정을 볼 수 있습니다. */
+  if (lsGet('meonjeon-demo:meonjeon') == null && lsGet('meonjeon-demo:noseed') == null) {
+    var d = new Date(); d.setHours(0, 0, 0, 0);
+    var r = function (t, w, k, o) {
+      var x = { id: 'cl' + Math.random().toString(36).slice(2, 8), time: t, what: w,
+                kind: k || 'sked', kid: 'demo-k1', alert: !!o };
+      return x;
+    };
+    lsSet('meonjeon-demo:meonjeon', JSON.stringify({
+      onboarded: true,
+      children: [{ id: 'demo-k1', name: '지호', age: '5', months: 60, klass: '햇님' }],
+      elders: [{ id: 'demo-e1', label: '할머니', phone: '00000000000', how: 'call' }],
+      callOn: true, callAt: '07:50', callMax: 2, callHeadsUp: true,
+      callPlan: {
+        '1': [r('09:00', '유치원 데려다주기'), r('14:30', '유치원 하원하기', 'sked', true), r('16:00', '피아노 데려다주기')],
+        '2': [r('09:00', '유치원 데려다주기'), r('14:30', '유치원 하원하기', 'sked', true), r('15:00', '소아과 가기', 'sked', true)],
+        '3': [r('09:00', '유치원 데려다주기'), r('14:30', '유치원 하원하기', 'sked', true), r('16:30', '태권도 데려다주기')],
+        '4': [r('09:00', '유치원 데려다주기'), r('14:30', '유치원 하원하기', 'sked', true), r('', '간식 챙겨주기')],
+        '5': [r('09:00', '유치원 데려다주기'), r('13:30', '유치원 하원하기', 'sked', true)]
+      }
+    }));
+  }
+
   /* 상단 띠: 체험판임을 분명히 */
   bar.style.display = 'flex';
   bar.innerHTML = '<span>🌱 <b>체험판</b> · 이 기기에만 저장 · AI는 간이 버전(실제판은 Claude)</span>' +
@@ -261,7 +289,7 @@ demo_boot = '''<script>
   document.getElementById('demo-reset').onclick = function () {
     var b = document.getElementById('demo-reset');
     if (!resetArmed) { resetArmed = true; b.textContent = '한 번 더 누르면 초기화'; setTimeout(function () { resetArmed = false; b.textContent = '처음부터'; }, 3000); return; }
-    lsDel('meonjeon-demo:meonjeon'); location.reload();
+    lsDel('meonjeon-demo:meonjeon'); lsSet('meonjeon-demo:noseed', '1'); location.reload();
   };
   gate.style.display = 'none';
   document.getElementById('root').style.paddingTop = '34px';
@@ -289,7 +317,28 @@ print("demo written", len(s))
 s = io.open("demo.html", encoding="utf-8").read()
 i = s.index("/* 캘린더로 내보내기 (.ics)")
 j = s.index("/* ══════════ 앱 ══════════ */")
-s = s[:i] + '''/* 캘린더로 내보내기 — 체험판에서는 파일 저장이 막혀 있어 안내만 합니다 */
+s = s[:i] + '''/* ── 체험판에 없는 화면들 ────────────────────────────
+   아래 잘라내는 구간(캘린더·알림·베타지표)에 컴포넌트가 하나둘 들어가면서,
+   체험판은 그것들을 부르는데 정의가 없는 상태가 됐습니다.
+   리액트는 그러면 화면을 통째로 안 그립니다 — 첫 설정만 보이고 끝났습니다.
+   빈 것으로라도 반드시 만들어둬야 합니다. */
+function BetaAll() { return null; }
+function SkippedCats() { return null; }
+function PendingDates() { return null; }
+function EnvCheck() { return null; }
+function PushBox() { return null; }
+function InAppNotice() { return null; }
+function CalButtons({ title, whenMs, note, style }) {
+  return (
+    <button className="press" onClick={() => downloadICS(title, whenMs, note)}
+      style={{ background: "transparent", border: `1px solid ${C.line}`, borderRadius: 999,
+               padding: "6px 13px", fontSize: 12, color: C.ink2, ...(style || {}) }}>
+      달력에 넣기
+    </button>
+  );
+}
+
+/* 캘린더로 내보내기 — 체험판에서는 파일 저장이 막혀 있어 안내만 합니다 */
 function downloadICS(title, whenMs, note) {
   const d0 = new Date(whenMs);
   alert(`체험판에서는 캘린더 파일 저장이 꺼져 있어요.\\n실제 배포판에서는 "${title}" (${d0.getMonth() + 1}월 ${d0.getDate()}일) 일정이 .ics 파일로 저장됩니다.`);
