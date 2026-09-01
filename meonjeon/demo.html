@@ -2033,7 +2033,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-ce";
+const BUILD = "0901-cf";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -6858,10 +6858,19 @@ function Settings() {
           안 쓰는 것 둘을 매번 설명하게 됩니다. 남은 횟수만 한 줄로 둡니다. */}
       <Section eyebrow="AI" title="AI 정리" right={PHASE === "beta" ? "베타 · 무료" : st.plan === "paid" ? "유료" : "무료"}>
         <Card><div style={{ padding: "14px 16px", fontSize: 12.5, color: C.ink2, lineHeight: 1.75 }}>
+          {/* "77번 남았어요"는 우리 사정이지 부모 사정이 아닙니다.
+              전화 예산을 안 보여주는 것과 같은 이유예요 — 세어 보이면
+              쓸 때마다 세게 됩니다. 얼마 안 남았을 때만 말합니다.
+              말하기 화면은 이미 5번 이하일 때만 말하고 있었는데
+              여기만 늘 굵게 떠 있었습니다. */}
           {(() => {
             const left = leftOf(st, "talk"), lim = limitOf(st, "talk");
             if (lim === Infinity) return <>말하기로 넣으시는 건 <b style={{ color: C.ink }}>횟수 제한이 없습니다.</b></>;
-            return <>말하기로 넣는 것이 이번 달 <b style={{ color: C.ink }}>{left}번</b> 남았어요 · {nextResetLabel()}에 다시 채워집니다.</>;
+            if (!left) return <span style={{ color: C.persim }}>
+              이번 달 말하기를 다 쓰셨어요. {nextResetLabel()}에 다시 채워집니다.</span>;
+            if (left <= 10) return <span style={{ color: C.sun }}>
+              이번 달 말하기가 <b>{left}번</b> 남았어요 · {nextResetLabel()}에 다시 채워집니다.</span>;
+            return <>말하기는 {PHASE === "beta" ? "베타 동안 " : ""}<b style={{ color: C.ink }}>넉넉합니다.</b> 마음껏 쓰세요.</>;
           })()}
           <br />전화 탭에 직접 적으시는 건 횟수와 상관없이 언제든 됩니다.
         </div></Card>
