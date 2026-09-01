@@ -130,7 +130,7 @@ const bar  = document.getElementById('bar');
 /* 첫 화면에 놓는 마크. 아이콘과 같은 그림이라 따로 안 받아도 되고,
    글자만 있던 화면이 앱처럼 보입니다. */
 const MARK = `<svg width="62" height="62" viewBox="0 0 512 512" aria-hidden="true"><defs><linearGradient id="mk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#24557E"/><stop offset="1" stop-color="#153A5C"/></linearGradient></defs><rect width="512" height="512" rx="115" fill="url(#mk)"/><g transform="translate(226 274) scale(0.29014 -0.29014) translate(-485.5 -370.5)"><path d="M438 746Q425 770 391 788L407 817Q411 823 425 822Q447 820 474.5 813.5Q502 807 527.0 799.0Q552 791 565 784Q583 775 583 759ZM110 446Q105 453 114 458Q191 498 254.0 544.0Q317 590 364.0 641.5Q411 693 438 746L583 759Q582 749 580.5 742.5Q579 736 576 731Q539 664 474.0 605.5Q409 547 324.0 500.5Q239 454 140 424Q130 421 126 425ZM806 357Q827 356 851.5 353.0Q876 350 898.5 346.0Q921 342 933 337Q950 331 950 315Q950 296 940.0 280.5Q930 265 920 261Q908 263 883.5 264.0Q859 265 834.0 265.5Q809 266 793 266Q776 266 733.5 265.5Q691 265 635.0 264.5Q579 264 518.5 263.5Q458 263 402.5 262.0Q347 261 306.5 260.0Q266 259 251 258Q238 257 216.0 253.5Q194 250 172.5 245.5Q151 241 137 237Q107 249 77.0 269.0Q47 289 25 308Q19 314 22 322L31 339Q61 335 96.0 332.0Q131 329 159 328Q174 328 209.5 328.0Q245 328 295.0 328.5Q345 329 402.0 329.5Q459 330 516.0 331.0Q573 332 623.5 333.0Q674 334 711.0 335.5Q748 337 763 338ZM436 434Q429 443 415.5 452.5Q402 462 387 467L396 498Q398 502 401.0 503.5Q404 505 413 505Q431 505 456.0 502.5Q481 500 505.5 497.0Q530 494 543 489Q559 485 555 469L548 419ZM546 322H437L436 434L548 419ZM785 473 447 635 684 598 759 592Q779 582 803.0 565.5Q827 549 839 538Q859 519 858 505Q858 489 845.5 477.0Q833 465 820 463Q813 462 803.5 465.5Q794 469 785 473ZM684 598 679 590 447 635 497 685ZM771 -78 334 -81 372 -13Q390 -13 417.5 -13.0Q445 -13 476.5 -13.0Q508 -13 539.0 -12.5Q570 -12 597.0 -11.5Q624 -11 642 -10L682 12Q709 13 740.5 10.0Q772 7 790 4Q807 -1 807 -17Q807 -38 801.5 -52.5Q796 -67 790 -72Q784 -78 771 -78ZM334 -81Q281 -81 258.5 -58.5Q236 -36 236 9V89H352V13Q352 0 357.5 -6.5Q363 -13 376 -13ZM352 55H236V114Q224 124 205.0 133.5Q186 143 166 150L174 180Q176 188 188 188Q210 188 238.0 186.5Q266 185 293.0 182.5Q320 180 336 177Q354 171 354 152L352 99Z" fill="#F7F2E6"/></g><g fill="none" stroke="#EBB44E" stroke-linecap="round" transform="translate(322 150)"><path d="M 16.4,-45.1 A 48,48 0 0 1 45.1,16.4" stroke-width="18"/><path d="M 40.4,-75.9 A 86,86 0 0 1 84.1,17.9" stroke-width="16" opacity=".78"/></g></svg>`;
-const GATE_BUILD = '0901-cy';
+const GATE_BUILD = '0901-cz';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#A0A096;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -190,6 +190,11 @@ function sendWhy(error) {
   const m = String((error && error.message) || '');
   if (/rate|limit|too many|over_email/i.test(m))
     return '메일을 <b>너무 자주 보냈어요.</b><br>Supabase 무료 메일은 시간당 보낼 수 있는 통수가 정해져 있습니다. <b>한 시간쯤 뒤에</b> 다시 해주세요.';
+  /* Supabase 기본 메일은 <b>프로젝트 팀원 주소로만</b> 나갑니다.
+     남의 주소로 부르면 "Email address not authorized" 로 거절되는데,
+     화면에 영어로 뜨면 "내가 주소를 잘못 적었나" 하고 한 시간을 헤맵니다. */
+  if (/not authorized|address not/i.test(m))
+    return '이 주소로는 <b>아직 메일이 못 나갑니다.</b><br>지금은 만든 사람 주소로만 보낼 수 있게 돼 있어요. 초대를 받으셔야 합니다.';
   if (/signup|sign-up|not allowed|disabled/i.test(m))
     return '지금은 <b>초대받은 이메일만</b> 들어올 수 있어요.<br>초대받으신 주소가 맞는지 확인해 주세요. 오타가 있으면 로그인이 안 됩니다.';
   if (/not found|no user|user not/i.test(m))
@@ -2266,7 +2271,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-cy";
+const BUILD = "0901-cz";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -3979,8 +3984,21 @@ function Onboarding({ preview }) {
                 style={{ background: "transparent", border: `1px dashed ${C.line}`, borderRadius: 12, width: "100%",
                          padding: "11px 0", fontSize: 13, color: C.ink3 }}>+ 아이 더 넣기</button>
             )}
+            {/* 학년·반은 설정에만 있었습니다. 그런데 통신문 사진을 처음 올리는 건
+                대개 시작한 그 주라, 그때 이미 있어야 그 반 줄을 뽑습니다.
+                나중에 설정까지 찾아 들어가는 분은 거의 없습니다. */}
+            {kids.filter((k) => k.name.trim()).map((k, i) => (
+              <div key={k.id + "-cls"} className="grid grid-cols-3 gap-2" style={{ marginTop: 8 }}>
+                <input style={inp} placeholder="학년" inputMode="numeric" value={k.grade || ""}
+                  onChange={(e) => setKids((v) => v.map((x) => x.id === k.id ? { ...x, grade: e.target.value.replace(/\D/g, "").slice(0, 2) } : x))} />
+                <input style={{ ...inp, gridColumn: "span 2" }} placeholder={`${k.name.trim()} 반 (예: 16, 햇님)`} value={k.klass || ""}
+                  onChange={(e) => setKids((v) => v.map((x) => x.id === k.id ? { ...x, klass: e.target.value.slice(0, 10) } : x))} />
+              </div>
+            ))}
             <p style={{ fontSize: 12, color: C.ink3, marginTop: 12, lineHeight: 1.7 }}>
-              아이가 둘이어도 <b style={{ color: C.ink2 }}>전화는 한 통</b>입니다. 이름을 앞에 붙여 읽어드려요.
+              아이가 둘이어도 <b style={{ color: C.ink2 }}>전화는 한 통</b>입니다. 이름을 앞에 붙여 읽어드려요.<br />
+              학년·반은 <b style={{ color: C.ink2 }}>안 넣으셔도 됩니다.</b> 넣어두시면 가정통신문 사진에서
+              그 반 줄만 뽑습니다. 어린이집·유치원이면 학년은 비우고 반 이름만요.
             </p>
           </>
         )}

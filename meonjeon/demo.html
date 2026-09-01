@@ -2113,7 +2113,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-cy";
+const BUILD = "0901-cz";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -3168,8 +3168,21 @@ function Onboarding({ preview }) {
                 style={{ background: "transparent", border: `1px dashed ${C.line}`, borderRadius: 12, width: "100%",
                          padding: "11px 0", fontSize: 13, color: C.ink3 }}>+ 아이 더 넣기</button>
             )}
+            {/* 학년·반은 설정에만 있었습니다. 그런데 통신문 사진을 처음 올리는 건
+                대개 시작한 그 주라, 그때 이미 있어야 그 반 줄을 뽑습니다.
+                나중에 설정까지 찾아 들어가는 분은 거의 없습니다. */}
+            {kids.filter((k) => k.name.trim()).map((k, i) => (
+              <div key={k.id + "-cls"} className="grid grid-cols-3 gap-2" style={{ marginTop: 8 }}>
+                <input style={inp} placeholder="학년" inputMode="numeric" value={k.grade || ""}
+                  onChange={(e) => setKids((v) => v.map((x) => x.id === k.id ? { ...x, grade: e.target.value.replace(/\D/g, "").slice(0, 2) } : x))} />
+                <input style={{ ...inp, gridColumn: "span 2" }} placeholder={`${k.name.trim()} 반 (예: 16, 햇님)`} value={k.klass || ""}
+                  onChange={(e) => setKids((v) => v.map((x) => x.id === k.id ? { ...x, klass: e.target.value.slice(0, 10) } : x))} />
+              </div>
+            ))}
             <p style={{ fontSize: 12, color: C.ink3, marginTop: 12, lineHeight: 1.7 }}>
-              아이가 둘이어도 <b style={{ color: C.ink2 }}>전화는 한 통</b>입니다. 이름을 앞에 붙여 읽어드려요.
+              아이가 둘이어도 <b style={{ color: C.ink2 }}>전화는 한 통</b>입니다. 이름을 앞에 붙여 읽어드려요.<br />
+              학년·반은 <b style={{ color: C.ink2 }}>안 넣으셔도 됩니다.</b> 넣어두시면 가정통신문 사진에서
+              그 반 줄만 뽑습니다. 어린이집·유치원이면 학년은 비우고 반 이름만요.
             </p>
           </>
         )}
