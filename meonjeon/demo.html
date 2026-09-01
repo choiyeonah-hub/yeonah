@@ -1205,6 +1205,10 @@ const DEFAULT_STATE = {
      그러면 "내가 본 게 안 나갔다"가 됩니다. 그건 이 앱이 죽는 길입니다.
      { "2026-09-02": [{ id, at, text, sms }] } */
   callOutbox: {},
+  /* 나가기 전에 부모에게 한 번 알릴지. 기본은 켬 —
+     처음 몇 주는 "무엇이 나가는지" 보고 싶어 하십니다.
+     익숙해지면 끄시면 됩니다. 끄셔도 전화는 그대로 나갑니다. */
+  callHeadsUp: true,
   /* 아침에 한 번 몰아 알려드릴지. 기본은 끔 — 어른이 아침에 오시면
      부모가 그 자리에서 말하고 나갑니다. 부모가 먼저 나가는 집만 켭니다. */
   callMorning: false,
@@ -1413,9 +1417,12 @@ function bakeOutbox(st) {
     const bs = callBatches(st, when);
     if (!bs.length) return;
     box[k] = bs.map((b, i) => ({
-      /* id는 그날 안에서만 겹치지 않으면 됩니다. 시각과 차례로 만듭니다 —
-         내용이 바뀌면 id도 바뀌어야 고친 것이 다시 나갑니다. */
-      id: `${b.at}-${i}-${(b.rows || []).map((r) => r.id).join(".")}`.slice(0, 80),
+      /* id에 내용을 넣으면 안 됩니다.
+         08:58에 나간 뒤 08:59에 부모가 고치면 id가 바뀌어
+         "안 보낸 통"이 되고, 09:00에 한 번 더 나갑니다.
+         시각과 차례로만 만듭니다 — 고치면 아직 안 나간 통에만 반영되고,
+         이미 나간 통은 그대로 둡니다. 나간 말을 되돌릴 수는 없으니까요. */
+      id: `${b.at}-${b.sms ? "s" : "c"}-${i}`,
       at: b.at, sms: !!b.sms,
       text: b.sms ? smsText(st, when, b.rows) : callScript(st, when, b.rows),
     }));
@@ -1831,7 +1838,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-bn";
+const BUILD = "0901-bo";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -6308,6 +6315,19 @@ function Settings() {
                            color: (st.callMax || 2) === n ? C.moss : C.ink3 }}>{n}통</button>
               ))}
             </div>
+            <button className="press flex items-center gap-2" onClick={() => setSt((sv) => ({ ...sv, callHeadsUp: !sv.callHeadsUp }))}
+              style={{ background: "none", border: "none", padding: 0, marginTop: 13 }}>
+              <span style={{ width: 15, height: 15, borderRadius: 4, flexShrink: 0,
+                             border: `1.5px solid ${st.callHeadsUp ? C.moss : C.line}`,
+                             background: st.callHeadsUp ? C.moss : "transparent",
+                             color: "#fff", fontSize: 10, lineHeight: "13px", textAlign: "center" }}>{st.callHeadsUp ? "✓" : ""}</span>
+              <span style={{ fontSize: 13, color: st.callHeadsUp ? C.ink2 : C.ink3 }}>나가기 전에 나에게 알려주기</span>
+            </button>
+            <p style={{ fontSize: 12, color: C.ink3, marginTop: 7, lineHeight: 1.75 }}>
+              그날 첫 통이 나가기 <b style={{ color: C.ink2 }}>10분 전</b>에 한 번만 알립니다.
+              눌러서 오늘 것을 고치시면 <b style={{ color: C.ink2 }}>아직 안 나간 통</b>에 바로 반영돼요.
+              끄셔도 전화는 그대로 나갑니다.
+            </p>
             <p style={{ fontSize: 12, color: C.ink3, marginTop: 9, lineHeight: 1.75 }}>
               넘는 것은 <b style={{ color: C.ink2 }}>문자</b>로 갑니다. 어른이 받으시는 내용은 그대로예요 — 오는 길만 달라집니다.
               병원·하교처럼 놓치면 되돌릴 수 없는 것이 전화를 먼저 씁니다.

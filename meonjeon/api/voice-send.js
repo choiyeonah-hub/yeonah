@@ -19,6 +19,7 @@
      { "path": "/api/voice-send", "schedule": "*&#47;5 * * * *" }
 */
 import crypto from "crypto";
+import webpush from "web-push";
 
 const SOLAPI = "https://api.solapi.com";
 const KST = 9 * 60;                    /* 한국은 UTC+9 */
@@ -89,6 +90,7 @@ export default async function handler(req, res) {
 
   const rows = await sb(url, service, "households?select=id,code,state");
   const 보낼것 = [];
+  const 미리알릴집 = [];   /* 그날 첫 통 10분 전, 부모에게 한 번 */
 
   for (const h of Array.isArray(rows) ? rows : []) {
     const st = h.state || {};
@@ -99,6 +101,19 @@ export default async function handler(req, res) {
     if (elder.how === "app") continue;          /* 앱으로 받으시는 집은 전화가 안 나갑니다 */
 
     const box = ((st.callOutbox || {})[day] || []);
+
+    /* ── 나가기 전에 부모에게 한 번 ────────────────────
+       전날 미리보기에서 이미 보셨지만, 아침에 사정이 바뀝니다.
+       첫 통 10분 전에 알려서 아직 안 나간 통을 고칠 수 있게 합니다.
+       한 통마다 알리지 않습니다 — 그러면 부모 일이 하루에 여섯 번 늡니다.
+       끄신 집에는 안 갑니다. 꺼도 전화는 그대로 나갑니다. */
+    if (st.callHeadsUp !== false) {
+      const 첫통 = box.map((x) => toMin(x.at)).filter((v) => v != null).sort((a, b) => a - b)[0];
+      if (첫통 != null && 첫통 - 10 <= min && 첫통 - 10 > min - WINDOW) {
+        미리알릴집.push({ hh: h.id, code: h.code, at: box[0] && box[0].at, n: box.length });
+      }
+    }
+
     for (const it of box) {
       const at = toMin(it.at);
       if (at == null) continue;
@@ -118,7 +133,32 @@ export default async function handler(req, res) {
     return res.status(200).json({
       지금: `${day} ${nowKST().hhmm} (한국)`, 집: rows.length,
       나갈것: 할것.map((x) => ({ 집: x.code, 시각: x.it.at, 길: x.it.sms ? "문자" : "전화", 말: x.it.text })),
+      미리알릴집: 미리알릴집.map((g) => g.code),
     });
+  }
+
+  /* 미리 알림 먼저. 이게 늦으면 알리는 뜻이 없습니다 */
+  const 알림 = [];
+  const pub = String(process.env.VAPID_PUBLIC_KEY || "").trim();
+  const priv = String(process.env.VAPID_PRIVATE_KEY || "").trim();
+  const mail = String(process.env.VAPID_SUBJECT || "mailto:hello@example.com").trim();
+  if (미리알릴집.length && pub && priv) {
+    webpush.setVapidDetails(mail, pub, priv);
+    for (const g of 미리알릴집) {
+      const subs = await sb(url, service, `push_subs?select=endpoint,p256dh,auth&household_id=eq.${g.hh}`);
+      for (const sbx of Array.isArray(subs) ? subs : []) {
+        try {
+          await webpush.sendNotification(
+            { endpoint: sbx.endpoint, keys: { p256dh: sbx.p256dh, auth: sbx.auth } },
+            JSON.stringify({
+              title: "곧 어른께 나갑니다",
+              body: `${g.at}에 시작해서 오늘 ${g.n}건이에요. 바뀐 게 있으면 지금 고치세요.`,
+            })
+          );
+          알림.push(g.code);
+        } catch { /* 구독이 죽었을 수 있습니다. 전화는 그대로 나가야 하니 넘어갑니다 */ }
+      }
+    }
   }
 
   const 결과 = [];
@@ -139,6 +179,6 @@ export default async function handler(req, res) {
     결과.push({ 집: x.code, 시각: x.it.at, 길: x.it.sms ? "문자" : "전화", ok, err: err || undefined });
   }
 
-  console.log("voice-send", JSON.stringify({ day, min, n: 결과.length, 결과 }));
-  return res.status(200).json({ 지금: `${day} ${nowKST().hhmm}`, 보냄: 결과.length, 결과 });
+  console.log("voice-send", JSON.stringify({ day, min, n: 결과.length, 미리알림: 알림.length, 결과 }));
+  return res.status(200).json({ 지금: `${day} ${nowKST().hhmm}`, 보냄: 결과.length, 미리알림: 알림, 결과 });
 }
