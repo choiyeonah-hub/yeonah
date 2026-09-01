@@ -2183,7 +2183,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-dn";
+const BUILD = "0901-do";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -6593,6 +6593,12 @@ function CarDates() {
 function PlanEditor() {
   const { st, setSt, say, log } = use();
   const [dow, setDow] = useState(String(new Date(nextCallDay(st)).getDay() || 1));
+  /* 탭을 가를 때 이 두 줄이 저쪽에 남아서, 요일 칩을 그리다 화면이 통째로 죽었습니다 */
+  const 다음전화 = nextCallDay(st);
+  const day = dayForDow(dow, 다음전화);   /* 지금 보고 있는 요일의 실제 날짜 */
+  const byApp = elderByApp(st);
+  const bySms = elderBySms(st);
+  const dayLabel = day === todayKey() ? "오늘" : day === todayKey() + DAY ? "내일" : `다음 ${DOW_KR[Number(dow)]}요일`;
   const [time, setTime] = useState("");
   const [what, setWhat] = useState("");
   const [why, setWhy] = useState("");
