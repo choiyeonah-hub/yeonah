@@ -2,78 +2,69 @@ import Link from "next/link";
 
 const STEPS = [
   {
-    title: "얼굴 비율 재기",
-    body: "사진 한 장으로 얼굴형·얼굴폭·콧대 높이·눈 간격을 잽니다. 사진 없이 얼굴형을 직접 골라도 끝까지 진행됩니다.",
+    title: "도수를 넣습니다",
+    body: "처방전을 찍어 올리면 SPH·CYL·AXIS·ADD·PD를 읽어 채웁니다. 직접 입력해도 됩니다. 어느 쪽이든 도수는 저장하지 않습니다.",
   },
   {
-    title: "도수 읽기",
-    body: "안과·안경원에서 받은 처방전을 찍어 올리면 SPH·CYL·AXIS·ADD·PD를 읽어 채워줍니다. 직접 입력해도 되고, 몰라도 진행됩니다.",
+    title: "테 치수를 넣습니다",
+    body: "안경 다리 안쪽 각인에 52□18 145처럼 적혀 있습니다. 같은 도수라도 테가 크면 훨씬 두꺼워지기 때문에, 이 숫자가 도수만큼 중요합니다.",
   },
   {
-    title: "테 정하기",
-    body: "기성품 중 적합도 순으로 고르거나, 얼굴 계측값에서 치수를 뽑아 제휴 공장에 맞춤 제작을 넣습니다.",
-  },
-  {
-    title: "렌즈 고르기",
-    body: "도수에 맞는 굴절률(1.56~1.74)과 코팅·기능을 추천하고, 노안 가입도가 있으면 누진렌즈를 잡아줍니다.",
-  },
-  {
-    title: "가격 비교 · 예약",
-    body: "동네 안경원과 전국 체인의 예상 견적을 비교하고, 매장에서 보여줄 6자리 코드를 받습니다.",
+    title: "굴절률별 두께가 나옵니다",
+    body: "1.56 / 1.60 / 1.67 / 1.74에서 렌즈가 실제 몇 mm가 되는지, 무게는 몇 g인지, 한 단계 올릴 때 0.1mm당 얼마를 더 내는지 보여줍니다.",
   },
 ];
 
 export default function Home() {
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       <section>
         <h1 className="text-3xl font-bold leading-tight text-ink-900">
-          얼굴에 맞는 안경,
+          &ldquo;이 도수면 1.74 가셔야죠&rdquo;
           <br />
-          남의 기준 말고 내 비율로.
+          <span className="text-ink-600">정말 그런가요?</span>
         </h1>
+        <p className="mt-4 text-ink-800">
+          안경원에서 더 비싼 렌즈를 권할 때, 소비자에게는 그게 맞는 말인지 판단할 근거가 없습니다.
+          그런데 렌즈 두께는 <strong>도수와 테 치수만 알면 계산됩니다.</strong> 광학 공식으로요.
+        </p>
         <p className="mt-3 text-ink-800">
-          시중 안경 사이즈는 서구권 두상을 기준으로 만들어진 게 많습니다. 코받침이 낮아 흘러내리거나,
-          전체폭이 커서 관자놀이에 안 맞는 일이 그래서 생깁니다. 아이핏은 사진에 보이는{" "}
-          <strong>실제 얼굴 비율</strong>로 계산하고, 맞지 않으면 <strong>그 치수로 새로 만듭니다</strong>.
+          이 도구는 그 계산을 대신 해서, <strong>몇 mm 차이에 얼마를 더 내는지</strong>를 숫자로
+          보여줍니다. 결론만 주지 않고 계산식까지 전부 공개합니다.
         </p>
-        <p className="mt-2 text-sm text-ink-700">
-          성별을 묻지 않고, 외모 점수도 매기지 않습니다. 누구나 같은 방식으로 씁니다.
-        </p>
-        <div className="mt-5 flex flex-wrap gap-2">
-          <Link href="/fit" className="rounded-xl bg-ink-600 px-6 py-3 font-semibold text-white">
-            내 얼굴에 맞는 안경 찾기
+        <div className="mt-6 flex flex-wrap gap-2">
+          <Link href="/check" className="rounded-xl bg-ink-600 px-6 py-3 font-semibold text-white">
+            내 도수로 계산해보기
           </Link>
           <Link
-            href="/how-it-works"
+            href="/quotes"
             className="rounded-xl border border-ink-300 px-6 py-3 font-semibold text-ink-800"
           >
-            어떻게 굴러가는지 보기
+            다른 사람들이 낸 금액
           </Link>
         </div>
       </section>
 
       <section className="rounded-2xl border border-ink-200 bg-white p-5">
-        <h2 className="text-lg font-bold text-ink-900">기성품과 맞춤 제작, 둘 다 됩니다</h2>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <div className="rounded-xl bg-ink-50 p-4">
-            <p className="font-semibold text-ink-900">기성품에서 고르기</p>
-            <p className="mt-1 text-sm text-ink-700">
-              다섯 축으로 적합도를 매겨 순서대로 보여줍니다. 당일 수령까지 가능합니다.
-            </p>
-          </div>
-          <div className="rounded-xl bg-ink-50 p-4">
-            <p className="font-semibold text-ink-900">맞춤 제작하기</p>
-            <p className="mt-1 text-sm text-ink-700">
-              전체폭·브릿지·코받침 높이를 얼굴에서 뽑아 제휴 공장에 발주합니다. 3D 프린팅은 1개부터
-              제작됩니다.
-            </p>
-          </div>
-        </div>
+        <h2 className="text-lg font-bold text-ink-900">예를 들면 이런 답이 나옵니다</h2>
+        <ul className="mt-3 space-y-3 text-sm leading-relaxed text-ink-800">
+          <li>
+            · <strong>−3.00D에 50□18 테</strong> — 1.56으로도 가장자리가 3.8mm입니다. 1.74까지
+            올리면 3.0mm. <strong>0.8mm를 위해 15만원을 더 냅니다.</strong>
+          </li>
+          <li>
+            · <strong>−7.00D에 54mm 큰 테</strong> — 여기서는 1.74가 값을 합니다. 도수가 높으면
+            굴절률 차이가 실제로 크게 벌어집니다.
+          </li>
+          <li>
+            · <strong>테를 4mm 작은 걸로 바꾸면</strong> 굴절률을 한 단계 올리는 것보다 더 얇아지는
+            경우가 많습니다. 그러면서 돈은 덜 듭니다.
+          </li>
+        </ul>
       </section>
 
       <section>
-        <h2 className="mb-3 text-lg font-bold text-ink-900">진행 순서</h2>
+        <h2 className="mb-3 text-lg font-bold text-ink-900">쓰는 법</h2>
         <ol className="space-y-3">
           {STEPS.map((s, i) => (
             <li key={s.title} className="flex gap-3 rounded-2xl border border-ink-200 bg-white p-4">
@@ -90,22 +81,33 @@ export default function Home() {
       </section>
 
       <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
-        <h2 className="text-lg font-bold text-emerald-900">개인정보를 다루는 방식</h2>
+        <h2 className="text-lg font-bold text-emerald-900">도수를 저장하지 않습니다</h2>
         <ul className="mt-2 space-y-2 text-sm leading-relaxed text-emerald-900">
           <li>
-            · <strong>얼굴 사진과 처방전 이미지는 저장하지 않습니다.</strong> 분석하는 동안만 서버
-            메모리에 있다가 응답과 함께 사라집니다.
+            · 처방 도수는 개인정보보호법상 <strong>민감정보</strong>입니다. 이 도구는 계정도 없고,
+            도수를 DB에 넣지도 않습니다.
           </li>
           <li>
-            · 저장되는 건 얼굴형·비율 같은 <strong>파생 숫자</strong>뿐이고, 그것도 주문을 확정할
-            때만 기록됩니다.
+            · 두께 계산은 <strong>브라우저 안에서</strong> 끝납니다. 도수를 직접 입력하면 서버로
+            아무것도 가지 않습니다.
           </li>
           <li>
-            · 처방 도수는 개인정보보호법상 <strong>민감정보</strong>입니다. 안경원에 전달할지는
-            <strong> 따로 동의</strong>를 받고, 동의하지 않아도 예약은 됩니다.
+            · 처방전 사진으로 자동 입력할 때만 판독 서버를 한 번 거치고, 그 이미지는 응답과 함께
+            버려집니다.
           </li>
-          <li>· 공장에는 설계 치수만 넘어갑니다. 도수와 연락처는 전달되지 않습니다.</li>
+          <li>
+            · 금액 제보에도 도수는 받지 않습니다. 지역·굴절률·옵션·금액만 남습니다.
+          </li>
         </ul>
+      </section>
+
+      <section className="rounded-2xl border border-amber-300 bg-amber-50 p-5 text-sm leading-relaxed text-amber-900">
+        <p className="font-semibold">이 도구는 진단하지 않습니다.</p>
+        <p className="mt-1">
+          렌즈 두께 계산은 참고용 추정입니다. 실제 두께는 제조사의 렌즈 설계와 테 모양에 따라
+          달라지고, 최종 판단은 검안한 안경사의 몫입니다. 도수 자체에 대한 판단은 안과 의사와
+          안경사의 검사 결과를 따르세요.
+        </p>
       </section>
     </div>
   );

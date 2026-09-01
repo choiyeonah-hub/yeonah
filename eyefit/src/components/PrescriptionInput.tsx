@@ -70,27 +70,12 @@ function EyeRow({
   );
 }
 
-export default function StepPrescription({
+export default function PrescriptionInput({
   prescription,
-  skip,
-  screenHours,
-  outdoorHeavy,
   onChange,
-  onNext,
-  onBack,
 }: {
   prescription: Prescription | null;
-  skip: boolean;
-  screenHours: number;
-  outdoorHeavy: boolean;
-  onChange: (patch: {
-    prescription?: Prescription | null;
-    skipPrescription?: boolean;
-    screenHours?: number;
-    outdoorHeavy?: boolean;
-  }) => void;
-  onNext: () => void;
-  onBack: () => void;
+  onChange: (prescription: Prescription) => void;
 }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -100,7 +85,7 @@ export default function StepPrescription({
   const rx = prescription ?? EMPTY_RX;
 
   function patchRx(patch: Partial<Prescription>) {
-    onChange({ prescription: { ...rx, ...patch, source: "manual" }, skipPrescription: false });
+    onChange({ ...rx, ...patch, source: "manual" });
   }
 
   async function handleFile(file: File) {
@@ -114,7 +99,7 @@ export default function StepPrescription({
         body: JSON.stringify({ imageDataUrl: dataUrl }),
       });
       const data = await parseJsonOrThrow<{ prescription: Prescription }>(res);
-      onChange({ prescription: data.prescription, skipPrescription: false });
+      onChange(data.prescription);
     } catch (err) {
       setError(err instanceof Error ? err.message : "처방전을 읽지 못했습니다.");
     } finally {
@@ -125,21 +110,16 @@ export default function StepPrescription({
 
   return (
     <div className="space-y-5">
-      <Callout tone="privacy" title="도수는 민감정보입니다">
+      <Callout tone="privacy" title="도수는 아무 데도 저장되지 않습니다">
         <p>
-          안경 처방전의 도수는 개인정보보호법상 <strong>건강에 관한 민감정보</strong>로 볼 수
-          있습니다. 그래서 이 앱은 처방전 <strong>이미지를 저장하지 않고</strong>, 읽어낸 숫자도
-          마지막 예약 단계에서 <strong>별도로 동의</strong>해야만 매장에 전달합니다.
+          처방전 도수는 개인정보보호법상 <strong>건강에 관한 민감정보</strong>입니다. 이 도구는
+          도수를 <strong>저장하지 않습니다</strong> — 계정도 없고 DB에도 안 들어갑니다. 사진으로
+          자동 입력할 때만 판독 서버를 한 번 거치고, 그 이미지도 응답과 함께 버려집니다.
         </p>
         <p>
-          동의하지 않아도 끝까지 진행할 수 있습니다. 그 경우 도수는 매장에서 안경사가 직접
-          검안합니다.
+          사진을 아예 안 올리고 <strong>직접 입력만</strong> 해도 됩니다. 그 경우 도수는 브라우저
+          밖으로 나가지 않고, 두께 계산도 전부 이 화면 안에서 끝납니다.
         </p>
-      </Callout>
-
-      <Callout tone="warn">
-        여기서 읽은 값은 <strong>매장에서 확인할 초안</strong>이지 확정 처방이 아닙니다. 최종 도수는
-        안경사의 검안으로 정해집니다. 이 앱은 진단이나 의료적 판단을 하지 않습니다.
       </Callout>
 
       <div className="rounded-2xl border border-ink-200 bg-white p-4">
@@ -237,55 +217,6 @@ export default function StepPrescription({
         )}
       </div>
 
-      <div className="rounded-2xl border border-ink-200 bg-white p-4">
-        <p className="mb-3 font-semibold text-ink-900">생활 환경</p>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field label={`하루 화면 보는 시간: ${screenHours}시간`}>
-            <input
-              type="range"
-              min={0}
-              max={14}
-              value={screenHours}
-              onChange={(e) => onChange({ screenHours: Number(e.target.value) })}
-              className="w-full accent-ink-500"
-            />
-          </Field>
-          <label className="flex items-center gap-2 text-sm text-ink-800">
-            <input
-              type="checkbox"
-              checked={outdoorHeavy}
-              onChange={(e) => onChange({ outdoorHeavy: e.target.checked })}
-            />
-            야외 활동이 많은 편입니다
-          </label>
-        </div>
-      </div>
-
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <button type="button" onClick={onBack} className="text-sm text-ink-700 underline">
-          이전
-        </button>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              onChange({ prescription: null, skipPrescription: true });
-              onNext();
-            }}
-            className="rounded-xl border border-ink-300 px-4 py-3 text-sm font-medium text-ink-800"
-          >
-            도수 모름 · 매장에서 검안할게요
-          </button>
-          <button
-            type="button"
-            disabled={!prescription && !skip}
-            onClick={onNext}
-            className="rounded-xl bg-ink-600 px-5 py-3 font-semibold text-white disabled:opacity-40"
-          >
-            다음: 테 고르기
-          </button>
-        </div>
-      </div>
     </div>
   );
 }

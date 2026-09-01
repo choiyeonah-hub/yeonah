@@ -12,55 +12,32 @@ datasource db {
 
 // ─────────────────────────────────────────────────────────────
 // 개인정보 설계 원칙
-//  - 얼굴 사진과 처방전 이미지 원본은 절대 저장하지 않는다.
-//    (요청을 처리하는 동안 메모리에서만 쓰고 응답과 함께 버린다)
-//  - 얼굴 분석은 "얼굴형/비율" 같은 파생 수치만 남긴다.
-//  - 도수(처방 정보)는 민감정보이므로, 사용자가 예약을 확정하며
-//    별도 동의(sensitiveConsent)를 준 경우에만 저장한다.
+//
+// 이 앱은 도수를 저장하지 않는다. 처방전 이미지도, 판독한 숫자도 남기지 않는다.
+// 도수는 개인정보보호법상 민감정보라 저장하는 순간 별도 동의와 관리 의무가
+// 생기는데, 이 도구의 목적(렌즈 값이 적정한지 판단)에는 도수가 필요 없다.
+// 계산은 브라우저를 떠나지 않고, 남는 건 아래 "얼마 냈는지" 제보뿐이다.
 // ─────────────────────────────────────────────────────────────
 
-// 주문 한 건. 테와 렌즈의 판매 주체가 다르다.
-//  - 테: 플랫폼이 공장에 발주해 판매한다 (안경사 면허 불필요)
-//  - 렌즈: 제휴 안경원의 안경사가 조제·판매한다 (면허 필요)
-// 그래서 한 화면에서 시작해도 금액과 책임 주체를 분리해 기록한다.
-model FitOrder {
-  id   String @id @default(cuid())
-  code String @unique // 매장에 보여주는 6자리 코드
+// 사용자가 실제로 지불한 렌즈 값 제보.
+// 제휴 안경원 없이 가격 데이터를 모으는 유일한 방법이고, 이 앱의 자산이다.
+model LensQuoteReport {
+  id String @id @default(cuid())
 
-  // 얼굴 분석 파생 결과 (원본 사진은 저장하지 않음)
-  faceShape   String?
-  faceSummary String? @db.Text
-  faceMetrics Json?
+  region    String // "서울", "경기", ...
+  storeKind String // "체인" | "동네" | "온라인/기타"
 
-  // 테: 기성품(stock) 또는 맞춤 제작(custom)
-  frameMode  String // "stock" | "custom"
-  frameId    String? // frameMode=stock일 때
-  factoryId  String? // frameMode=custom일 때 제작 공장
-  customSpec Json? // frameMode=custom일 때 설계 치수(mm)와 재질/색상
-
-  // 렌즈
   lensIndex   String // "1.56" | "1.60" | "1.67" | "1.74"
   lensOptions String[]
+  progressive Boolean @default(false)
 
-  // 도수. sensitiveConsent가 true일 때만 채워진다.
-  prescription     Json?
-  sensitiveConsent Boolean @default(false)
+  /// 렌즈 값만(원). 테 값은 브랜드마다 달라 비교가 무의미해서 받지 않는다.
+  lensPrice Int
 
-  // 금액 (원)
-  storeId    String // 렌즈를 조제할 제휴 안경원
-  framePrice Int // 플랫폼이 받는 테 값
-  lensPrice  Int // 안경원이 받는 렌즈 값
-  totalPrice Int
+  note String? @db.Text
 
-  // 연락처 (예약 확인용 최소 정보)
-  contactName  String
-  contactPhone String
+  createdAt DateTime @default(now())
 
-  // 맞춤 제작은 공장 리드타임이 붙는다.
-  estimatedDays Int      @default(1)
-  status        String   @default("requested") // requested | in_production | ready | done | canceled
-  createdAt     DateTime @default(now())
-
-  @@index([storeId])
-  @@index([factoryId])
+  @@index([region, lensIndex])
+  @@index([lensIndex])
 }

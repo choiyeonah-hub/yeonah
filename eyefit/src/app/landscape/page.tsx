@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-export const metadata = { title: "이미 있는 서비스 - 아이핏" };
+export const metadata = { title: "경쟁 서비스 - 렌즈값 계산기" };
 
 type Player = {
   name: string;
@@ -62,10 +62,14 @@ export default function Landscape() {
   return (
     <div className="space-y-8">
       <section>
-        <h1 className="text-2xl font-bold text-ink-900">이미 있는 서비스</h1>
+        <h1 className="text-2xl font-bold text-ink-900">경쟁 서비스</h1>
         <p className="mt-3 text-ink-800">
-          이 아이디어는 새롭지 않습니다. 한국에만 두 곳이 같은 걸 하고 있고, 미국과 독일에도
-          자리 잡은 회사가 있습니다. 만들기 전에 알아야 할 내용이라 앱 안에 정리해 둡니다.
+          이 도구는 원래 &ldquo;얼굴에 맞는 안경 추천 + 맞춤 제작 + 안경원 연결&rdquo;로 시작했는데,
+          조사해보니 그 전부가 이미 있었습니다. 그래서 <strong>아무도 안 하던 한 가지</strong>로
+          좁혔습니다 — 렌즈 값이 적정한지 계산해주는 것.
+        </p>
+        <p className="mt-3 text-ink-800">
+          왜 좁혔는지 남겨두는 게 맞다고 봐서, 조사 결과를 그대로 둡니다.
         </p>
       </section>
 
@@ -114,20 +118,19 @@ export default function Landscape() {
       </section>
 
       <section className="rounded-2xl border border-ink-200 bg-white p-5">
-        <h2 className="font-bold text-ink-900">그래도 남는 자리</h2>
+        <h2 className="font-bold text-ink-900">그래서 여기로 좁혔습니다</h2>
         <ul className="mt-2 space-y-2 text-sm leading-relaxed text-ink-800">
           <li>
-            · 위 서비스 대부분은 <strong>테만</strong> 다루거나 <strong>가상피팅만</strong>
-            다룹니다. 처방전 판독으로 <strong>렌즈 사양까지</strong> 같이 정하고 매장별로
-            테+렌즈 총액을 비교하는 조합은 상대적으로 덜 채워져 있습니다.
+            · 위 서비스는 전부 <strong>테</strong>를 다룹니다. 라운즈는 테 커머스, 브리즘과
+            Topology와 YOU MAWO는 테 제조입니다. <strong>렌즈를 건드리는 곳은 없습니다.</strong>
           </li>
           <li>
-            · 브리즘은 <strong>매장 방문 스캔</strong>이 전제입니다. 스마트폰 사진만으로 끝나는
-            경로는 접근성이 다릅니다.
+            · 그런데 소비자가 실제로 판단하지 못하고 돈을 더 내는 지점은 렌즈입니다. 매장에서
+            &ldquo;이 도수면 1.74 가셔야죠&rdquo; 할 때 그게 맞는 말인지 확인할 방법이 없습니다.
           </li>
           <li>
-            · 다만 이건 <strong>기능 차이</strong>지 <strong>진입장벽</strong>이 아닙니다. 이미
-            매장과 공장, 제조 데이터를 가진 쪽이 따라오는 데 오래 걸리지 않습니다.
+            · 렌즈 두께는 <strong>제휴 없이도 계산됩니다.</strong> 광학 공식이라 데이터가 0건이어도
+            첫날부터 동작합니다. 이게 이 방향을 고른 실질적인 이유입니다.
           </li>
         </ul>
       </section>
