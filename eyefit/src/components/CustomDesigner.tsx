@@ -8,17 +8,20 @@ import { won } from "@/lib/format";
 import type { CustomSpec, FaceAnalysis, Prescription } from "@/lib/types";
 import FrameSvg from "./FrameSvg";
 import { Callout } from "./Section";
+import TryOn from "./TryOn";
 
 const COLORS = ["블랙", "하바나", "클리어", "네이비", "카키", "버건디", "샴페인 골드", "실버"];
 
 export default function CustomDesigner({
   face,
   prescription,
+  photoDataUrl,
   factoryId,
   onChange,
 }: {
   face: FaceAnalysis;
   prescription: Prescription | null;
+  photoDataUrl: string | null;
   factoryId: string | null;
   onChange: (patch: { factoryId: string | null; customSpec: CustomSpec | null }) => void;
 }) {
@@ -150,6 +153,12 @@ export default function CustomDesigner({
               ["템플 길이", `${spec.temple}mm`],
               ["테 전체폭", `${spec.totalWidth}mm`],
               ["코받침 높이", `${spec.nosePadHeight}mm`],
+              ...(spec.nosePadAngleDeg != null
+                ? ([["코받침 각도", `${spec.nosePadAngleDeg}°`]] as [string, string][])
+                : []),
+              ...(spec.templeDropMm != null
+                ? ([["템플 꺾임", `${spec.templeDropMm}mm`]] as [string, string][])
+                : []),
             ].map(([k, v]) => (
               <div key={k}>
                 <dt className="text-ink-600">{k}</dt>
@@ -163,6 +172,19 @@ export default function CustomDesigner({
             {spec.decentrationPerEye != null &&
               ` · 편심 한쪽당 ${Math.abs(spec.decentrationPerEye)}mm`}
           </p>
+
+          {photoDataUrl && face.landmarks && (
+            <div className="mt-4 border-t border-ink-100 pt-4">
+              <p className="mb-2 text-sm font-semibold text-ink-900">이 치수로 만들면 이렇게 됩니다</p>
+              <TryOn
+                photoDataUrl={photoDataUrl}
+                landmarks={face.landmarks}
+                shape={spec.shape}
+                rim={spec.rim}
+                frameTotalWidthMm={spec.totalWidth}
+              />
+            </div>
+          )}
 
           <ul className="mt-4 space-y-1 text-sm text-ink-800">
             {spec.rationale.map((r) => (

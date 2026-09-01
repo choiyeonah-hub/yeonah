@@ -14,6 +14,7 @@ const STEP_LABELS = ["얼굴", "도수", "테", "렌즈", "안경원"];
 
 const INITIAL: FitState = {
   face: null,
+  photoDataUrl: null,
   prescription: null,
   skipPrescription: false,
   screenHours: 6,
@@ -78,7 +79,12 @@ export default function FitWizard() {
       </nav>
 
       {step === 0 && (
-        <StepFace face={state.face} onChange={(face) => patch({ face })} onNext={() => setStep(1)} />
+        <StepFace
+          face={state.face}
+          photoDataUrl={state.photoDataUrl}
+          onChange={patch}
+          onNext={() => setStep(1)}
+        />
       )}
 
       {step === 1 && (
@@ -97,6 +103,7 @@ export default function FitWizard() {
         <StepFrames
           face={state.face}
           prescription={state.prescription}
+          photoDataUrl={state.photoDataUrl}
           frameMode={state.frameMode}
           frameId={state.frameId}
           factoryId={state.factoryId}

@@ -36,10 +36,20 @@ export function deriveCustomSpec(params: {
   const rationale: string[] = [];
 
   // 1) 전체폭: 얼굴 폭에 맞춘다. 여기서 어긋나면 흘러내리거나 관자놀이를 누른다.
-  const totalWidth = TARGET_WIDTH[face.faceWidth];
-  rationale.push(
-    `얼굴 폭이 ${{ narrow: "좁은", average: "보통", wide: "넓은" }[face.faceWidth]} 편이라 테 전체폭을 ${totalWidth}mm로 잡았습니다.`
-  );
+  //    사진에서 mm로 잰 값이 있으면 등급표 대신 그 값을 쓴다. 맞춤 제작의 핵심이 이 지점이다.
+  let totalWidth: number;
+  if (face.measured) {
+    // 테 앞면은 관자놀이 폭보다 2mm 정도 좁아야 다리가 자연스럽게 뒤로 뻗는다.
+    totalWidth = Math.min(160, Math.max(110, round(face.measured.faceWidthMm - 2)));
+    rationale.push(
+      `사진에서 잰 얼굴 폭 ${face.measured.faceWidthMm}mm에 맞춰 테 전체폭을 ${totalWidth}mm로 잡았습니다.`
+    );
+  } else {
+    totalWidth = TARGET_WIDTH[face.faceWidth];
+    rationale.push(
+      `얼굴 폭이 ${{ narrow: "좁은", average: "보통", wide: "넓은" }[face.faceWidth]} 편이라 테 전체폭을 ${totalWidth}mm로 잡았습니다.`
+    );
+  }
 
   // 2) 브릿지: 눈 간격에서 출발하고, 콧대가 낮으면 코 옆면에 닿는 면적을 넓힌다.
   let bridge = BASE_BRIDGE[face.eyeSpacing];
@@ -66,28 +76,50 @@ export function deriveCustomSpec(params: {
     rationale.push("누진렌즈 근용부가 들어가야 해서 렌즈 세로폭을 36mm 이상으로 올렸습니다.");
   }
 
-  // 5) 코받침 높이: 기성품에서 가장 자주 어긋나는 치수다.
-  const nosePadHeight = NOSE_PAD[face.noseBridge];
-  if (face.noseBridge === "low") {
+  // 5) 코받침: 기성품에서 가장 자주 어긋나는 치수다.
+  //    옆모습을 찍었다면 콧대가 실제로 얼마나 솟았는지 mm로 알기 때문에,
+  //    솟은 만큼을 빼서 받침 높이를 정한다. 낮은 콧대일수록 받침이 높아진다.
+  let nosePadHeight: number;
+  let nosePadAngleDeg: number | null = null;
+  let templeDropMm: number | null = null;
+  if (face.profile) {
+    nosePadHeight = Math.min(16, Math.max(4, round(16 - face.profile.bridgeHeightMm)));
+    nosePadAngleDeg = face.profile.bridgeAngleDeg;
+    templeDropMm = face.profile.earToEyeOffsetMm;
     rationale.push(
-      `코받침을 ${nosePadHeight}mm로 높였습니다. 기성 테가 흘러내리고 볼에 닿는 건 대부분 이 치수가 낮아서입니다.`
+      `옆모습에서 잰 콧대 높이가 ${face.profile.bridgeHeightMm}mm라 코받침을 ${nosePadHeight}mm, 경사 ${nosePadAngleDeg}도로 설계했습니다.`
     );
+    if (Math.abs(templeDropMm) >= 3) {
+      rationale.push(
+        `귀가 눈높이보다 ${Math.abs(templeDropMm)}mm ${templeDropMm > 0 ? "높아" : "낮아"} 템플을 그만큼 꺾어 내립니다. 안경이 한쪽으로 기울지 않게 하는 치수입니다.`
+      );
+    }
+  } else {
+    nosePadHeight = NOSE_PAD[face.noseBridge];
+    if (face.noseBridge === "low") {
+      rationale.push(
+        `코받침을 ${nosePadHeight}mm로 높였습니다. 기성 테가 흘러내리고 볼에 닿는 건 대부분 이 치수가 낮아서입니다.`
+      );
+    }
   }
 
   // 6) 템플 길이
   const temple = TEMPLE[face.faceWidth];
 
   // 7) 편심량: 렌즈 광학 중심과 눈동자가 얼마나 어긋나는지.
+  //    처방전 PD가 우선이고, 없으면 사진에서 잰 추정치를 쓴다.
+  const pd = prescription?.pd ?? face.measured?.pdMm ?? null;
+  const pdSource = prescription?.pd != null ? "처방전" : "사진 추정";
   const decentrationPerEye =
-    prescription?.pd != null ? round(((lensWidth + bridge - prescription.pd) / 2) * 10) / 10 : null;
+    pd != null ? round(((lensWidth + bridge - pd) / 2) * 10) / 10 : null;
   if (decentrationPerEye != null) {
     if (Math.abs(decentrationPerEye) <= 2) {
       rationale.push(
-        `PD ${prescription!.pd}mm 기준 편심이 한쪽당 ${Math.abs(decentrationPerEye)}mm로 작아 렌즈가 얇게 나옵니다.`
+        `PD ${pd}mm(${pdSource}) 기준 편심이 한쪽당 ${Math.abs(decentrationPerEye)}mm로 작아 렌즈가 얇게 나옵니다.`
       );
     } else {
       rationale.push(
-        `PD ${prescription!.pd}mm 기준 편심이 한쪽당 ${Math.abs(decentrationPerEye)}mm입니다. 얼굴 폭을 우선했기 때문이며, 렌즈 가공에서 보정합니다.`
+        `PD ${pd}mm(${pdSource}) 기준 편심이 한쪽당 ${Math.abs(decentrationPerEye)}mm입니다. 얼굴 폭을 우선했기 때문이며, 렌즈 가공에서 보정합니다.`
       );
     }
   }
@@ -116,6 +148,8 @@ export function deriveCustomSpec(params: {
     temple,
     totalWidth,
     nosePadHeight,
+    nosePadAngleDeg,
+    templeDropMm,
     material,
     color,
     decentrationPerEye,

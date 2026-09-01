@@ -1,6 +1,16 @@
 import { getOpenAI } from "./openai";
+import { IRIS_WIDTH_MM } from "./visionConstants";
 import { FACE_SHAPE_IDS, FACE_SHAPES } from "./faceShapes";
-import type { FaceAnalysis, FaceShapeId, Prescription } from "./types";
+import type {
+  FaceAnalysis,
+  FaceLandmarks,
+  FaceMeasurements,
+  FaceShapeId,
+  Point,
+  Prescription,
+  ProfileMeasurements,
+} from "./types";
+
 
 const VISION_MODEL = process.env.OPENAI_VISION_MODEL || process.env.OPENAI_CHAT_MODEL || "gpt-4o-mini";
 
@@ -53,8 +63,75 @@ const FACE_SYSTEM = `너는 안경 피팅을 돕는 얼굴 계측 도우미다. 
   "faceWidth": "narrow|average|wide",
   "browLine": "straight|arched|angular|soft",
   "summary": "왜 그 얼굴형으로 봤는지 비율 근거를 담은 2~3문장 한국어 설명 (외모 평가 없이)",
-  "confidence": 0~1 숫자
-}`;
+  "confidence": 0~1 숫자,
+  "landmarks": {
+    "rightPupil": {"x": 0~1, "y": 0~1},
+    "leftPupil": {"x": 0~1, "y": 0~1},
+    "noseBridge": {"x": 0~1, "y": 0~1},
+    "faceLeft": {"x": 0~1, "y": 0~1},
+    "faceRight": {"x": 0~1, "y": 0~1},
+    "irisWidthRatio": 0~1 숫자
+  }
+}
+
+좌표 규칙:
+- x는 이미지 왼쪽 끝이 0, 오른쪽 끝이 1. y는 위가 0, 아래가 1.
+- rightPupil은 "착용자의 오른쪽 눈"이므로 정면 사진에서는 보통 화면 왼쪽에 있다.
+- noseBridge는 두 눈 사이, 안경 코받침이 얹히는 지점.
+- faceLeft / faceRight는 관자놀이 높이에서 얼굴 윤곽의 좌우 바깥 끝.
+- irisWidthRatio는 한쪽 눈 홍채(갈색/검은 원)의 가로 지름을 이미지 전체 폭으로 나눈 값.
+  이 값으로 사진을 실제 mm로 환산하니 최대한 정확히 재라.
+- 얼굴을 찾지 못하면 landmarks를 null로 둬라.`;
+
+function toPoint(raw: unknown): Point | null {
+  const p = (raw ?? {}) as Record<string, unknown>;
+  const x = toNumber(p.x);
+  const y = toNumber(p.y);
+  if (x == null || y == null) return null;
+  // 좌표가 이미지 밖으로 나가면 모델이 헛본 것이므로 버린다.
+  if (x < 0 || x > 1 || y < 0 || y > 1) return null;
+  return { x, y };
+}
+
+function toLandmarks(raw: unknown): FaceLandmarks | null {
+  const l = (raw ?? {}) as Record<string, unknown>;
+  const rightPupil = toPoint(l.rightPupil);
+  const leftPupil = toPoint(l.leftPupil);
+  const noseBridge = toPoint(l.noseBridge);
+  const faceLeft = toPoint(l.faceLeft);
+  const faceRight = toPoint(l.faceRight);
+  const irisWidthRatio = toNumber(l.irisWidthRatio);
+
+  if (!rightPupil || !leftPupil || !noseBridge || !faceLeft || !faceRight) return null;
+  // 홍채가 이미지 폭의 0.5%보다 작거나 20%보다 크면 잘못 읽은 값이다.
+  if (irisWidthRatio == null || irisWidthRatio < 0.005 || irisWidthRatio > 0.2) return null;
+  // 두 눈이 겹쳐 보이면 정면 사진이 아니다.
+  if (Math.abs(leftPupil.x - rightPupil.x) < irisWidthRatio) return null;
+
+  return { rightPupil, leftPupil, noseBridge, faceLeft, faceRight, irisWidthRatio };
+}
+
+/**
+ * 홍채 지름을 자로 삼아 사진 속 거리를 mm로 바꾼다.
+ *
+ * 사진은 원근 왜곡이 있고 얼굴이 정면이 아니면 값이 흔들리므로,
+ * 여기서 나온 값은 "참고용 추정치"다. PD는 매장에서 다시 재야 한다.
+ */
+function measureFromLandmarks(l: FaceLandmarks): FaceMeasurements | null {
+  const mmPerRatio = IRIS_WIDTH_MM / l.irisWidthRatio;
+  const pdRatio = Math.hypot(l.leftPupil.x - l.rightPupil.x, l.leftPupil.y - l.rightPupil.y);
+  const faceRatio = Math.hypot(l.faceRight.x - l.faceLeft.x, l.faceRight.y - l.faceLeft.y);
+
+  const pdMm = Math.round(pdRatio * mmPerRatio * 10) / 10;
+  const faceWidthMm = Math.round(faceRatio * mmPerRatio);
+
+  // 사람의 PD는 대략 50~78mm, 얼굴 폭은 110~180mm 범위를 벗어나지 않는다.
+  // 벗어나면 원근 왜곡이나 오독이므로 mm 환산 자체를 포기한다.
+  if (pdMm < 50 || pdMm > 78) return null;
+  if (faceWidthMm < 110 || faceWidthMm > 180) return null;
+
+  return { pdMm, faceWidthMm, irisMm: IRIS_WIDTH_MM };
+}
 
 /**
  * 얼굴 사진에서 안경 피팅용 비율을 뽑는다.
@@ -82,6 +159,7 @@ export async function analyzeFacePhoto(imageDataUrl: string): Promise<FaceAnalys
 
   const parsed = JSON.parse(completion.choices[0]?.message?.content ?? "{}") as Record<string, unknown>;
   const faceShape = pick<FaceShapeId>(parsed.faceShape, FACE_SHAPE_IDS, "oval");
+  const landmarks = toLandmarks(parsed.landmarks);
 
   return {
     faceShape,
@@ -96,8 +174,69 @@ export async function analyzeFacePhoto(imageDataUrl: string): Promise<FaceAnalys
       typeof parsed.summary === "string" && parsed.summary.trim()
         ? parsed.summary.trim()
         : FACE_SHAPES[faceShape].description,
+    landmarks,
+    measured: landmarks ? measureFromLandmarks(landmarks) : null,
+    profile: null,
     confidence: clamp(toNumber(parsed.confidence) ?? 0.5, 0, 1),
     source: "ai",
+  };
+}
+
+const PROFILE_SYSTEM = `너는 안경 피팅을 돕는 얼굴 계측 도우미다. 옆모습 사진에서 코와 귀의 위치만 잰다.
+
+반드시 지킬 것:
+- 외모 평가, 매력도, 인종·성별·나이 추정을 하지 않는다. 안경이 얹히는 위치 계산만 한다.
+- 값을 지어내지 않는다. 옆모습이 아니거나 코가 가려져 있으면 confidence를 0.3 이하로 낮춘다.
+
+재는 것 (모두 홍채 가로 지름을 1.0으로 놓은 상대값으로 답한다):
+- bridgeHeightRatio: 두 눈 사이 콧대 시작점이 눈두덩 면보다 얼마나 앞으로 솟아 있는지.
+  이 값이 작을수록 안경이 흘러내린다.
+- bridgeAngleDeg: 콧대가 수직선에서 얼마나 기울었는지(도). 보통 20~45도.
+- earToEyeOffsetRatio: 귀가 시작되는 높이가 눈높이보다 얼마나 위인지(양수) 아래인지(음수).
+  안경 다리를 얼마나 꺾어야 하는지 정하는 값이다.
+
+아래 JSON 형식으로만 응답한다:
+{
+  "bridgeHeightRatio": 숫자,
+  "bridgeAngleDeg": 숫자,
+  "earToEyeOffsetRatio": 숫자,
+  "confidence": 0~1 숫자
+}`;
+
+/**
+ * 옆모습 사진에서 코받침 설계에 필요한 수치를 뽑는다.
+ *
+ * 정면 사진만으로는 콧대가 "얼마나 솟아 있는지"를 알 수 없다. 기성 안경이
+ * 흘러내리는 가장 큰 원인이 이 치수라, 맞춤 제작에서는 옆모습이 필요하다.
+ * 이미지는 이 함수 안에서만 쓰이고 어디에도 저장하지 않는다.
+ */
+export async function analyzeProfilePhoto(imageDataUrl: string): Promise<ProfileMeasurements> {
+  const openai = getOpenAI();
+  const completion = await openai.chat.completions.create({
+    model: VISION_MODEL,
+    temperature: 0.2,
+    response_format: { type: "json_object" },
+    messages: [
+      { role: "system", content: PROFILE_SYSTEM },
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "이 옆모습 사진에서 코와 귀 위치를 재줘." },
+          { type: "image_url", image_url: { url: imageDataUrl, detail: "low" } },
+        ],
+      },
+    ],
+  });
+
+  const parsed = JSON.parse(completion.choices[0]?.message?.content ?? "{}") as Record<string, unknown>;
+  const bridgeRatio = clamp(toNumber(parsed.bridgeHeightRatio) ?? 0.6, 0, 3);
+  const earRatio = clamp(toNumber(parsed.earToEyeOffsetRatio) ?? 0, -3, 3);
+
+  return {
+    bridgeHeightMm: Math.round(bridgeRatio * IRIS_WIDTH_MM * 10) / 10,
+    bridgeAngleDeg: Math.round(clamp(toNumber(parsed.bridgeAngleDeg) ?? 30, 5, 70)),
+    earToEyeOffsetMm: Math.round(earRatio * IRIS_WIDTH_MM * 10) / 10,
+    confidence: clamp(toNumber(parsed.confidence) ?? 0.5, 0, 1),
   };
 }
 

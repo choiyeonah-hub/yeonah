@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import FactoryOrderSheet from "@/components/FactoryOrderSheet";
 import FrameSvg from "@/components/FrameSvg";
 import { prisma } from "@/lib/db";
 import { FACE_SHAPES, FRAME_SHAPE_LABEL } from "@/lib/faceShapes";
@@ -90,8 +91,14 @@ export default async function OrderPage({ params }: { params: { code: string } }
           </dl>
           <p className="mt-3 text-xs text-ink-600">
             {spec.material} · {spec.color} · 각인 {spec.lensWidth}□{spec.bridge}-{spec.temple}
+            {spec.nosePadAngleDeg != null && ` · 코받침 ${spec.nosePadAngleDeg}°`}
+            {spec.templeDropMm != null && ` · 템플 꺾임 ${spec.templeDropMm}mm`}
           </p>
         </section>
+      )}
+
+      {order.frameMode === "custom" && factory && spec && (
+        <FactoryOrderSheet code={order.code} factory={factory} spec={spec} />
       )}
 
       <section className="rounded-2xl border border-ink-200 bg-white p-5">

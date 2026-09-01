@@ -31,6 +31,8 @@ export const customSpecSchema = z.object({
   temple: z.number().min(125).max(160),
   totalWidth: z.number().min(110).max(160),
   nosePadHeight: z.number().min(3).max(18),
+  nosePadAngleDeg: z.number().min(5).max(70).nullable(),
+  templeDropMm: z.number().min(-30).max(30).nullable(),
   material: z.string().min(1).max(40),
   color: z.string().min(1).max(40),
   decentrationPerEye: z.number().min(-20).max(20).nullable(),

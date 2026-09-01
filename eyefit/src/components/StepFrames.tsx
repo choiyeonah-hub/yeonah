@@ -10,6 +10,7 @@ import type { CustomSpec, FaceAnalysis, FrameMode, Prescription } from "@/lib/ty
 import CustomDesigner from "./CustomDesigner";
 import FrameSvg from "./FrameSvg";
 import { Callout } from "./Section";
+import TryOn from "./TryOn";
 
 const RIM_LABEL = { full: "풀테", half: "하금테", rimless: "무테" } as const;
 
@@ -22,6 +23,7 @@ function scoreTone(score: number): string {
 export default function StepFrames({
   face,
   prescription,
+  photoDataUrl,
   frameMode,
   frameId,
   factoryId,
@@ -32,6 +34,7 @@ export default function StepFrames({
 }: {
   face: FaceAnalysis;
   prescription: Prescription | null;
+  photoDataUrl: string | null;
   frameMode: FrameMode;
   frameId: string | null;
   factoryId: string | null;
@@ -56,6 +59,7 @@ export default function StepFrames({
   const visible = showAll ? ranked : ranked.slice(0, 6);
 
   const ready = frameMode === "stock" ? !!frameId : !!factoryId && !!customSpec;
+  const selectedFrame = frameId ? findFrame(frameId) : undefined;
 
   return (
     <div className="space-y-5">
@@ -90,6 +94,7 @@ export default function StepFrames({
         <CustomDesigner
           face={face}
           prescription={prescription}
+          photoDataUrl={photoDataUrl}
           factoryId={factoryId}
           onChange={onChange}
         />
@@ -170,6 +175,19 @@ export default function StepFrames({
           );
         })}
       </div>
+
+      {photoDataUrl && face.landmarks && selectedFrame && (
+        <div className="rounded-2xl border border-ink-300 bg-white p-4">
+          <p className="mb-2 font-semibold text-ink-900">가상 착용 — {selectedFrame.name}</p>
+          <TryOn
+            photoDataUrl={photoDataUrl}
+            landmarks={face.landmarks}
+            shape={selectedFrame.shape}
+            rim={selectedFrame.rim}
+            frameTotalWidthMm={selectedFrame.totalWidth}
+          />
+        </div>
+      )}
 
       {!showAll && ranked.length > 6 && (
         <button

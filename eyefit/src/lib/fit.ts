@@ -43,7 +43,10 @@ export function scoreFrame(params: {
 
   // 2) 얼굴 폭 × 테 전체폭 (20점)
   // 테 전체폭이 얼굴폭보다 크면 흘러내리고, 작으면 관자놀이를 눌러 자국이 남는다.
-  const widthTarget = { narrow: 130, average: 138, wide: 145 }[face.faceWidth];
+  // 사진에서 mm로 잰 값이 있으면 등급표 대신 그 값을 쓴다(테 앞면은 관자놀이보다 2mm 좁게).
+  const widthTarget = face.measured
+    ? face.measured.faceWidthMm - 2
+    : { narrow: 130, average: 138, wide: 145 }[face.faceWidth];
   const widthGap = Math.abs(frame.totalWidth - widthTarget);
   if (widthGap <= 3) {
     score += 20;
@@ -63,19 +66,21 @@ export function scoreFrame(params: {
   // 테의 광학 중심 간격(렌즈폭+브릿지)은 보통 PD보다 크고, 그 차이를 렌즈 가공에서
   // 편심(decentration)으로 보정한다. 한쪽당 편심이 작을수록 렌즈가 얇고 프리즘 오차가 적다.
   const frameCenter = frame.lensWidth + frame.bridge;
-  if (prescription?.pd) {
-    const decentration = Math.abs(frameCenter - prescription.pd) / 2;
+  // 처방전 PD가 우선이고, 없으면 사진에서 잰 추정치를 쓴다.
+  const pd = prescription?.pd ?? face.measured?.pdMm ?? null;
+  if (pd) {
+    const decentration = Math.abs(frameCenter - pd) / 2;
     if (decentration <= 2) {
       score += 15;
       pros.push(
-        `PD ${prescription.pd}mm 기준 편심이 한쪽당 ${decentration.toFixed(1)}mm로 작아 렌즈가 얇게 나옵니다.`
+        `PD ${pd}mm 기준 편심이 한쪽당 ${decentration.toFixed(1)}mm로 작아 렌즈가 얇게 나옵니다.`
       );
     } else if (decentration <= 4) {
       score += 10;
     } else {
       score += 3;
       cons.push(
-        `PD ${prescription.pd}mm 기준 편심이 한쪽당 ${decentration.toFixed(1)}mm입니다. 렌즈가 두꺼워지고 가장자리 왜곡이 늘 수 있습니다.`
+        `PD ${pd}mm 기준 편심이 한쪽당 ${decentration.toFixed(1)}mm입니다. 렌즈가 두꺼워지고 가장자리 왜곡이 늘 수 있습니다.`
       );
     }
   } else {

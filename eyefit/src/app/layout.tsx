@@ -12,6 +12,7 @@ const NAV = [
   { href: "/fit", label: "안경 찾기" },
   { href: "/factories", label: "제휴 공장" },
   { href: "/how-it-works", label: "구조와 법" },
+  { href: "/landscape", label: "경쟁 서비스" },
 ];
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
