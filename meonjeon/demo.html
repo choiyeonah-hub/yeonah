@@ -1827,13 +1827,27 @@ function callScript(st, when, rows) {
   /* 시각이 없는 것을 시각 있는 것 뒤에 그냥 이어붙이면
      "오후 3시 간식 주기, 태권도입니다"가 되어 3시에 태권도인 줄 아십니다.
      문장을 끊고 "그밖에"로 시작합니다. */
+  /* 어린이집·유치원이 집 앞이 아닙니다. 차를 타는 곳, 만나는 곳이 따로 있어요.
+     "2시 30분 하원"만 들으시면 어디로 가실지 모르십니다.
+     아이마다 한 번 넣어둔 곳을 등하원 줄에만 붙입니다 —
+     학원이나 병원에는 안 붙입니다. 거기는 이름이 곧 장소니까요. */
+  const 등하원 = /등원|하원|등교|하교|데리러|데려다|데려오/;
+  const 곳붙임 = (r) => {
+    const w = callSpace(r.what);
+    const kid = kids.find((k) => k.id === r.kid);
+    const spot = kid && String(kid.spot || "").trim();
+    if (!spot || !등하원.test(w)) return w;
+    /* "유치원 하원하기" → "유치원 하원하기, 아파트 정문에서" */
+    return `${w}, ${spot}에서`;
+  };
+
   const 문장 = 묶음.map((g) => {
     const 때있 = g.rows.filter((r) => r.time);
     const 때없 = g.rows.filter((r) => !r.time);
     const 앞말 = g.name ? `${은는(g.name)} ` : "";
     const 조각 = [];
-    if (때있.length) 조각.push(`${앞말}${때있.map((r) => `${callTime(r.time)} ${r.what}`).join(", ")}입니다.`);
-    if (때없.length) 조각.push(`${때있.length ? "그밖에 " : 앞말}${때없.map((r) => r.what).join(", ")}가 있습니다.`);
+    if (때있.length) 조각.push(`${앞말}${때있.map((r) => `${callTime(r.time)} ${곳붙임(r)}`).join(", ")}입니다.`);
+    if (때없.length) 조각.push(`${때있.length ? "그밖에 " : 앞말}${때없.map((r) => 곳붙임(r)).join(", ")}가 있습니다.`);
     return 조각.join(" ");
   }).join(" ");
 
@@ -2169,7 +2183,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-dl";
+const BUILD = "0901-dm";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -3232,16 +3246,14 @@ function Onboarding({ preview }) {
 
         {step === 1 && (
           <>
-            {/* 아이 하나에 딸린 칸을 한 덩어리로 묶습니다. 이름 · 나이 · 반이
-                따로 떨어져 있으면 둘째를 넣을 때 어느 줄이 누구 건지 헷갈립니다. */}
+            {/* 아이 하나에 딸린 칸을 한 덩어리로. 떨어져 있으면 둘째를 넣을 때 헷갈립니다 */}
             {kids.map((k, i) => (
               <div key={k.id} style={{ marginBottom: 14 }}>
                 <input style={inp} placeholder={i === 0 ? "첫째 이름" : "이름"} value={k.name}
                   onChange={(e) => setKids((v) => v.map((x, ix) => ix === i ? { ...x, name: e.target.value.slice(0, 10) } : x))} />
                 {k.name.trim() ? (
                   <>
-                    {/* 나이는 적는 게 아니라 고르는 것으로. 24개월~초등 2학년이라
-                        실제로 쓰이는 건 2~9세뿐인데, 자유 입력이면 88도 들어갔습니다. */}
+                    {/* 나이는 고르는 것으로. 자유 입력이면 88도 들어갔습니다 */}
                     <div className="flex gap-1.5" style={{ marginTop: 8, flexWrap: "wrap" }}>
                       {["2", "3", "4", "5", "6", "7", "8", "9"].map((a2) => {
                         const on = String(k.age) === a2;
@@ -3262,6 +3274,9 @@ function Onboarding({ preview }) {
                       <input style={{ ...inp, gridColumn: "span 2" }} placeholder={`${k.name.trim()} 반 (예: 16, 햇님)`} value={k.klass || ""}
                         onChange={(e) => setKids((v) => v.map((x) => x.id === k.id ? { ...x, klass: e.target.value.slice(0, 10) } : x))} />
                     </div>
+                    {/* 집 앞이 아닙니다. 차 타는 곳을 모르시면 못 가십니다 */}
+                    <input style={{ ...inp, marginTop: 8 }} placeholder="등하원 하는 곳 (예: 아파트 정문)" value={k.spot || ""}
+                      onChange={(e) => setKids((v) => v.map((x) => x.id === k.id ? { ...x, spot: e.target.value.slice(0, 20) } : x))} />
                   </>
                 ) : null}
               </div>
@@ -3273,8 +3288,8 @@ function Onboarding({ preview }) {
             )}
             <p style={{ fontSize: 12, color: C.ink3, marginTop: 12, lineHeight: 1.7 }}>
               아이가 둘이어도 <b style={{ color: C.ink2 }}>전화는 한 통</b>입니다. 이름을 앞에 붙여 읽어드려요.<br />
-              <b style={{ color: C.ink2 }}>나이도 학년·반도 안 넣으셔도 됩니다.</b> 넣어두시면
-              가정통신문 사진에서 그 반 줄만 뽑습니다. 어린이집·유치원이면 반 이름만요.
+              <b style={{ color: C.ink2 }}>안 넣으셔도 됩니다.</b> 넣어두시면 통신문 사진에서 그 반 줄만 뽑고,
+              어른께 "아파트 정문에서 하원"처럼 <b style={{ color: C.ink2 }}>어디로 가실지</b>까지 읽어드립니다.
             </p>
           </>
         )}
@@ -4547,7 +4562,7 @@ function Home() {
    말로 넣으면 다 됩니다. 다만 "무엇까지 말해도 되는지"를 모르면 안 씁니다.
    그래서 칸 대신 예시를 둡니다. 눌러서 고쳐 쓰시면 됩니다. */
 const SPEAK_EX = [
-  ["등하원", "월수금은 아침 9시에 유치원 데려다주시고, 오후 2시 30분에 하원이에요."],
+  ["등하원", "월수금은 아침 9시에 아파트 정문에서 유치원 차 태워주시고, 오후 2시 30분에 같은 자리로 나오면 데려와주세요."],
   ["학원 여럿", "화요일 목요일은 4시에 피아노 데려다주시고, 금요일은 5시에 태권도예요. 피아노 가방은 신발장 위에 둘게요."],
   ["아이 둘", "지호는 2시 30분에 유치원 하원이고, 서윤이는 3시 20분에 초등학교 앞으로 가주세요. 둘 다 데리고 바로 집으로 오시면 돼요."],
   ["병원", "내일 오후 3시에 소아과 예약이에요. 어금니 충치 때문이고, 접수할 때 지난주에 열이 났었다고 말씀해 주세요. 진료카드는 신발장 위에 있어요."],
@@ -4557,7 +4572,7 @@ const SPEAK_EX = [
   ["간식", "간식은 냉장고 둘째 칸 요구르트 하나만 주세요. 저녁 6시 뒤에는 아무것도 주지 마시고요."],
   ["준비물", "내일 물통이랑 여벌 옷 챙겨 보내야 해요. 가방에 넣어서 현관에 둘게요."],
   ["안 맡기는 날", "다음 주 월요일은 제가 쉬어서 안 맡겨요. 그날은 전화 안 가게 해주세요."],
-  ["방학", "다음 주부터 유치원 방학이라 등하원이 없어요. 대신 아침 9시부터 저녁 6시까지 하루 종일 계실 거예요. 점심은 냉장고에 넣어둘게요."],
+  ["방학", "어머니께 이미 말씀드렸어요. 다음 주는 유치원 방학이라 등하원이 없고, 점심은 냉장고에 넣어둘게요. 낮잠은 2시쯤 재워주시면 돼요."],
   ["아플 때", "지호가 어제 열이 나서 오늘은 어린이집 안 보내요. 해열제는 여덟 시간 간격이고, 38도 넘으면 저한테 전화 주세요."],
   ["차가 데려다줌", "오늘은 4시에 학원 차가 집 앞으로 데려다줍니다. 데리러 안 가셔도 돼요. 벨 누르면 문만 열어주세요."],
   ["비 오는 날", "오늘 비 와요. 하원 갈 때 우산이랑 장화 챙겨주세요. 현관 우산꽂이에 노란 우산이 지호 거예요."],
@@ -4779,6 +4794,17 @@ ${web ? `
 - **이미 지난 날짜**는 만들지 마세요. 오늘보다 이전이면 통째로 건너뜁니다.
 - **뽑을 게 없으면 하나도 안 만들어도 됩니다.** 억지로 채우지 마세요.
   "정리할 게 없었어요"가 잘못된 할 일 네 개보다 낫습니다.
+
+**어른께 새로 부탁하는 것은 앱이 통보하면 안 됩니다.**
+이 앱은 **이미 합의된 것**을 매일 읽어드리는 것입니다.
+맡기는 시간이 늘거나, 안 하시던 일이 생기거나, 처음 부탁하는 것이면
+— 방학이라 하루 종일, 늦게까지, 목욕까지, 저녁까지 —
+그건 **부모가 전날 저녁에 직접 전화드려 여쭐 일**입니다.
+기계 목소리가 "하루 종일 부탁드립니다"라고 하면 통보가 되고,
+어른은 거절도 조정도 못 하십니다. 그러면 그 집은 이 앱을 끕니다.
+그런 내용이 보이면 call·plan 에 담기 전에 answer 에 이렇게 적으세요:
+"이건 새로 부탁드리는 것 같아요. **먼저 전화 한 통 드리고** 넣으시는 게 좋겠습니다."
+부모가 이미 말씀드렸다고 하면(예: "말씀드렸어요") 그냥 담으면 됩니다.
 
 ${CALL_SPLIT(st, todayStr())}
 출력은 JSON 객체만: {"answer":"질문이 아니면 빈 문자열","offDay":false,"offDays":[],"call":[{"kind":"sked|med|bag","time":"HH:MM","what":"…","why":"병원이면 왜 가는지, 아니면 빈 문자열","who":"…","alert":true|false}],"plan":[{"dows":[1,3],"time":"HH:MM","what":"…","who":"…","alert":true|false}],"items":[{"title":"12자 이내","category":"...","status":"...","note":"20자 이내","event":"YYYY-MM-DD 또는 빈 문자열","lead":숫자,"when":"YYYY-MM-DD 또는 빈 문자열","newCategory":"","cycle":""}]}`;
@@ -7411,6 +7437,15 @@ function Settings() {
                 style={{ ...inp, width: 62 }} />
               <input className="hae" placeholder="반 (예: 16, 햇님)" value={c.klass || ""}
                 onChange={(e) => setD((s) => ({ ...s, children: s.children.map((x) => x.id === c.id ? { ...x, klass: e.target.value.slice(0, 10) } : x) }))}
+                style={{ ...inp, flex: 1 }} />
+            </div>
+          ))}
+          {/* 어린이집·유치원이 집 앞이 아닙니다. 차 타는 곳을 모르시면 못 가십니다 */}
+          {(d.children || []).map((c) => (
+            <div key={c.id + "-spot"} className="flex items-center gap-2" style={{ marginTop: 8 }}>
+              <span style={{ fontSize: 12.5, color: C.ink3, width: 72, flexShrink: 0 }}>등하원 하는 곳</span>
+              <input className="hae" placeholder="예: 아파트 정문, 놀이터 앞" value={c.spot || ""}
+                onChange={(e) => setD((s) => ({ ...s, children: s.children.map((x) => x.id === c.id ? { ...x, spot: e.target.value.slice(0, 20) } : x) }))}
                 style={{ ...inp, flex: 1 }} />
             </div>
           ))}
