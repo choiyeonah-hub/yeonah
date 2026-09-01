@@ -21,6 +21,32 @@ function pick(o, keys) {
   return null;
 }
 
+/* ── 베타 4주 동안 재는 것 ────────────────────────────
+   정식판은 "통화 길이만 본다"입니다 — 어른께 아무것도 요구하지 않으려고요.
+   문제는 길이로 재는 게 실제와 얼마나 맞는지를 아무도 모른다는 것입니다.
+
+   그래서 베타에서만 "1번을 눌러주세요, 안 누르셔도 괜찮습니다"를 같이 읽어드리고,
+   눌러주신 집에서 두 값을 나란히 봅니다 —
+     들으신 분들의 통화 길이는 몇 초인가
+     안 들으신 분들은 몇 초에서 끊기는가
+   그 경계가 잡히면 정식판에서 1번을 뺍니다.
+
+   ⚠ 솔라피가 어떤 이름으로 줄지 문서를 못 열어봐서 넓게 훑습니다.
+      베타 첫 통에서 로그를 보고 이름을 확정하세요. */
+
+/* 통화가 몇 초였나. 안 받으셨으면 0이거나 없습니다 */
+function seconds(body) {
+  const v = pick(body, ["duration", "callDuration", "billedSeconds", "message.duration", "voiceOptions.duration"]);
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+/* 눌러주신 번호. 베타에서만 씁니다 — 정식판은 안 물어봅니다 */
+function pressed(body) {
+  const v = pick(body, ["dtmf", "inputNumber", "userInput", "reply", "message.dtmf", "voiceOptions.dtmf"]);
+  return v == null || v === "" ? null : String(v).trim();
+}
+
 /* 받으셨나 — 솔라피 결과코드 2000이 정상 처리입니다.
    못 받으신 것과 실패한 것을 나누지 않습니다. 부모 입장에서는 같습니다. */
 function answered(body) {
@@ -40,18 +66,32 @@ export default async function handler(req, res) {
   const body = req.body && typeof req.body === "object" ? req.body : {};
   const rows = Array.isArray(body) ? body : Array.isArray(body.messages) ? body.messages : [body];
 
-  const seen = rows.map((r) => ({
-    to: pick(r, ["to", "message.to", "receiver"]),
-    from: pick(r, ["from", "message.from", "sender"]),
-    ok: answered(r),
-    code: pick(r, ["statusCode", "status", "resultCode", "message.statusCode"]),
-    at: pick(r, ["dateReceived", "dateProcessed", "updatedAt"]) || new Date().toISOString(),
-  }));
+  const seen = rows.map((r) => {
+    const sec = seconds(r);
+    const key = pressed(r);
+    return {
+      to: pick(r, ["to", "message.to", "receiver"]),
+      from: pick(r, ["from", "message.from", "sender"]),
+      ok: answered(r),
+      code: pick(r, ["statusCode", "status", "resultCode", "message.statusCode"]),
+      sec,                       /* 통화 길이 — 정식판이 쓸 값 */
+      key,                       /* 눌러주신 번호 — 베타에서만 */
+      /* 길이로 본 판정. 이 규칙이 맞는지가 베타에서 잴 것입니다.
+         10초를 못 넘기면 인사만 듣고 끊으신 것으로 봅니다. */
+      들으심: sec == null ? null : sec >= 10,
+      /* 둘이 어긋난 줄이 곧 답입니다 — 누르셨는데 짧거나, 안 누르셨는데 길거나 */
+      어긋남: key != null && sec != null ? (key === "1") !== (sec >= 10) : null,
+      at: pick(r, ["dateReceived", "dateProcessed", "updatedAt"]) || new Date().toISOString(),
+    };
+  });
 
   /* 나중에 부모께 푸시를 보내려면 여기서 발신번호로 집을 찾습니다.
      그 표가 아직 없어서, 지금은 받은 것만 돌려줍니다.
      베타 동안에는 Vercel 로그에서 이 줄을 보면 됩니다. */
   console.log("voice-hook", JSON.stringify(seen));
+  /* 솔라피가 준 이름을 모르면 위 pick 목록을 고쳐야 합니다.
+     첫 통에서 이 줄을 보고 실제 필드 이름을 확인하세요. */
+  if (seen.some((x) => x.sec == null)) console.log("voice-hook raw", JSON.stringify(rows[0]));
 
   return res.status(200).json({ ok: true, n: seen.length, seen });
 }

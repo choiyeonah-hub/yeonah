@@ -127,7 +127,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0901-bl';
+const GATE_BUILD = '0901-bm';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1648,7 +1648,7 @@ function callScript(st, when, rows) {
   const 앞 = 일정.length
     ? `${머리}${곧 ? "곧 있을 일정입니다" : "오늘 일정입니다"}. ${문장}`
     : `${머리}오늘입니다.`;
-  return `${앞}${가방줄} 끊으셔도 됩니다.`;
+  return `${앞}${가방줄}${confirmTail()} 끊으셔도 됩니다.`;
 }
 
 /* 약은 이름·용량·때를 따로 받습니다. 자유롭게 적게 두면
@@ -1660,6 +1660,22 @@ const MED_WHEN = ["아침 먹고", "점심 먹고", "저녁 먹고", "자기 전
 /* 약 이름·용량을 매번 적는 게 번거로우면 이 하나로 끝냅니다.
    부모가 전날 봉투에 담아두고, 어른은 그걸 꺼내 드리기만 하시면 됩니다.
    병명·약 이름이 스피커폰으로 새어나가는 것도 같이 막힙니다. */
+/* 어른이 들으셨는지 아는 길은 둘입니다.
+   ① 통화 길이 — 32초짜리를 5초에 끊으면 안 들으신 겁니다. 어른은 아무것도 안 하십니다.
+   ② 1번 눌러주세요 — 확실하지만 어른께 일을 하나 드립니다.
+
+   정식판은 ①입니다. "어른은 받기만 하신다"가 이 제품의 전부니까요.
+   다만 ①이 실제와 얼마나 맞는지를 아무도 모릅니다.
+   그래서 베타 4주 동안만 ②를 같이 넣어 ①을 검증합니다 —
+   눌러주시면 확실히 알고, 안 누르셔도 길이로 압니다.
+   그래서 "안 누르셔도 괜찮습니다"를 반드시 같이 읽어드립니다.
+   이 한 줄이 없으면 어른이 눌러야 하는 줄 아시고, 그 순간 정식판과 다른 물건이 됩니다. */
+/* PHASE가 아래에 선언돼 있어서 상수로 두면 앱이 아예 안 뜹니다(TDZ).
+   쓰는 시점에 읽도록 함수로 둡니다. */
+const confirmTail = () => (PHASE === "beta"
+  ? " 들으셨으면 1번을 눌러주세요. 안 누르셔도 괜찮습니다."
+  : "");
+
 const MED_BAG = "준비된 약봉투";
 const MED_HOW = [MED_BAG, "먹는 약", "물약", "가루약", "바르는 약", "붙이는 약", "코에 넣는 약"];
 function medLine(m) {
@@ -1937,7 +1953,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-bl";
+const BUILD = "0901-bm";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
