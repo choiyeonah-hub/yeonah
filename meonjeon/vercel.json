@@ -82,10 +82,5 @@
       "maxDuration": 60
     }
   },
-  "crons": [
-    {
-      "path": "/api/push-send",
-      "schedule": "0 23 * * *"
-    }
-  ]
+  "crons": []
 }

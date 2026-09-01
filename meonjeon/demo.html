@@ -1104,7 +1104,9 @@ const linkUrl = (l, text, st) => {
 const PARTNERS = {};
 LINKS.forEach((l) => (l.g || []).forEach((g) => { if (!PARTNERS[g]) PARTNERS[g] = l; }));
 
-const todayStr = () => new Date().toISOString().slice(0, 10);
+/* toISOString() 은 UTC 라 한국 아침 9시 전에는 어제 날짜가 나옵니다.
+   그걸 AI 에 "오늘"이라고 줬더니 "내일 치과"가 오늘로 담겼습니다. 폰의 날짜로 만듭니다. */
+const todayStr = (t) => { const d = new Date(t || Date.now()); const z = (n) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`; };
 /* AI가 준 "YYYY-MM-DD"를 그날 0시로 바꿉니다. 이상한 값이면 null */
 function parseWhen(v) {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(v || "").trim());
@@ -1730,11 +1732,15 @@ function CALL_SPLIT(st, today) {
   같은 학원이 여러 요일이면 dows에 묶어 한 줄로 보내세요.
 - 예약 잡기·체육복 빨아두기·학원비 내기처럼 **부모가 직접 할 일**은 그대로 items로.
   어른께 시킬 수 없는 것, 시켜서는 안 되는 것이 여기입니다.
-- 오늘은 ${today}입니다. **며칠 뒤 것도 call에 담으세요** — 부모는 화요일에 금요일 것을 말합니다.
+- 오늘은 ${today} ${DOW_KR[new Date().getDay()]}요일입니다. **며칠 뒤 것도 call에 담으세요** — 부모는 화요일에 금요일 것을 말합니다.
+  · "오늘"이면 day에 ${today}, "내일"이면 ${todayStr(Date.now() + DAY)}.
   · "금요일은", "다음 주 수요일", "9월 5일"처럼 날짜나 요일이 있으면 **day에 YYYY-MM-DD**로.
-    요일만 말했으면 오늘(${today}) 기준으로 다음에 오는 그 요일입니다. "다음 주"가 붙으면 그 다음 주.
-  · 날짜 말이 없거나 "오늘"·"내일"이면 day는 빈 문자열.
-  · 이미 지난 날짜면 빈 문자열.
+    요일만 말했으면 오늘(${today} ${DOW_KR[new Date().getDay()]}요일) 기준으로 다음에 오는 그 요일입니다. "다음 주"가 붙으면 그 다음 주.
+  · 시점 말이 전혀 없으면 day는 빈 문자열 — 앱이 다음 통에 붙입니다.
+  · 이미 지난 날짜면 빈 문자열.${HOME_LISTS ? "" : `
+- **items는 만들지 마세요 — 빈 배열로 두세요.** 이 앱은 ${label}께 갈 것만 다룹니다.
+  부모 본인이 할 일(예약 잡기·학원비·운동)은 담을 곳이 없습니다. 말씀 중에 그런 것이 있었으면
+  answer에 한 줄로 "○○은 부모님 몫이라 담지 않았습니다"라고만 알려주세요.`}
   · 한 번에 여러 날을 말해도 됩니다 — 줄마다 day를 따로 두세요.
 - **학급마다 시각이 다른 표가 있으면 그 아이 반 줄만 보세요.** 위 아이 소개에
   학년·반이 적혀 있습니다. "16반"이면 표에서 16반 줄의 집합시각·체험시간만 씁니다.
@@ -2238,7 +2244,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-dy";
+const BUILD = "0901-dz";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -4840,6 +4846,13 @@ ${CALL_SPLIT(st, todayStr())}
 - 어린이집·유치원·학교 알림장, 가정통신문 (종이 사진 또는 이알리미·키즈노트·하이클래스·아이엠스쿨 캡처)
 - 보험 만기 안내, 자동차 검사 안내, 관리비 고지서, 학원 등록 안내 같은 문자·카톡 캡처
 - 병원 예약 안내, 택배·정기배송 알림, 각종 신청 마감 안내
+- **부모의 캘린더 앱 캡처** (날짜 아래 일정·할 일이 줄지어 있는 화면)
+
+캘린더 캡처라면 이렇게 하세요 — 부모가 일요일에 다음 주 것을 한 번에 넣는 길입니다.
+- 화면에 보이는 날짜("9. 3. 목요일")를 그 줄의 day로 쓰세요. 연도는 올해(${todayStr().slice(0, 4)}), 이미 지난 날은 빼세요.
+- **아이와 관련된 것만** call에 담으세요 — 공개수업·참관·하원 변경·병원·학원·준비물·체험학습.
+  부모 본인 것(운동·목욕탕·집안일·모임)은 담지 마세요. 아이 것인지 애매하면 위 아이 소개(나이·학년)로 판단하세요.
+- 시각이 붙어 있으면 time에, 없으면 빈 문자열. 여러 날이 보이면 날마다 따로.
 
 캡처라면 앱의 메뉴·버튼·발신번호·광고 문구는 무시하고 본문만 읽으세요.
 여기서 뽑을 것은 딱 하나입니다 — 이 사람이 앞으로 해야 하는 일.
@@ -4937,7 +4950,9 @@ ${CALL_SPLIT(st, todayStr())}
       const when = 담긴날.length === 1 ? 날말(담긴날[0]) : 담긴날.map(날말).join("·");
       /* 결과 화면에 보여주려고 들고 있습니다. 넣어놓고 안 보여주면
          부모가 "어른께 뭐가 갔지"를 어른 탭까지 들어가서 확인해야 합니다. */
-      setJustCall({ day: cday, when, label: lab, offAsk });
+      /* cday 라고 적혀 있었습니다 — callMerge 의 매개변수라 여기서는 없는 이름입니다.
+         어른께 갈 것이 담긴 뒤 여기서 터져서, 담기긴 했는데 화면은 "고르는 중"에 멈췄습니다. */
+      setJustCall({ day: 담긴날[0], when, label: lab, offAsk });
       log("talk_to_call", { n: callRows.length });
     }
     /* 실패했을 때 "두부 소진 · 휴지 구매"를 지어내 보여주던 자리입니다.
@@ -5084,14 +5099,18 @@ ${CALL_SPLIT(st, todayStr())}
         {/* 어른께 간 것까지 세야 합니다. "1개로 정리했어요" 아래에
             아홉 줄이 깔려 있으면 그 숫자가 거짓말이 됩니다. */}
         <div className="disp" style={{ fontSize: 22, fontWeight: 600 }}>
-          {answer ? "이렇게 해보면 어때요?"
+          {answer ? (HOME_LISTS ? "이렇게 해보면 어때요?" : "이렇게 담았어요")
             : justCall && justCall.day
-              ? `${result.length}개는 내 할 일로, ${callAllFor(st, justCall.day).length}개는 ${justCall.label}께`
-              : `${result.length}개로 정리했어요`}
+              ? (HOME_LISTS
+                  ? `${result.length}개는 내 할 일로, ${callAllFor(st, justCall.day).length}개는 ${justCall.label}께`
+                  : `${justCall.label}께 ${callAllFor(st, justCall.day).length}개 담았어요`)
+              : HOME_LISTS ? `${result.length}개로 정리했어요` : "어른께 갈 것이 없었어요"}
         </div>
         <p style={{ fontSize: 13.5, color: C.ink2, marginTop: 7, lineHeight: 1.65 }}>
-          {answer ? "괜찮으면 아래에서 필요한 일만 담으세요."
-            : "어른께 갈 것은 이미 담겼어요. 내 할 일은 담아야 오늘 화면에 남습니다."}
+          {HOME_LISTS
+            ? (answer ? "괜찮으면 아래에서 필요한 일만 담으세요."
+                      : "어른께 갈 것은 이미 담겼어요. 내 할 일은 담아야 오늘 화면에 남습니다.")
+            : "시각이나 전화·문자를 바꾸시려면 부모님 탭 요일 계획에서 그 줄을 누르세요."}
         </p>
         {/* 어른께 간 것을 안 보여주면 부모가 어른 탭까지 들어가 확인해야 합니다.
             여기서 바로 보고 바로 뺄 수 있어야 합니다. */}
@@ -5450,6 +5469,7 @@ ${CALL_SPLIT(st, todayStr())}
           <LinkCards group={null} text={g.items.map((t) => t.title).join(" ")} />
         </Section>
       ))}
+      {HOME_LISTS && (<>
       <div style={{ marginTop: 14, background: C.mossSoft, borderRadius: R.sm, padding: "13px 15px", fontSize: 12.5, color: C.moss, lineHeight: 1.6 }}>
         항목을 누르면 이름·시점·영역·반복을 모두 고칠 수 있어요. 필요 없는 건 빼셔도 됩니다.
       </div>
@@ -5457,6 +5477,7 @@ ${CALL_SPLIT(st, todayStr())}
         style={{ marginTop: 12, background: "transparent", border: `1px dashed ${C.line}`, borderRadius: 14, padding: "13px 0", fontSize: 13, color: C.ink2 }}>
         빠진 게 있으면 직접 추가
       </button>
+      </>)}
 
       {edit != null && (() => {
         const t = result[edit];
@@ -5608,7 +5629,10 @@ ${CALL_SPLIT(st, todayStr())}
       })()}
 
       <div style={{ marginTop: 24 }}>
-        <Btn kind="accent" onClick={commit}>가족 목록에 담기</Btn>
+        {/* 살림 목록이 꺼져 있으면 담을 것이 없습니다. 어른께 갈 것은 이미 담겼으니 확인만. */}
+        {HOME_LISTS
+          ? <Btn kind="accent" onClick={commit}>가족 목록에 담기</Btn>
+          : <Btn onClick={() => setPhase("input")}>확인</Btn>}
         <div style={{ height: 8 }} />
         <Btn kind="ghost" onClick={() => setPhase("input")}>다시 말하기</Btn>
       </div>
@@ -6704,14 +6728,23 @@ function PlanEditor() {
   /* 줄은 두 곳에 있습니다 — 요일 계획(매주)과 그날만 더한 것(callToday.add).
      전에는 계획 쪽만 찾아서, 말하기로 담긴 "오늘은 후문" 같은 줄은 눌러도 안 열렸고
      전화로 갈지 문자로 갈지 정할 수 없었습니다. 그날 제일 중요한 줄이 바로 그건데요. */
-  const 그날add = () => (((st.callToday || {})[day] || {}).add || []);
-  const 오늘만인가 = (id) => 그날add().some((r) => r.id === id);
-  const rowOf = (id) => ((st.callPlan || {})[dow] || []).find((r) => r.id === id) || 그날add().find((r) => r.id === id);
+  /* 말하기로 담긴 것은 보고 있는 요일이 아닌 날(다음 주 목요일, 토요일)에도 있습니다.
+     어느 날짜에 있든 id 로 찾습니다 — 안 그러면 "다른 날 것"은 눌러도 안 열립니다. */
+  const dayOfAdd = (id, src) => {
+    const ct = (src || st).callToday || {};
+    const k = Object.keys(ct).find((d) => (((ct[d] || {}).add) || []).some((r) => r.id === id));
+    return k == null ? null : Number(k);
+  };
+  const 오늘만인가 = (id) => dayOfAdd(id) != null;
+  const 날짜말 = (d) => d === todayKey() ? "오늘" : d === todayKey() + DAY ? "내일"
+    : `${new Date(d).getMonth() + 1}/${new Date(d).getDate()}(${DOW_KR[new Date(d).getDay()]})`;
+  const rowOf = (id) => ((st.callPlan || {})[dow] || []).find((r) => r.id === id)
+    || (() => { const k = dayOfAdd(id); return k == null ? undefined : (st.callToday[k].add || []).find((r) => r.id === id); })();
   const patchRow = (id, patch) => setSt((sv) => {
-    const t = (sv.callToday || {})[day] || {};
-    if ((t.add || []).some((r) => r.id === id)) {
+    const k = dayOfAdd(id, sv);
+    if (k != null) {
       const ct = { ...(sv.callToday || {}) };
-      ct[day] = { ...t, add: t.add.map((r) => r.id === id ? { ...r, ...patch } : r) };
+      ct[k] = { ...ct[k], add: ct[k].add.map((r) => r.id === id ? { ...r, ...patch } : r) };
       return { ...sv, callToday: ct };
     }
     const plan = { ...(sv.callPlan || {}) };
@@ -6720,10 +6753,10 @@ function PlanEditor() {
   });
 
   const del = (id) => setSt((sv) => {
-    const t = (sv.callToday || {})[day] || {};
-    if ((t.add || []).some((r) => r.id === id)) {
+    const k = dayOfAdd(id, sv);
+    if (k != null) {
       const ct = { ...(sv.callToday || {}) };
-      ct[day] = { ...t, add: t.add.filter((r) => r.id !== id) };
+      ct[k] = { ...ct[k], add: ct[k].add.filter((r) => r.id !== id) };
       return { ...sv, callToday: ct };
     }
     const plan = { ...(sv.callPlan || {}) };
@@ -6869,6 +6902,51 @@ function PlanEditor() {
                          borderRadius: 999, padding: "6px 13px", fontSize: 12, color: C.ink2 }}>
                 {dayLabel} 것 모두 빼기
               </button>
+            </div>
+          );
+        })()}
+
+        {/* 보고 있는 요일 말고 다른 날에 담긴 것 — "금요일은 체험학습", 일요일에 넣은 다음 주 것.
+            요일 단추는 이번 주만 가리키니, 여기 없으면 담긴 줄 모릅니다. */}
+        {(() => {
+          const ct = st.callToday || {};
+          const days = Object.keys(ct).map(Number)
+            .filter((d) => d >= todayKey() && d !== day && (((ct[d] || {}).add) || []).length)
+            .sort((a, b) => a - b);
+          if (!days.length) return null;
+          const n = days.reduce((a, d) => a + ct[d].add.length, 0);
+          return (
+            <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${C.line}` }}>
+              <div style={{ fontSize: 12, color: C.ink3, fontWeight: 600, marginBottom: 2 }}>다른 날 것 — {n}건</div>
+              <div style={{ fontSize: 11.5, color: C.ink3, marginBottom: 6, lineHeight: 1.7 }}>
+                말하기로 담긴 다른 날치입니다. 그날이 되면 그 요일에 나갑니다. 눌러서 고치세요.
+              </div>
+              {days.map((d) => ct[d].add.map((r) => (
+                <div key={r.id} className="flex items-center gap-2.5"
+                  style={{ padding: "8px 0", borderBottom: `1px solid ${C.lineSoft || C.line}` }}>
+                  <span className="mono" style={{ fontSize: 11.5, color: C.ink3, width: 74, flexShrink: 0, lineHeight: 1.3 }}>
+                    {날짜말(d)}<br />{r.kind === "bag" ? "가방" : r.kind === "med" ? "약" : (r.time || "—")}
+                  </span>
+                  <button className="press" onClick={() => setRowEdit(r.id)}
+                    style={{ fontSize: 14, flex: 1, minWidth: 0, background: "transparent", border: "none",
+                             textAlign: "left", color: C.ink, padding: 0 }}>
+                    {(st.children || []).length > 1 && r.kid
+                      ? <b style={{ color: C.ink3, fontWeight: 500, marginRight: 5 }}>
+                          {((st.children || []).find((k) => k.id === r.kid) || {}).name}
+                        </b> : null}
+                    {callSpace(r.what)}
+                  </button>
+                  <button className="press" onClick={() => setRowEdit(r.id)}
+                    style={{ flexShrink: 0, padding: "5px 9px", borderRadius: 999, fontSize: 11.5,
+                             border: `1px solid ${r.way ? "transparent" : C.line}`,
+                             background: r.way === "call" ? C.mossSoft : r.way === "sms" ? C.sunSoft : r.way === "app" ? C.seaSoft : "transparent",
+                             color: r.way === "call" ? C.moss : r.way === "sms" ? C.sun : r.way === "app" ? C.sea : C.ink3 }}>
+                    {r.way === "call" ? "전화" : r.way === "sms" ? "문자" : r.way === "app" ? "앱" : "설정대로"}
+                  </button>
+                  <button className="press" onClick={() => del(r.id)}
+                    style={{ background: "transparent", border: "none", color: C.ink3, fontSize: 12, flexShrink: 0 }}>빼기</button>
+                </div>
+              )))}
             </div>
           );
         })()}
@@ -7088,7 +7166,7 @@ function PlanEditor() {
             <div className="disp" style={{ fontSize: 19, fontWeight: 600 }}>이 줄 고치기</div>
             <div style={{ fontSize: 12, color: C.ink3, marginTop: 5 }}>
               {오늘만인가(rowEdit)
-                ? <>{dayLabel}만 {((st.elders || [])[0] || {}).label || "어른"}께 갑니다 — 매주 되풀이되지 않습니다</>
+                ? <>{날짜말(dayOfAdd(rowEdit))}만 {((st.elders || [])[0] || {}).label || "어른"}께 갑니다 — 매주 되풀이되지 않습니다</>
                 : <>{DOW_KR[Number(dow)]}요일마다 {((st.elders || [])[0] || {}).label || "어른"}께 갑니다</>}
             </div>
 
@@ -7397,6 +7475,9 @@ function CallPreview() {
           병원·준비물처럼 <b style={{ color: C.ink2 }}>그날만 다른 것</b>은
           <b style={{ color: C.ink2 }}>말하기</b>에서 그냥 말씀하시면 됩니다 — 어른께 갈 것만 골라 담깁니다.
         </p>
+        {/* 알림은 폰마다 따로 등록해야 옵니다. 그 등록이 여기 있어야
+            "켰는데 안 온다"를 이 자리에서 풉니다. */}
+        {st.callHeadsUp !== false && <div style={{ marginTop: 12 }}><PushBox /></div>}
       </Section>
 
       {/* 줄 하나 고치기 — 시각·이름·갈래를 한 화면에서. 전에는 갈래만
@@ -7745,9 +7826,8 @@ function Settings() {
         </div></Card>
       </Section>
 
-      <Section eyebrow="NOTIFY" title="알림">
-        <PushBox />
-      </Section>
+      {/* "알림" 상자가 여기 있었습니다. 부모에게 가는 알림은 "나가기 전에 알려드릴까요" 하나라
+          부모님 탭 그 자리로 옮겼습니다. 설정에 따로 있으면 두 개인 줄 알게 됩니다. */}
 
 
       <div style={{ marginTop: 20 }}>
