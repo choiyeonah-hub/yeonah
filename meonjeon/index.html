@@ -127,7 +127,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0901-bv';
+const GATE_BUILD = '0901-bw';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#A0A096;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -207,7 +207,7 @@ function askEmail() {
         ${isIPhone() ? '<b>사파리</b>' : '<b>크롬</b>'}에 붙여넣어 열어주세요.
       </div>` : isIPhone() && !isStandalone() ? `<div class="msg">
         <b>아이폰은 로그인 전에 한 가지만 먼저</b><br>
-        아래쪽 <b>공유 버튼</b>(□에 ↑) → <b>홈 화면에 추가</b> → 생긴 <b>먼저</b> 아이콘으로 들어와서 로그인하세요.<br>
+        아래쪽 <b>공유 버튼</b>(□에 ↑) → <b>홈 화면에 추가</b> → 생긴 <b>손주한통</b> 아이콘으로 들어와서 로그인하세요.<br>
         <span style="opacity:.8">이러면 로그인을 한 번만 하면 되고, 알림도 받을 수 있습니다.
         지금 여기서 로그인하면 나중에 한 번 더 하셔야 해요.</span>
       </div>` : ''}
@@ -2124,7 +2124,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-bv";
+const BUILD = "0901-bw";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
