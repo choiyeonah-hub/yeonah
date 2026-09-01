@@ -2213,7 +2213,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-ds";
+const BUILD = "0901-dt";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -6656,14 +6656,31 @@ function PlanEditor() {
     log("call_plan_add", { dow, kind: "med" });
   };
   /* 줄 하나를 고치는 자리. 시각·이름·갈래를 한 화면에서 봅니다 */
-  const rowOf = (id) => ((st.callPlan || {})[dow] || []).find((r) => r.id === id);
+  /* 줄은 두 곳에 있습니다 — 요일 계획(매주)과 그날만 더한 것(callToday.add).
+     전에는 계획 쪽만 찾아서, 말하기로 담긴 "오늘은 후문" 같은 줄은 눌러도 안 열렸고
+     전화로 갈지 문자로 갈지 정할 수 없었습니다. 그날 제일 중요한 줄이 바로 그건데요. */
+  const 그날add = () => (((st.callToday || {})[day] || {}).add || []);
+  const 오늘만인가 = (id) => 그날add().some((r) => r.id === id);
+  const rowOf = (id) => ((st.callPlan || {})[dow] || []).find((r) => r.id === id) || 그날add().find((r) => r.id === id);
   const patchRow = (id, patch) => setSt((sv) => {
+    const t = (sv.callToday || {})[day] || {};
+    if ((t.add || []).some((r) => r.id === id)) {
+      const ct = { ...(sv.callToday || {}) };
+      ct[day] = { ...t, add: t.add.map((r) => r.id === id ? { ...r, ...patch } : r) };
+      return { ...sv, callToday: ct };
+    }
     const plan = { ...(sv.callPlan || {}) };
     plan[dow] = (plan[dow] || []).map((r) => r.id === id ? { ...r, ...patch } : r);
     return { ...sv, callPlan: plan };
   });
 
   const del = (id) => setSt((sv) => {
+    const t = (sv.callToday || {})[day] || {};
+    if ((t.add || []).some((r) => r.id === id)) {
+      const ct = { ...(sv.callToday || {}) };
+      ct[day] = { ...t, add: t.add.filter((r) => r.id !== id) };
+      return { ...sv, callToday: ct };
+    }
     const plan = { ...(sv.callPlan || {}) };
     plan[dow] = (plan[dow] || []).filter((r) => r.id !== id);
     return { ...sv, callPlan: plan };
@@ -6770,12 +6787,18 @@ function PlanEditor() {
                   <span className="mono" style={{ fontSize: 12.5, color: C.sun, width: 46, flexShrink: 0 }}>
                     {r.kind === "bag" ? "가방" : r.kind === "med" ? "약" : (r.time || "—")}
                   </span>
-                  <span style={{ fontSize: 14, flex: 1, minWidth: 0 }}>
+                  <button className="press" onClick={() => setRowEdit(r.id)}
+                    style={{ fontSize: 14, flex: 1, minWidth: 0, background: "transparent", border: "none",
+                             textAlign: "left", color: C.ink, padding: 0 }}>
                     {(st.children || []).length > 1 && r.kid
                       ? <b style={{ color: C.ink3, fontWeight: 500, marginRight: 5 }}>
                           {((st.children || []).find((k) => k.id === r.kid) || {}).name}
                         </b> : null}
                     {callSpace(r.what)}
+                    {r.alert ? <span style={{ fontSize: 11, color: C.moss, marginLeft: 6 }}>· 알림 2번</span> : null}
+                  </button>
+                  <span style={{ fontSize: 11.5, color: r.way ? C.moss : C.ink3, flexShrink: 0 }}>
+                    {r.way === "call" ? "전화" : r.way === "sms" ? "문자" : r.way === "app" ? "앱" : "설정대로"}
                   </span>
                   <button className="press" onClick={() => setSt((sv) => {
                     const t2 = { ...(sv.callToday || {}) };
@@ -7013,7 +7036,9 @@ function PlanEditor() {
           <Sheet onClose={() => setRowEdit(null)}>
             <div className="disp" style={{ fontSize: 19, fontWeight: 600 }}>이 줄 고치기</div>
             <div style={{ fontSize: 12, color: C.ink3, marginTop: 5 }}>
-              {DOW_KR[Number(dow)]}요일마다 {((st.elders || [])[0] || {}).label || "어른"}께 갑니다
+              {오늘만인가(rowEdit)
+                ? <>{dayLabel}만 {((st.elders || [])[0] || {}).label || "어른"}께 갑니다 — 매주 되풀이되지 않습니다</>
+                : <>{DOW_KR[Number(dow)]}요일마다 {((st.elders || [])[0] || {}).label || "어른"}께 갑니다</>}
             </div>
 
             {시각있 && <>
