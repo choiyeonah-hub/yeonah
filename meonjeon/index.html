@@ -127,7 +127,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0901-bu';
+const GATE_BUILD = '0901-bv';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#A0A096;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1433,6 +1433,42 @@ function callItemsFor(st, when) {
     .slice(0, CALL_MAX);
 }
 
+/* 어른께 나갈 말은 명사로 끝나야 합니다.
+   "소아과 진료 있어요"가 그대로 들어와서
+   "오후 3시 소아과 진료 있어요입니다"가 나가고 있었습니다. */
+const CALL_TAIL = /\s*(있어요|있습니다|있음|이에요|예요|에요|입니다|이라네요|래요|한대요|합니다|해요)$/;
+function callWhat(s) {
+  let w = String(s || "").trim().slice(0, 40);
+  for (let i = 0; i < 3 && CALL_TAIL.test(w); i++) w = w.replace(CALL_TAIL, "").trim();
+  return w;
+}
+/* 같은 것을 두 번 말씀하셨는지 보는 열쇠 */
+const callKey = (r) => `${r.kid || ""}|${r.kind || "sked"}|${callWhat(r.what)}`;
+
+/* 앞서 말한 것을 고쳐 말하면 덮어써야 합니다. 그냥 붙이고 있어서
+   "태권도 오후 3시"와 "태권도 오후 2시"가 나란히 남았고,
+   어른은 같은 학원을 두 번 들으셨습니다. */
+function callMerge(sv, cday, rows) {
+  const t = { ...(sv.callToday || {}) };
+  const cur = t[cday] || {};
+  let add = (cur.add || []).slice();
+  const skip = (cur.skip || []).slice();
+  const dow = String(new Date(cday).getDay());
+  const base = (sv.callPlan || {})[dow] || [];
+  rows.forEach((r) => {
+    const k = callKey(r);
+    add = add.filter((a) => callKey(a) !== k);          /* 아까 말한 같은 것을 지웁니다 */
+    const 겹침 = base.filter((b) => callKey(b) === k);
+    /* 요일 계획에 이미 있는 것을 시각 없이 다시 말씀하신 것이면
+       계획 쪽이 낫습니다 — 시각이 붙어 있으니까요 */
+    if (겹침.length && !r.time) return;
+    겹침.forEach((b) => { if (skip.indexOf(b.id) < 0) skip.push(b.id); });
+    add.push(r);
+  });
+  t[cday] = { ...cur, add, skip };
+  return t;
+}
+
 /* 뺀 것까지 다 돌려줍니다. 반차처럼 "몇 개만" 빼는 화면에서는
    이미 뺀 것도 보여야 다시 켜실 수 있습니다. */
 function callAllFor(st, when) {
@@ -1611,6 +1647,10 @@ function CALL_SPLIT(st, today) {
   · 심부름 부탁(세탁소 찾기·택배 받아두기)은 call에 넣지 마세요.
     이 앱은 아이 일정을 전하는 곳이지 심부름을 시키는 곳이 아닙니다. items로 보내세요.
   · what은 15자 이내, ${label}이 들으실 말투로. 아이 이름은 what이 아니라 who에.
+  · **what은 명사로 끝내세요.** "소아과 진료"이지 "소아과 진료 있어요"가 아닙니다.
+    이 말이 그대로 읽혀서, 서술어를 붙이면 "오후 3시 소아과 진료 있어요입니다"가 나갑니다.
+  · 부모가 앞서 말한 것을 **고쳐 말하면 고친 것만 보내세요.**
+    같은 일을 두 번 담으면 어른이 같은 학원을 두 번 들으십니다.
   · 놓치면 되돌릴 수 없는 것은 alert를 true로 하세요. 그러면 그 시각 30분 전에
     따로 전화가 갑니다. 아침에 한 번 들으신 것을 오후 세 시까지 기억하시라고 할 수는 없습니다.
     true로 할 것: 병원·진료, 하교·하원, 정해진 시각에 데려다주는 학원,
@@ -1769,8 +1809,10 @@ function callScript(st, when, rows) {
     return 조각.join(" ");
   }).join(" ");
 
+  /* "유치원 가방"이 들어오면 "유치원 가방 가방에"가 나갔습니다 */
+  const 가방목록 = 가방.map((r) => (하나 ? "" : (nameOf(r.kid) ? nameOf(r.kid) + " " : "")) + r.what).join(", ");
   const 가방줄 = 가방.length
-    ? ` ${가방.map((r) => (하나 ? "" : (nameOf(r.kid) ? nameOf(r.kid) + " " : "")) + r.what).join(", ")} 가방에 챙겨뒀어요. 현관에 두겠습니다.`
+    ? ` ${가방목록}${/가방$/.test(가방목록) ? "에" : " 가방에"} 챙겨뒀어요. 현관에 두겠습니다.`
     : "";
   const 곧 = list === rows && rows.length === 1 && rows[0].alert;
   const 머리 = 하나 ? `${label}, ${첫아이} ` : `${label}, `;
@@ -2082,7 +2124,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-bu";
+const BUILD = "0901-bv";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -5284,20 +5326,18 @@ ${CALL_SPLIT(st, todayStr())}
     if (callRows.length) {
       const cday = nextCallDay(st);
       setSt((sv) => {
-        const t = { ...(sv.callToday || {}) };
-        const cur = t[cday] || {};
-        t[cday] = { ...cur, add: (cur.add || []).concat(callRows.map((x) => ({
+        const rows = callRows.map((x) => ({
           id: uid("cl"),
           time: /^\d{1,2}:\d{2}$/.test(String(x.time || "")) ? x.time : "",
-          what: String(x.what).slice(0, 40),
+          what: callWhat(x.what),
           kind: ["sked", "med", "bag"].includes(x.kind) ? x.kind : "sked",
           kid: ((sv.children || []).find((k) => k.name && k.name === String(x.who || "")) || {}).id
                || ((sv.children || []).length === 1 ? (sv.children[0] || {}).id : ""),
           /* 여기서 false로 못박고 있었습니다. 그래서 "내일 3시 소아과"가
              아침 통에 묻히고, 정작 세 시 전에는 아무 전화도 안 갔습니다. */
           alert: !!x.alert && /^\d{1,2}:\d{2}$/.test(String(x.time || "")),
-        }))) };
-        return { ...sv, callToday: t, callOn: true };
+        })).filter((r) => r.what);
+        return { ...sv, callToday: callMerge(sv, cday, rows), callOn: true };
       });
       const lab = ((st.elders || [])[0] || {}).label || "어른";
       const when = nextCallDay(st) > todayKey() ? "내일" : "오늘";
@@ -5432,11 +5472,17 @@ ${CALL_SPLIT(st, todayStr())}
   if (phase === "result") return (
     <>
       <div style={{ marginTop: 20, paddingLeft: 2 }}>
+        {/* 어른께 간 것까지 세야 합니다. "1개로 정리했어요" 아래에
+            아홉 줄이 깔려 있으면 그 숫자가 거짓말이 됩니다. */}
         <div className="disp" style={{ fontSize: 22, fontWeight: 600 }}>
-          {answer ? "이렇게 해보면 어때요?" : `${result.length}개로 정리했어요`}
+          {answer ? "이렇게 해보면 어때요?"
+            : justCall && justCall.day
+              ? `${result.length}개는 내 할 일로, ${callAllFor(st, justCall.day).length}개는 ${justCall.label}께`
+              : `${result.length}개로 정리했어요`}
         </div>
         <p style={{ fontSize: 13.5, color: C.ink2, marginTop: 7, lineHeight: 1.65 }}>
-          {answer ? "괜찮으면 아래에서 필요한 일만 담으세요." : "담으면 가족 모두에게 보이고, 담당자를 나눌 수 있어요."}
+          {answer ? "괜찮으면 아래에서 필요한 일만 담으세요."
+            : "어른께 갈 것은 이미 담겼어요. 내 할 일은 담아야 오늘 화면에 남습니다."}
         </p>
         {/* 어른께 간 것을 안 보여주면 부모가 전하기 탭까지 들어가 확인해야 합니다.
             여기서 바로 보고 바로 뺄 수 있어야 합니다. */}
@@ -5541,7 +5587,10 @@ ${CALL_SPLIT(st, todayStr())}
           );
         })()}
         {justCall && (() => {
-          const rows = ((st.callToday || {})[justCall.day] || {}).add || [];
+          /* 말씀하신 것만 보여주고 있었습니다. 그래서 "이렇게 갑니다" 아래에
+             요일 계획은 안 보이고, 순서도 말한 차례 그대로였습니다.
+             실제로 나갈 것을 시간순으로 그대로 보여줍니다. */
+          const rows = callItemsFor(st, justCall.day);
           if (!rows.length) return null;
           return (
             <Card style={{ marginTop: 14, borderColor: C.moss }}>
@@ -5557,10 +5606,15 @@ ${CALL_SPLIT(st, todayStr())}
                       </b>
                       {r.what}
                     </span>
+                    {/* 말씀해서 담긴 것은 지우고, 요일 계획에서 온 것은 그날만 빼둡니다.
+                        계획을 지워버리면 다음 주 화요일 하원까지 같이 사라집니다. */}
                     <button className="press" onClick={() => setSt((sv) => {
                       const t = { ...(sv.callToday || {}) };
                       const cur = t[justCall.day] || {};
-                      t[justCall.day] = { ...cur, add: (cur.add || []).filter((x) => x.id !== r.id) };
+                      const 말한것 = (cur.add || []).some((x) => x.id === r.id);
+                      t[justCall.day] = 말한것
+                        ? { ...cur, add: (cur.add || []).filter((x) => x.id !== r.id) }
+                        : { ...cur, skip: (cur.skip || []).concat([r.id]) };
                       return { ...sv, callToday: t };
                     })} style={{ background: "transparent", border: "none", color: C.ink3, fontSize: 12 }}>빼기</button>
                   </div>
