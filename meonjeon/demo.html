@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<meta name="theme-color" content="#F4F2F8" />
+<meta name="theme-color" content="#EFE9F9" />
 <title>손주한통</title>
 <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=da" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -14,15 +14,15 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.4/babel.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600;700&family=IBM+Plex+Sans+KR:wght@300;400;500;600&display=swap');
-  html,body{margin:0;background:#F4F2F8;font-family:'IBM Plex Sans KR',-apple-system,BlinkMacSystemFont,sans-serif;color:#2A2440;-webkit-font-smoothing:antialiased}
+  html,body{margin:0;background:#EFE9F9;font-family:'IBM Plex Sans KR',-apple-system,BlinkMacSystemFont,sans-serif;color:#2A2440;-webkit-font-smoothing:antialiased}
   #gate{max-width:440px;margin:0 auto;padding:64px 22px calc(40px + env(safe-area-inset-bottom))}
   #gate h1{font-family:'Noto Serif KR',serif;font-size:28px;font-weight:600;letter-spacing:-.035em;line-height:1.42;margin:0}
-  #gate p{font-size:13.5px;color:#5F5878;line-height:1.78;margin-top:14px}
-  #gate input{width:100%;border:1px solid #E4DFEE;border-radius:16px;padding:15px 16px;font-size:15px;background:#fff;font-family:inherit;box-sizing:border-box;transition:border-color .15s,box-shadow .15s}
+  #gate p{font-size:13.5px;color:#5B5378;line-height:1.78;margin-top:14px}
+  #gate input{width:100%;border:1px solid #E0D8F2;border-radius:16px;padding:15px 16px;font-size:15px;background:#fff;font-family:inherit;box-sizing:border-box;transition:border-color .15s,box-shadow .15s}
   #gate input:focus{outline:none;border-color:#5B4394;box-shadow:0 0 0 3px #F0E8FB}
   #gate button{width:100%;border:none;border-radius:16px;padding:16px 0;font-size:15px;font-weight:600;font-family:inherit;background:#2A2440;color:#fff;margin-top:10px;cursor:pointer;transition:transform .12s ease}
   #gate button:active{transform:scale(.985)}
-  #gate .ghost{background:transparent;color:#8B84A3;font-weight:400;font-size:13px}
+  #gate .ghost{background:transparent;color:#7E7699;font-weight:400;font-size:13px}
   #gate .msg{margin-top:16px;font-size:13px;line-height:1.7;padding:14px 15px;border-radius:14px;background:#F0E8FB;color:#5B4394}
   /* 버튼이 넷이 되면 좁은 폰에서 밀립니다. 줄바꿈을 허용합니다 */
   #bar{position:fixed;top:0;left:0;right:0;z-index:80;display:none;justify-content:center;gap:6px;flex-wrap:wrap;
@@ -368,8 +368,8 @@ const C = {
      밝은 색만 쓰면 글자가 안 보여서, 각 색마다 "글자용 진한 것"과
      "배경용 연한 것"을 짝지어 둡니다. 뒤 이름(moss/persim/sea)은 그대로 둡니다.
      값만 바뀌면 화면 전체가 따라옵니다. */
-  bg: "#F4F2F8", card: "#FFFFFF", ink: "#2A2440", ink2: "#5F5878", ink3: "#8B84A3",
-  line: "#E4DFEE", lineSoft: "#EFEBF6",
+  bg: "#EFE9F9", card: "#FFFFFF", ink: "#2A2440", ink2: "#5B5378", ink3: "#7E7699",
+  line: "#E0D8F2", lineSoft: "#EBE4F7",
   /* 진보라 — 주 강조. 버튼과 브랜드. 아이콘 바탕(연보라)의 진한 쪽입니다. */
   moss: "#5B4394", mossSoft: "#F0E8FB", sprout: "#9B85D4",
   /* 대추 — 오늘 안 하면 큰일 나는 것. 쪽빛의 반대편이라 가장 먼저 눈에 걸립니다 */
@@ -2152,7 +2152,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-de";
+const BUILD = "0901-df";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
