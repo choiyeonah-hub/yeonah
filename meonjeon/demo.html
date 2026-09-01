@@ -355,6 +355,20 @@ const BRAND = "손주한통";
    그래서 어른 폰에 이 번호를 "손주한통"으로 저장해두시는 것이 필수 단계입니다.
    ⚠ 번호가 정해지면 여기 한 줄만 고치세요. 서버 쪽은 SOLAPI_FROM 환경변수입니다. */
 const CALL_FROM = "";
+
+/* 어른이 앱으로 받는 길 — 베타 동안에는 감춥니다.
+   화면(조부모님 탭)은 만들어뒀습니다. 다만 그걸 부모에게 "고를 수 있는 것"으로
+   보여주면, 어른이 앱을 까시게 되고 "어른은 앱을 안 깐다"가 무너집니다.
+   그리고 30집이 전화와 앱으로 갈리면 "전화가 통하는가"의 답이 흐려집니다.
+   베타가 끝나고 전화비가 부담이라는 말이 나오면 이 한 줄만 true 로 바꾸면 됩니다.
+   이미 앱으로 골라두신 집은 그대로 둡니다 — 쓰던 것을 말없이 뺏지 않습니다. */
+const APP_WAY = false;
+const wayOptions = (cur) =>
+  [["", "알아서"], ["call", "전화"], ["sms", "문자"], ["app", "앱"]]
+    .filter(([v]) => v !== "app" || APP_WAY || cur === "app");
+const howOptions = (cur) =>
+  [["call", "전화로"], ["sms", "문자로"], ["app", "앱 알림으로"]]
+    .filter(([v]) => v !== "app" || APP_WAY || cur === "app");
 const callFromLabel = () => {
   const d = String(CALL_FROM).replace(/[^0-9]/g, "");
   if (!d) return "";
@@ -2155,7 +2169,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-dj";
+const BUILD = "0901-dk";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -6961,7 +6975,7 @@ function PlanEditor() {
 
             <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 16 }}>어떻게 갈까요</div>
             <div className="flex gap-1.5" style={{ marginTop: 8, flexWrap: "wrap" }}>
-              {[["", "알아서"], ["call", "전화"], ["sms", "문자"], ["app", "앱"]].map(([v, lb]) => {
+              {wayOptions(r.way || "").map(([v, lb]) => {
                 const on = (r.way || "") === v;
                 return (
                   <button key={v || "auto"} className="press" onClick={() => patchRow(r.id, { way: v })}
@@ -7405,7 +7419,7 @@ function Settings() {
           </div>
           <div className="flex gap-1.5" style={{ marginTop: 12, flexWrap: "wrap" }}>
             <span style={{ fontSize: 12.5, color: C.ink3, alignSelf: "center", marginRight: 2 }}>어떻게 받으실까요</span>
-            {[["call", "전화로"], ["sms", "문자로"], ["app", "앱 알림으로"]].map(([v, lab]) => {
+            {howOptions(((d.elders || [])[0] || {}).how || "call").map(([v, lab]) => {
               const on = (((d.elders || [])[0] || {}).how || "call") === v;
               return (
                 <button key={v} className="press" onClick={() => setD((w) => {
