@@ -29,7 +29,30 @@ export default async function handler(req, res) {
   /* RLS가 본인 구독만 내어줍니다 */
   const r = await fetch(`${url}/rest/v1/push_subs?select=endpoint,p256dh,auth`, { headers: H });
   if (!r.ok) return res.status(500).json({ error: "구독을 못 읽었어요" });
-  const subs = await r.json();
+  const all = await r.json();
+  /* 테스트는 지금 이 기기에서 오는지 보려고 누르는 것입니다.
+     예전에 홈 화면에 추가해둔 것까지 여섯 대로 나가면
+     "왜 기기 6대?"가 되고, 그건 물어볼 일이 하나 느는 것입니다. */
+  const here = String((req.body && req.body.endpoint) || "").trim();
+  const subs = here ? all.filter((x) => x.endpoint === here) : all;
+  const others = here ? all.filter((x) => x.endpoint !== here) : [];
+
+  /* 홈 화면에 다시 추가할 때마다 등록이 하나씩 늘어납니다. 하루 만져보면
+     여섯 대가 됩니다. 부모가 직접 정리할 수 있게 해둡니다. */
+  if (req.body && req.body.prune === true) {
+    if (!here) return res.status(200).json({ ok: false, error: "이 기기를 알 수 없어요" });
+    let 지움 = 0;
+    for (const o of others) {
+      const d = await fetch(`${url}/rest/v1/push_subs?endpoint=eq.${encodeURIComponent(o.endpoint)}`,
+        { method: "DELETE", headers: H }).catch(() => null);
+      if (d && d.ok) 지움++;
+    }
+    return res.status(200).json({ ok: true, pruned: 지움 });
+  }
+
+  if (here && !subs.length) {
+    return res.status(200).json({ ok: false, error: "이 기기가 아직 등록되지 않았어요. 알림 켜기를 한 번 더 눌러주세요" });
+  }
   if (!subs.length) {
     return res.status(200).json({ ok: false, error: "이 기기의 알림이 등록돼 있지 않아요. 알림 켜기를 한 번 더 눌러주세요" });
   }
@@ -55,7 +78,7 @@ export default async function handler(req, res) {
       }
     }
   }
-  if (sent) return res.status(200).json({ ok: true, sent, gone });
+  if (sent) return res.status(200).json({ ok: true, sent, gone, others: others.length });
   return res.status(200).json({
     ok: false,
     error: gone

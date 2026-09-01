@@ -127,7 +127,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0901-cq';
+const GATE_BUILD = '0901-cr';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#A0A096;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -2247,7 +2247,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-cq";
+const BUILD = "0901-cr";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -3369,12 +3369,40 @@ function PushBox() {
   const test = async () => {
     setBusy(true); setMsg(null);
     try {
-      const r = await fetch("/api/push-test", { method: "POST", headers: await authHeaders() }).then((x) => x.json());
+      /* 지금 이 기기로만 보냅니다. 예전에 홈 화면에 추가해둔 것까지
+         다 울리면 무엇을 보고 있는지 알 수 없습니다. */
+      let here = "";
+      try {
+        const reg = await navigator.serviceWorker.getRegistration();
+        const sub = reg && await reg.pushManager.getSubscription();
+        here = (sub && sub.endpoint) || "";
+      } catch {}
+      const r = await fetch("/api/push-test", {
+        method: "POST",
+        headers: { ...(await authHeaders()), "Content-Type": "application/json" },
+        body: JSON.stringify({ endpoint: here }),
+      }).then((x) => x.json());
       setMsg(r.ok
-        ? { ok: true, t: `기기 ${r.sent}대로 보냈습니다.`,
-            d: "이 화면을 벗어나서 잠금화면을 봐주세요. 30초 안에 안 오면 아래를 확인해 주세요." }
+        ? { ok: true, t: "이 기기로 보냈습니다.",
+            d: "이 화면을 벗어나서 잠금화면을 봐주세요. 30초 안에 안 오면 아래를 확인해 주세요.",
+            others: r.others || 0, here }
         : { ok: false, t: r.error || "보내지 못했어요", d: "" });
     } catch { setMsg({ ok: false, t: "서버에 닿지 못했어요", d: "" }); }
+    setBusy(false);
+  };
+  /* 홈 화면에 다시 추가할 때마다 등록이 하나씩 늘어납니다.
+     하루 만져보면 여섯 대가 됩니다. 이 기기만 남기고 지웁니다. */
+  const prune = async (here) => {
+    setBusy(true);
+    try {
+      const r = await fetch("/api/push-test", {
+        method: "POST",
+        headers: { ...(await authHeaders()), "Content-Type": "application/json" },
+        body: JSON.stringify({ endpoint: here, prune: true }),
+      }).then((x) => x.json());
+      if (r.ok) { setMsg(null); say(`옛 등록 ${r.pruned}대를 지웠어요`); }
+      else say(r.error || "지우지 못했어요");
+    } catch { say("서버에 닿지 못했어요"); }
     setBusy(false);
   };
   const off = async () => {
@@ -3439,6 +3467,20 @@ function PushBox() {
                             background: msg.ok ? C.mossSoft : C.persimSoft, color: msg.ok ? C.moss : C.persim }}>
                 <b>{msg.t}</b>
                 {msg.d && <div style={{ marginTop: 4 }}>{msg.d}</div>}
+                {/* 홈 화면에 다시 추가할 때마다 등록이 하나 늘어납니다.
+                    "기기 6대"가 뜨면 그것부터 물어보게 됩니다. */}
+                {msg.others > 0 && (
+                  <div style={{ marginTop: 9, paddingTop: 9, borderTop: `1px solid ${C.line}` }}>
+                    이 기기 말고 <b>{msg.others}대</b>가 더 등록돼 있어요.
+                    홈 화면에 다시 추가할 때마다 하나씩 늘어납니다.
+                    <button className="press" disabled={busy} onClick={() => prune(msg.here)}
+                      style={{ display: "block", marginTop: 7, background: "transparent",
+                               border: `1px solid ${C.line}`, borderRadius: 999, padding: "6px 13px",
+                               fontSize: 12, color: C.ink2 }}>
+                      이 기기만 남기고 지우기
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
