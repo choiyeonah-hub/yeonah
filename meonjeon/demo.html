@@ -2213,7 +2213,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-dr";
+const BUILD = "0901-ds";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -6574,10 +6574,14 @@ function CarDates() {
    같은 것이 두 탭에 나와 헷갈렸습니다. 부모 쪽으로 옮겼습니다. */
 function PlanEditor() {
   const { st, setSt, say, log } = use();
-  const [dow, setDow] = useState(String(new Date(nextCallDay(st)).getDay() || 1));
+  /* 조부모님 탭은 "다음 전화 날"을 보지만, 여기는 계획을 손보는 곳이라 "오늘 요일"로 엽니다.
+     전에는 다음 전화 날로 열어서, 아침 7:50이 지나면 내일 요일이 골라져 있었습니다 —
+     수요일 오후에 열면 목요일이 비어 있고, 오늘 넣은 것도 안 보였습니다. 주말이면 월요일. */
+  const 오늘요일 = new Date().getDay();
+  const [dow, setDow] = useState(String(오늘요일 === 0 || 오늘요일 === 6 ? 1 : 오늘요일));
   /* 탭을 가를 때 이 두 줄이 저쪽에 남아서, 요일 칩을 그리다 화면이 통째로 죽었습니다 */
   const 다음전화 = nextCallDay(st);
-  const day = dayForDow(dow, 다음전화);   /* 지금 보고 있는 요일의 실제 날짜 */
+  const day = dayForDow(dow, todayKey());   /* 고른 요일의 이번 주 날짜 — 오늘이면 오늘 */
   const byApp = elderByApp(st);
   const bySms = elderBySms(st);
   const dayLabel = day === todayKey() ? "오늘" : day === todayKey() + DAY ? "내일" : `다음 ${DOW_KR[Number(dow)]}요일`;
@@ -6694,7 +6698,7 @@ function PlanEditor() {
             const n = ((st.callPlan || {})[d] || []).length;
             /* 요일 계획만 세고 있었습니다. 수요일이 0인데 5건이 나가면
                부모는 어디에 있는 5건인지 알 수가 없습니다. */
-            const m = (((st.callToday || {})[dayForDow(d, 다음전화)] || {}).add || []).length;
+            const m = (((st.callToday || {})[dayForDow(d, todayKey())] || {}).add || []).length;
             return (
               <button key={d} className="press" onClick={() => setDow(d)}
                 style={{ flex: 1, padding: "9px 0", borderRadius: 12, fontSize: 13, fontWeight: dow === d ? 600 : 400,
@@ -6739,7 +6743,7 @@ function PlanEditor() {
                        border: `1px solid ${r.way ? "transparent" : C.line}`,
                        background: r.way === "call" ? C.mossSoft : r.way === "sms" ? C.sunSoft : r.way === "app" ? C.seaSoft : "transparent",
                        color: r.way === "call" ? C.moss : r.way === "sms" ? C.sun : r.way === "app" ? C.sea : C.ink3 }}>
-              {r.way === "call" ? "전화" : r.way === "sms" ? "문자" : r.way === "app" ? "앱" : "알아서"}
+              {r.way === "call" ? "전화" : r.way === "sms" ? "문자" : r.way === "app" ? "앱" : "설정대로"}
             </button>
             <button className="press" onClick={() => del(r.id)}
               style={{ background: "transparent", border: "none", color: C.ink3, fontSize: 12, flexShrink: 0 }}>빼기</button>
