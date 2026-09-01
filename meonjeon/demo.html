@@ -2183,7 +2183,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-dm";
+const BUILD = "0901-dn";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -5074,17 +5074,43 @@ ${CALL_SPLIT(st, todayStr())}
                 {끌것.length ? (
                   <>
                     <div style={{ fontSize: 13.5, fontWeight: 600, color: C.ink, marginBottom: 6 }}>
-                      이 {끌것.length}일은 안 맡기시나요?
+                      이 {끌것.length}일은 어떻게 하시나요?
                     </div>
                     <div style={{ fontSize: 12.5, color: C.ink2, lineHeight: 1.8, marginBottom: 9 }}>
                       {끌것.map(날짜).join(" · ")}
                     </div>
+                    {/* 기관이 쉬는 것과 아이를 안 맡기는 것은 다릅니다.
+                        기관이 쉬면 부모는 회사에 가야 하니 오히려 하루 종일 맡기십니다.
+                        전에는 "끌까요"만 물었습니다. 그건 반대로 물은 것이었습니다. */}
                     <div style={{ fontSize: 12.5, color: C.ink3, lineHeight: 1.75, marginBottom: 11 }}>
-                      끄면 그날 <b style={{ color: C.ink2 }}>{lab}께 갈 {통수}통</b>이 안 나갑니다.
-                      맡기시는 날이 섞여 있으면 그냥 두세요 —
-                      <b style={{ color: C.ink2 }}>안 나가는 쪽이 더 위험합니다.</b>
+                      <b style={{ color: C.ink2 }}>기관이 쉬는 것과 안 맡기시는 것은 다릅니다.</b>
+                      기관이 쉬면 오히려 하루 종일 맡기시는 집이 많습니다.
                       {이미끈.length ? <><br />{이미끈.length}일은 이미 쉬는 날로 해두셨어요.</> : null}
                     </div>
+                    <button className="press" onClick={() => {
+                      setSt((sv) => {
+                        const t = { ...(sv.callToday || {}) };
+                        끌것.forEach((d) => {
+                          /* 등하원만 빼고 나머지는 그대로 둡니다 — 점심·간식·약은 하루 종일이면 오히려 늘어납니다 */
+                          const 등하원 = /등원|하원|등교|하교|데리러|데려다|데려오/;
+                          const ids = callAllFor(sv, d).filter((r) => 등하원.test(callSpace(r.what))).map((r) => r.id);
+                          const prev = (t[d] || {}).skip || [];
+                          t[d] = { ...(t[d] || {}), off: false, skip: [...new Set([...prev, ...ids])] };
+                        });
+                        return { ...sv, callToday: t };
+                      });
+                      say(`${끌것.length}일은 하루 종일로 했어요. 등하원만 뺐습니다`);
+                      log("offdays_allday", { n: 끌것.length });
+                      setJustOff(null);
+                    }}
+                      style={{ width: "100%", background: C.mossSoft, color: C.moss, border: "none",
+                               borderRadius: 12, padding: "11px 0", fontSize: 13.5, fontWeight: 600, marginBottom: 8 }}>
+                      하루 종일 맡겨요 — 등하원만 빼기
+                    </button>
+                    <p style={{ fontSize: 11.5, color: C.ink3, lineHeight: 1.7, marginBottom: 9 }}>
+                      맡기시는 날이 섞여 있으면 <b style={{ color: C.ink2 }}>그대로</b>를 누르세요 —
+                      <b style={{ color: C.ink2 }}>안 나가는 쪽이 더 위험합니다.</b> 잘못 끄면 그날 하원을 아무도 안 갑니다.
+                    </p>
                     <div className="flex gap-2">
                       <button className="press" onClick={() => {
                         setSt((sv) => {
@@ -5098,7 +5124,7 @@ ${CALL_SPLIT(st, todayStr())}
                       }}
                         style={{ flex: 1, background: C.persimSoft, color: C.persim, border: "none",
                                  borderRadius: 12, padding: "11px 0", fontSize: 13.5, fontWeight: 600 }}>
-                        네, {끌것.length}일 다 쉽니다
+                        이 날은 안 맡겨요
                       </button>
                       <button className="press" onClick={() => setJustOff(null)}
                         style={{ flex: 1, background: "transparent", color: C.ink2, border: `1px solid ${C.line}`,
@@ -5216,7 +5242,7 @@ ${CALL_SPLIT(st, todayStr())}
                     <div style={{ fontSize: 12.5, color: C.ink3, lineHeight: 1.75, marginBottom: 11 }}>
                       그렇게 들려서 여쭙니다. <b style={{ color: C.ink2 }}>끄면 {justCall.label}께 갈 {n}건이 안 나갑니다.</b><br />
                       연차셔도 아이는 그대로 맡기시는 날이면 그냥 두세요 —
-                      <b style={{ color: C.ink2 }}>안 나가는 쪽이 더 위험합니다.</b>
+
                     </div>
                     <div className="flex gap-2">
                       <button className="press" onClick={() => { setSt((sv) => {
