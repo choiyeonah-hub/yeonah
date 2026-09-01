@@ -127,7 +127,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0901-cf';
+const GATE_BUILD = '0901-cg';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#A0A096;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1625,7 +1625,10 @@ function callBatches(st, when) {
     묶음.forEach((g) => {
       out.push({ at: minus30(g[0].time), rows: g, kind: g.length > 1 ? "곧 있을 것" : "30분 전", must: true });
       /* 앱 알림은 값이 안 드니 정각에 한 번 더 */
-      if (byApp) g.forEach((r) => out.push({ at: r.time, rows: [r], kind: "정각", must: true }));
+      /* 부모가 그 줄만 전화·문자로 찍어두셨으면 정각에 또 보내면 안 됩니다.
+         앱이라 값이 안 든다고 생각하고 넣은 것인데, 그 줄은 값이 듭니다. */
+      if (byApp) g.filter((r) => r.way !== "call" && r.way !== "sms")
+        .forEach((r) => out.push({ at: r.time, rows: [r], kind: "정각", must: true }));
     });
     out.sort((a2, b2) => String(a2.at).localeCompare(String(b2.at)));
 
@@ -1654,12 +1657,11 @@ function callBatches(st, when) {
   /* 앱으로 받는 집은 예산을 안 씁니다. 다만 app 표시를 안 달고 돌려주고
      있었습니다. 화면에는 0원이라고 뜨는데 발송 서버는 앱인 줄 모르고
      진짜 전화를 걸었습니다. 값도 틀리고 행동도 틀렸습니다. */
-  if (byApp) return out.map((b2) => ({ ...b2, app: true }));
-  /* 문자로 받는 집은 예산을 안 씁니다 — 스무 배 싸니까요.
-     대신 정각에 한 번 더 보내지는 않습니다. 문자는 남아 있으니까요. */
-  if (elderBySms(st)) return out.map((b2) => ({ ...b2, sms: true }));
+  /* 부모가 항목마다 정해둔 것이 집 설정보다도, 예산보다도 앞섭니다.
+     집을 문자로 두셨어도 "이 하원만은 전화로"라고 찍어두신 것은 전화로 갑니다.
+     한동안 여기 순서가 거꾸로였습니다 — 집 설정이 항목을 덮어써서,
+     부모가 찍어둔 것이 조용히 무시됐습니다.
 
-  /* 부모가 항목마다 정해둔 것이 예산보다 앞섭니다.
      복직 초반엔 다 전화로 듣고 싶으시다가, 한 달쯤 지나 외우시면
      "피아노는 이제 문자로"가 됩니다. 그게 이 앱이 오래 가는 길입니다 —
      안 그러면 3주차에 "이 전화 왜 오지"가 되고 그대로 해지입니다. */
@@ -1678,14 +1680,21 @@ function callBatches(st, when) {
   const 고정문자 = new Set(out.filter((b2) => way(b2) === "sms"));
   const 나머지 = out.filter((b2) => way(b2) === "auto");
 
+  /* 부모가 안 정해둔 것("알아서")의 기본 갈래만 집 설정이 정합니다.
+     집이 앱·문자면 그것들은 예산을 안 씁니다 — 값이 안 들거나 스무 배 싸니까요. */
+  const 기본앱 = new Set(byApp ? 나머지 : []);
+  const 기본문자 = new Set(elderBySms(st) ? 나머지 : []);
+
   let left = Math.max(0, Number(st.callMax != null ? st.callMax : 2));
   const 전화 = new Set(고정전화);
   left -= 고정전화.length;                                      /* 꼭 전화가 예산을 먼저 먹습니다 */
-  나머지.filter((b2) => b2.must).forEach((b2) => { if (left > 0) { 전화.add(b2); left--; } });
-  나머지.filter((b2) => !b2.must).forEach((b2) => { if (left > 0) { 전화.add(b2); left--; } });
+  if (!byApp && !elderBySms(st)) {
+    나머지.filter((b2) => b2.must).forEach((b2) => { if (left > 0) { 전화.add(b2); left--; } });
+    나머지.filter((b2) => !b2.must).forEach((b2) => { if (left > 0) { 전화.add(b2); left--; } });
+  }
   return out.map((b2) =>
-    고정앱.has(b2) ? { ...b2, app: true }
-    : 전화.has(b2) && !고정문자.has(b2) ? b2
+    고정앱.has(b2) || 기본앱.has(b2) ? { ...b2, app: true }
+    : 전화.has(b2) && !고정문자.has(b2) && !기본문자.has(b2) ? b2
     : { ...b2, sms: true });
 }
 
@@ -2182,7 +2191,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-cf";
+const BUILD = "0901-cg";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
