@@ -1213,7 +1213,7 @@ const DEFAULT_STATE = {
      부모가 그 자리에서 말하고 나갑니다. 부모가 먼저 나가는 집만 켭니다. */
   callMorning: false,
   callPlan: {},      /* "1"~"5" (월~금) → [{ id, time, what }] */
-  callToday: {},     /* dateKey → { add: [...], skip: [id...] }  그날만 다른 것 */
+  callToday: {},     /* dateKey → { add: [...], skip: [id...], off: true }  그날만 다른 것 */
   callLog: {},       /* dateKey → { at, ok }  받으셨는지. 어른이 안 하셔도 남습니다 */
   /* 한때 아침마다 "이대로 보내기"를 누르게 했습니다. 그런데 매일 누를 것이
      있으면 그것이 매일 일이 됩니다. 없앴습니다 — 옛 판에서 넘어온 값만 남습니다 */
@@ -1338,6 +1338,8 @@ const callTime = (t) => {
 const elderByApp = (st) => (((st.elders || [])[0] || {}).how === "app");
 
 function callBatches(st, when) {
+  /* 그날은 통째로 안 맡기시는 날 — 아무것도 안 나갑니다 */
+  if (((st.callToday || {})[startOfDay(when || Date.now())] || {}).off) return [];
   const rows = callItemsFor(st, when);
   if (!rows.length) return [];
   const byApp = elderByApp(st);
@@ -1427,6 +1429,51 @@ function callBatches(st, when) {
     고정앱.has(b2) ? { ...b2, app: true }
     : 전화.has(b2) && !고정문자.has(b2) ? b2
     : { ...b2, sms: true });
+}
+
+/* 부모가 말한 것 중 "어른께 갈 것"과 "내가 챙길 것"을 갈라주는 지시문.
+   자리를 둘로 두면 부모가 어디에 말할지를 매번 정해야 합니다.
+   그건 앱이 할 일이지 부모가 할 일이 아닙니다. */
+function CALL_SPLIT(st, today) {
+  if (!st.callOn || !(st.elders || []).length) return "";
+  const label = ((st.elders || [])[0] || {}).label || "어른";
+  return `
+- **${label}께 전화로 갈 것은 call 배열에 따로 담으세요.** items에는 넣지 마세요.
+  아이를 그날 맡기시는 집이라, 부모가 "내일 3시 소아과"라고 하면
+  그건 내 할 일이 아니라 ${label}께 알려드릴 말입니다.
+  · 시각이 있는 일정은 kind "sked", time "HH:MM".
+  · 약은 kind "med", "언제 이름 용량" 순으로.
+  · 부모가 챙겨둔 준비물은 kind "bag", 물건 이름만.
+  · 심부름 부탁(세탁소 찾기·택배 받아두기)은 call에 넣지 마세요.
+    이 앱은 아이 일정을 전하는 곳이지 심부름을 시키는 곳이 아닙니다. items로 보내세요.
+  · what은 15자 이내, ${label}이 들으실 말투로. 아이 이름은 what이 아니라 who에.
+  · 놓치면 되돌릴 수 없는 것은 alert를 true로 하세요. 그러면 그 시각 30분 전에
+    따로 전화가 갑니다. 아침에 한 번 들으신 것을 오후 세 시까지 기억하시라고 할 수는 없습니다.
+    true로 할 것: 병원·진료, 하교·하원, 정해진 시각에 데려다주는 학원,
+    시각이 정해진 약(안약·연고·흡입기).
+    false로 둘 것: 먹는 약처럼 밥에 붙어 있는 것, 준비물, 시각이 없는 것.
+    판단이 서지 않으면 true로 두세요 — 놓치는 쪽이 더 나쁩니다.
+  · **놓치면 되돌릴 수 없는 것은 alert를 true로 하세요.** 그러면 그 시각 30분 전에
+    따로 전화가 갑니다. 아침에 한 번 들으신 것을 오후 세 시까지 기억하시라고 할 수는 없습니다.
+    true로 할 것: 병원·진료, 하교·하원, 정해진 시각에 데려다주는 학원,
+    시각이 정해진 약(안약·연고·흡입기).
+    false로 둘 것: 먹는 약처럼 밥에 붙어 있는 것, 준비물, 부탁, 시각이 없는 것.
+    판단이 서지 않으면 true로 두세요 — 놓치는 쪽이 더 나쁩니다.
+  · 아이를 어떻게 키우라는 말(배변훈련·훈육·수면교육)은 만들지 마세요.
+  · 매주 똑같이 반복되는 것은 call에 넣지 마세요 — 그건 전화 탭에 한 번만 넣는 것입니다.
+    call은 **그날만 다른 것**입니다.
+- 예약 잡기·체육복 빨아두기·학원비 내기처럼 **부모가 직접 할 일**은 그대로 items로.
+  어른께 시킬 수 없는 것, 시켜서는 안 되는 것이 여기입니다.
+- 오늘은 ${today}입니다. 날짜가 오늘이나 내일이 아니면 call이 아니라 items로 보내세요.
+
+- 그날 아예 안 맡기실 것 같으면 offDay를 true로 하세요.
+  "내일 아빠 연차야", "내일은 내가 볼게", "어린이집 안 가", "우리가 데리고 있어" 같은 말이요.
+  다만 이건 확인용입니다 — 앱이 마음대로 끄지 않고 부모께 한 번 물어봅니다.
+  "연차"가 반드시 "안 맡긴다"는 뜻은 아니거든요.
+  아빠가 연차인데 병원에 가시고 아이는 그대로 어른께 갈 수도 있습니다.
+  잘못 꺼서 하원을 아무도 안 가는 것이 이 앱에서 제일 나쁜 실패입니다.
+  offDay가 true여도 call은 평소대로 뽑으세요. 끄는 것은 부모가 정합니다.
+`;
 }
 
 /* 오늘과 내일 나갈 말을 미리 구워둡니다.
@@ -1866,7 +1913,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-br";
+const BUILD = "0901-bs";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -4005,7 +4052,9 @@ function Home() {
             {st.callOn
               ? (callBatchN
                   ? `${st.callAt || "07:50"}에 첫 통이 나갑니다. 달라진 게 있으면 지금 고쳐두세요.`
-                  : `${callTomorrow ? "내일" : "오늘"}은 넣어둔 것이 없어서 전화가 나가지 않아요.`)
+                  : (((st.callToday || {})[callDay] || {}).off
+                      ? `${callTomorrow ? "내일" : "오늘"}은 쉬는 날로 해두셨어요. 전하기에서 다시 켤 수 있습니다.`
+                      : `${callTomorrow ? "내일" : "오늘"}은 넣어둔 것이 없어서 전화가 나가지 않아요.`))
               : (remain > 0 ? `나머지 ${remain}개는 제가 기억하고 있을게요.` : "지금은 급한 게 없어요.")}
           </div>
           {/* "생각나는 거 말하기" 버튼이 여기 있었습니다.
@@ -4384,7 +4433,7 @@ ${web ? `
   "정리할 게 없었어요"가 잘못된 할 일 네 개보다 낫습니다.
 
 ${CALL_SPLIT(st, todayStr())}
-출력은 JSON 객체만: {"answer":"질문이 아니면 빈 문자열","call":[{"kind":"sked|med|bag","time":"HH:MM","what":"…","who":"…","alert":true|false}],"items":[{"title":"12자 이내","category":"...","status":"...","note":"20자 이내","event":"YYYY-MM-DD 또는 빈 문자열","lead":숫자,"when":"YYYY-MM-DD 또는 빈 문자열","newCategory":"","cycle":""}]}`;
+출력은 JSON 객체만: {"answer":"질문이 아니면 빈 문자열","offDay":false,"call":[{"kind":"sked|med|bag","time":"HH:MM","what":"…","who":"…","alert":true|false}],"items":[{"title":"12자 이내","category":"...","status":"...","note":"20자 이내","event":"YYYY-MM-DD 또는 빈 문자열","lead":숫자,"when":"YYYY-MM-DD 또는 빈 문자열","newCategory":"","cycle":""}]}`;
 
         /* 사진이 있으면 무엇을 읽어야 하는지 알려줍니다 */
     const shotPrompt = !shots.length ? "" : `\n\n[사진] 무언가를 알려주는 문서나 화면 캡처입니다. 다음 중 하나일 수 있습니다.
@@ -4422,12 +4471,15 @@ ${CALL_SPLIT(st, todayStr())}
     let gotAnswer = "";
     let lastErr = "";
     let callRows = [];   /* 어른께 갈 것 — items와 갈라서 받습니다 */
+    /* "내일 아빠 연차야" 같은 말. 끄지는 않고 물어보기만 합니다 */
+    let offAsk = false;
     for (let i = 0; i < 2 && !items.length && !gotAnswer && !callRows.length; i++) {
       try {
         const raw = await askClaude((i === 0 ? prompt : prompt + "\n\n(직전 응답이 비어 있었습니다. 반드시 2개 이상 추출하세요.)") + shotPrompt, shots.length ? shots : null, web);
         if (raw && !Array.isArray(raw)) {
           if (raw.answer) gotAnswer = String(raw.answer).slice(0, 400);
           if (Array.isArray(raw.call)) callRows = raw.call.filter((x) => x && x.what).slice(0, 6);
+          if (raw.offDay === true) offAsk = true;
         }
         items = normalize(Array.isArray(raw) ? raw : (raw && (raw.items || raw.tasks)) || []);
       } catch (e) {
@@ -4466,14 +4518,19 @@ ${CALL_SPLIT(st, todayStr())}
       const when = nextCallDay(st) > todayKey() ? "내일" : "오늘";
       /* 결과 화면에 보여주려고 들고 있습니다. 넣어놓고 안 보여주면
          부모가 "어른께 뭐가 갔지"를 전하기 탭까지 들어가서 확인해야 합니다. */
-      setJustCall({ day: cday, when, label: lab, ids: callRows.map(() => null) });
+      setJustCall({ day: cday, when, label: lab, offAsk });
       log("talk_to_call", { n: callRows.length });
     }
     /* 실패했을 때 "두부 소진 · 휴지 구매"를 지어내 보여주던 자리입니다.
        화면 위에 "아래는 예시라 담지 마세요"라고 적어두긴 했는데,
        그건 앱이 거짓말을 해놓고 각주로 변명하는 것입니다.
        못 알아들었으면 못 알아들었다고만 하고 아무것도 만들지 않습니다. */
-    if (!items.length && !gotAnswer && !callRows.length) { refundAI(kind, 1); setFailed(lastErr || true); }
+    /* 넣을 게 없어도 "쉬는 날?"은 물어봐야 합니다 */
+    if (!callRows.length && offAsk) {
+      const lab = ((st.elders || [])[0] || {}).label || "어른";
+      setJustCall({ day: nextCallDay(st), when: nextCallDay(st) > todayKey() ? "내일" : "오늘", label: lab, offAsk: true });
+    }
+    if (!items.length && !gotAnswer && !callRows.length && !offAsk) { refundAI(kind, 1); setFailed(lastErr || true); }
     else setFailed(false);
     setShots([]);
     setResult(items); setPhase("result");
@@ -4598,6 +4655,58 @@ ${CALL_SPLIT(st, todayStr())}
         </p>
         {/* 어른께 간 것을 안 보여주면 부모가 전하기 탭까지 들어가 확인해야 합니다.
             여기서 바로 보고 바로 뺄 수 있어야 합니다. */}
+        {/* "내일 아빠 연차야" — 앱이 마음대로 끄지 않습니다.
+            연차가 반드시 "안 맡긴다"는 뜻은 아니고, 잘못 끄면
+            그날 하원을 아무도 안 갑니다. 그게 제일 나쁜 실패라
+            한 번 여쭙고 부모가 누르셔야 꺼집니다. */}
+        {justCall && justCall.offAsk && (() => {
+          const day = justCall.day;
+          const off = ((st.callToday || {})[day] || {}).off;
+          const n = off ? 0 : callBatches(st, day).length;
+          return (
+            <Card style={{ marginTop: 14, borderColor: off ? C.line : C.persim }}>
+              <div style={{ padding: "14px 16px" }}>
+                {off ? (
+                  <>
+                    <div style={{ fontSize: 13.5, color: C.ink2, lineHeight: 1.75 }}>
+                      <b style={{ color: C.ink }}>{justCall.when}은 쉽니다.</b> {justCall.label}께 아무것도 안 갑니다.
+                    </div>
+                    <button className="press" onClick={() => setSt((sv) => {
+                      const t = { ...(sv.callToday || {}) }; t[day] = { ...(t[day] || {}), off: false };
+                      return { ...sv, callToday: t };
+                    })} style={{ marginTop: 10, background: "transparent", border: `1px solid ${C.line}`, borderRadius: 999, padding: "7px 14px", fontSize: 12.5, color: C.ink2 }}>
+                      다시 켜기
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ fontSize: 13.5, color: C.ink, fontWeight: 600, marginBottom: 6 }}>
+                      {justCall.when}은 안 맡기시나요?
+                    </div>
+                    <div style={{ fontSize: 12.5, color: C.ink3, lineHeight: 1.75, marginBottom: 11 }}>
+                      그렇게 들려서 여쭙니다. <b style={{ color: C.ink2 }}>끄면 {justCall.label}께 갈 {n}건이 안 나갑니다.</b><br />
+                      아빠가 연차셔도 아이는 그대로 맡기시는 날이면 그냥 두세요 —
+                      <b style={{ color: C.ink2 }}>안 나가는 쪽이 더 위험합니다.</b>
+                    </div>
+                    <div className="flex gap-2">
+                      <button className="press" onClick={() => { setSt((sv) => {
+                        const t = { ...(sv.callToday || {}) }; t[day] = { ...(t[day] || {}), off: true };
+                        return { ...sv, callToday: t };
+                      }); say(`${justCall.when}은 쉬는 것으로 했어요`); log("call_off_day", {}); }}
+                        style={{ flex: 1, background: C.persimSoft, color: C.persim, border: "none", borderRadius: 12, padding: "11px 0", fontSize: 13.5, fontWeight: 600 }}>
+                        네, {justCall.when}은 쉽니다
+                      </button>
+                      <button className="press" onClick={() => setJustCall((v) => ({ ...v, offAsk: false }))}
+                        style={{ flex: 1, background: "transparent", color: C.ink2, border: `1px solid ${C.line}`, borderRadius: 12, padding: "11px 0", fontSize: 13.5 }}>
+                        아니요, 그대로
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </Card>
+          );
+        })()}
         {justCall && (() => {
           const rows = ((st.callToday || {})[justCall.day] || {}).add || [];
           if (!rows.length) return null;
@@ -6168,6 +6277,17 @@ function CallScreen() {
 
 
       <Section eyebrow="CALL-03" title={tomorrow ? "내일 이렇게 나갑니다" : "오늘 이렇게 나갑니다"}>
+        {((st.callToday || {})[day] || {}).off && (
+          <div style={{ marginBottom: 12, background: C.persimSoft, borderRadius: 12, padding: "13px 15px", fontSize: 13, color: C.persim, lineHeight: 1.75 }}>
+            <b>{tomorrow ? "내일" : "오늘"}은 쉬는 날로 해두셨습니다.</b> 아무것도 안 나갑니다.
+            <button className="press" onClick={() => setSt((sv) => {
+              const t = { ...(sv.callToday || {}) }; t[day] = { ...(t[day] || {}), off: false };
+              return { ...sv, callToday: t };
+            })} style={{ display: "block", marginTop: 9, background: "transparent", border: `1px solid ${C.persim}`, borderRadius: 999, padding: "6px 13px", fontSize: 12, color: C.persim }}>
+              다시 켜기
+            </button>
+          </div>
+        )}
         {dropped > 0 && (
           <div style={{ marginBottom: 12, background: C.persimSoft, color: C.persim, borderRadius: 12, padding: "12px 14px", fontSize: 12.5, lineHeight: 1.7 }}>
             넣어두신 것이 많아 <b>{dropped}개는 안 나갑니다.</b> 하루에 {CALL_MAX}개까지만 전해드려요 —
