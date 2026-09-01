@@ -2060,7 +2060,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-cm";
+const BUILD = "0901-cn";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -6279,7 +6279,15 @@ function CallScreen() {
   const add = () => {
     const w = what.trim();
     if (kind === "med") { addMed(); return; }
-    if (!w) return;
+    /* 빈 칸으로 누르면 아무 말 없이 아무 일도 안 일어났습니다.
+       요일까지 골라두셨으면 "이거 그대로 저 요일에도"라는 뜻이라,
+       그 자리에서 옮기기를 권합니다. */
+    if (!w) {
+      say(alsoDows.length
+        ? `무엇을 넣을지 적어주세요. 여기 ${rows.length}개를 ${alsoDows.map((d) => DOW_KR[Number(d)]).join("·")}요일로 그대로 옮기시려면 아래 버튼을 눌러주세요`
+        : "무엇을 알려드릴지 적어주세요");
+      return;
+    }
     /* 시각 없는 일정은 어른께 "태권도"라고만 읽힙니다. 언제인지 모르십니다.
        준비물은 시각이 필요 없으니 일정에만 막습니다.
        */
@@ -6511,12 +6519,31 @@ function CallScreen() {
                   );
                 })}
               </div>
-              {!!alsoDows.length && (
-                <p style={{ fontSize: 11.5, color: C.moss, marginTop: 6, lineHeight: 1.7 }}>
-                  넣기를 누르면 <b>{[dow, ...alsoDows].map((d) => DOW_KR[Number(d)]).join("·")}요일</b>에 들어갑니다.
-                  이미 들어 있는 {rows.length}개는 안 따라갑니다 — 그건 아래 <b>그대로 옮기기</b>예요.
-                </p>
-              )}
+              {!!alsoDows.length && (what.trim()
+                ? <p style={{ fontSize: 11.5, color: C.moss, marginTop: 6, lineHeight: 1.7 }}>
+                    넣기를 누르면 <b>{[dow, ...alsoDows].map((d) => DOW_KR[Number(d)]).join("·")}요일</b>에 들어갑니다.
+                  </p>
+                : !!rows.length && (
+                  /* 칸이 비었는데 요일을 고르셨습니다. 새로 넣을 것이 아니라
+                     여기 있는 것을 저 요일에도 두시겠다는 뜻입니다. */
+                  <div style={{ marginTop: 8, background: C.mossSoft, borderRadius: 12, padding: "11px 13px" }}>
+                    <div style={{ fontSize: 12, color: C.ink2, lineHeight: 1.7, marginBottom: 8 }}>
+                      새로 넣을 것을 안 적으셨어요. <b style={{ color: C.ink }}>여기 있는 {rows.length}개를
+                      {" " + alsoDows.map((d) => DOW_KR[Number(d)]).join("·")}요일에도</b> 두시려는 거라면 —
+                    </div>
+                    <button className="press" onClick={() => {
+                      const 간곳 = [];
+                      alsoDows.forEach((d) => { if (copyTo(d)) 간곳.push(DOW_KR[Number(d)]); });
+                      if (!간곳.length) return;
+                      setAlsoDows([]);
+                      say(`${간곳.join("·")}요일에 ${rows.length}개 넣었습니다`);
+                    }}
+                      style={{ width: "100%", background: C.moss, color: "#fff", border: "none",
+                               borderRadius: 10, padding: "10px 0", fontSize: 13, fontWeight: 600 }}>
+                      {DOW_KR[Number(dow)]}요일 {rows.length}개를 {alsoDows.map((d) => DOW_KR[Number(d)]).join("·")}요일로 그대로 옮기기
+                    </button>
+                  </div>
+                ))}
               <button className="press flex items-center gap-2" onClick={() => setAlert((v) => !v)}
                 style={{ marginTop: 10, background: "transparent", border: "none", padding: 0, textAlign: "left" }}>
                 <span style={{ width: 15, height: 15, borderRadius: 4, flexShrink: 0,
