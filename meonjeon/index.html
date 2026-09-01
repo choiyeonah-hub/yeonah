@@ -127,7 +127,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0901-bq';
+const GATE_BUILD = '0901-br';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1498,15 +1498,31 @@ function callBatches(st, when) {
 
      진짜 문제는 아침에 모르시는 게 아니라, 오후 세 시까지 기억하시기
      어려운 것입니다. 그래서 기본은 "그 일 30분 전"입니다. */
-  const two = rows.filter((r) => r.alert && r.time);
-  const rest = rows.filter((r) => !(r.alert && r.time));
+    const two = rows.filter((r) => r.alert && r.time);
+    const rest = rows.filter((r) => !(r.alert && r.time));
 
-  two.forEach((r) => {
-    out.push({ at: minus30(r.time), rows: [r], kind: "30분 전", must: true });
-    /* 앱 알림은 값이 안 드니 정각에 한 번 더 */
-    if (byApp) out.push({ at: r.time, rows: [r], kind: "정각", must: true });
-  });
-  out.sort((a2, b2) => String(a2.at).localeCompare(String(b2.at)));
+    /* ── 가까운 것끼리 한 통으로 ────────────────────────
+       하원 11시 50분, 병원 12시 10분이면 전에는 11:20과 11:40에
+       따로 두 통이 나갔습니다. 20분 사이에 전화가 두 번 오는 겁니다.
+       어른께는 성가시고 값은 두 배입니다.
+
+       30분 안에 붙어 있는 것은 한 통에 담고, 제일 이른 것의 30분 전에 겁니다.
+       늦는 것보다 조금 이른 게 낫습니다 — 시각은 다 읽어드리니까요. */
+    const MERGE = 30;
+    const mins = (t) => { const m = /^(\d{1,2}):(\d{2})$/.exec(String(t || "")); return m ? Number(m[1]) * 60 + Number(m[2]) : 0; };
+    const 묶음 = [];
+    two.slice().sort((a2, b2) => mins(a2.time) - mins(b2.time)).forEach((r) => {
+      const last = 묶음[묶음.length - 1];
+      if (last && mins(r.time) - mins(last[0].time) <= MERGE) last.push(r);
+      else 묶음.push([r]);
+    });
+
+    묶음.forEach((g) => {
+      out.push({ at: minus30(g[0].time), rows: g, kind: g.length > 1 ? "곧 있을 것" : "30분 전", must: true });
+      /* 앱 알림은 값이 안 드니 정각에 한 번 더 */
+      if (byApp) g.forEach((r) => out.push({ at: r.time, rows: [r], kind: "정각", must: true }));
+    });
+    out.sort((a2, b2) => String(a2.at).localeCompare(String(b2.at)));
 
   /* 안 켠 것(약·준비물)도 어딘가에는 실려야 합니다 */
   if (rest.length) {
@@ -1592,6 +1608,10 @@ function bakeOutbox(st) {
 function smsText(st, when, rows) {
   const body = callScript(st, when, rows)
     .replace(/^[^,]+,\s*/, "")            /* "어머니, " 머리말은 뺍니다 */
+    /* 베타의 "1번을 눌러주세요"는 전화에만 붙습니다.
+       문자에 그게 가면 어른이 눌러도 아무 일이 안 일어나고,
+       글자 수가 90바이트를 넘어 장문(50원)이 됩니다. */
+    .replace(/\s*들으셨으면 1번을 눌러주세요\.\s*안 누르셔도 괜찮습니다\.?/, "")
     .replace(/\s*끊으셔도 됩니다\.?\s*$/, "");
   const me = (st.members || []).find((m) => m.id === (st.me || "m1"));
   const who = (me && me.name) ? me.name : "";
@@ -1995,7 +2015,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-bq";
+const BUILD = "0901-br";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -6794,6 +6814,17 @@ function CallScreen() {
 
           {kind === "sked" && (
             <>
+              {/* 아침에 등원 전 병원 가는 일이 흔합니다. 매번 치게 하지 않습니다.
+                  손으로 고쳐 쓰셔도 되게 칸에 넣어주기만 합니다. */}
+              <div className="flex gap-1.5" style={{ flexWrap: "wrap", marginBottom: 9 }}>
+                {["병원 데려다주기", "등원 데려다주기", "하원 데리러 가기", "학원 데려다주기", "학원에서 데려오기"].map((q) => (
+                  <button key={q} className="press" onClick={() => setWhat(q)}
+                    style={{ padding: "5px 11px", borderRadius: 999, fontSize: 11.5,
+                             border: `1px solid ${what === q ? C.moss : C.line}`,
+                             background: what === q ? C.mossSoft : "transparent",
+                             color: what === q ? C.moss : C.ink3 }}>{q}</button>
+                ))}
+              </div>
               <div className="flex gap-2">
                 <input style={{ ...inp, width: 82, flexShrink: 0 }} placeholder="15:20" value={time}
                   onChange={(e) => setTime(e.target.value.slice(0, 5))} />
