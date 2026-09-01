@@ -2238,7 +2238,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-dw";
+const BUILD = "0901-dx";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -6839,9 +6839,15 @@ function PlanEditor() {
                     {callSpace(r.what)}
                     {r.alert ? <span style={{ fontSize: 11, color: C.moss, marginLeft: 6 }}>· 알림 2번</span> : null}
                   </button>
-                  <span style={{ fontSize: 11.5, color: r.way ? C.moss : C.ink3, flexShrink: 0 }}>
+                  {/* 글자만 버튼이고 "설정대로"는 그냥 글씨였습니다. 부모는 바꾸고 싶은 그 글씨를
+                      누릅니다 — 눌러도 안 열리니 "고치기 없어"가 됐습니다. 위 요일 줄과 같은 단추로. */}
+                  <button className="press" onClick={() => setRowEdit(r.id)}
+                    style={{ flexShrink: 0, padding: "5px 9px", borderRadius: 999, fontSize: 11.5,
+                             border: `1px solid ${r.way ? "transparent" : C.line}`,
+                             background: r.way === "call" ? C.mossSoft : r.way === "sms" ? C.sunSoft : r.way === "app" ? C.seaSoft : "transparent",
+                             color: r.way === "call" ? C.moss : r.way === "sms" ? C.sun : r.way === "app" ? C.sea : C.ink3 }}>
                     {r.way === "call" ? "전화" : r.way === "sms" ? "문자" : r.way === "app" ? "앱" : "설정대로"}
-                  </span>
+                  </button>
                   <button className="press" onClick={() => setSt((sv) => {
                     const t2 = { ...(sv.callToday || {}) };
                     const cur = t2[day] || {};
