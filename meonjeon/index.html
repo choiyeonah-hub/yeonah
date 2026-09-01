@@ -127,7 +127,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0901-ca';
+const GATE_BUILD = '0901-cb';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#A0A096;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -2162,7 +2162,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-ca";
+const BUILD = "0901-cb";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -6964,11 +6964,23 @@ function CallScreen() {
     return { ...sv, callPlan: plan };
   });
   /* 한 요일을 짜두고 다른 요일에 복사 — 하원 시각처럼 매일 같은 것이 있습니다 */
-  const copyTo = (target) => setSt((sv) => {
-    const plan = { ...(sv.callPlan || {}) };
-    plan[target] = (plan[dow] || []).map((r) => ({ ...r, id: uid("cl") }));
-    return { ...sv, callPlan: plan };
-  });
+  /* 통째로 덮어씁니다. 그쪽에 뭐가 있으면 그게 사라지니 먼저 여쭤봅니다.
+     되돌릴 방법이 없는 자리입니다. */
+  const copyTo = (target) => {
+    const 있던것 = ((st.callPlan || {})[target] || []).length;
+    const 옮길것 = ((st.callPlan || {})[dow] || []).length;
+    if (!옮길것) { say(`${DOW_KR[Number(dow)]}요일에 옮길 것이 없어요`); return false; }
+    if (있던것 && !confirm(
+      `${DOW_KR[Number(target)]}요일에 이미 ${있던것}개가 있습니다.\n\n`
+      + `그것을 지우고 ${DOW_KR[Number(dow)]}요일 ${옮길것}개로 바꿀까요?\n`
+      + `되돌릴 수 없습니다.`)) return false;
+    setSt((sv) => {
+      const plan = { ...(sv.callPlan || {}) };
+      plan[target] = (plan[dow] || []).map((r) => ({ ...r, id: uid("cl") }));
+      return { ...sv, callPlan: plan };
+    });
+    return true;
+  };
 
   /* 말로 넣기 — 칸을 하나씩 채우는 것보다 말이 빠릅니다.
      다만 반복 일정은 건드리지 않습니다. 그날 것만 더합니다. */
@@ -7062,22 +7074,6 @@ function CallScreen() {
               ))}
             </div>
           )}
-          {/* 피아노가 월·수·금이면 세 번 넣게 하지 않습니다.
-              여기서 같이 고르면 한 번에 들어갑니다. */}
-          <div className="flex items-center gap-1.5" style={{ marginBottom: 10, flexWrap: "wrap" }}>
-            <span style={{ fontSize: 12, color: C.ink3, marginRight: 2 }}>이 요일에도</span>
-            {["1", "2", "3", "4", "5"].filter((d) => d !== dow).map((d) => {
-              const on = alsoDows.includes(d);
-              return (
-                <button key={d} className="press" onClick={() => setAlsoDows((v) => on ? v.filter((x) => x !== d) : v.concat(d))}
-                  style={{ padding: "5px 11px", borderRadius: 999, fontSize: 12, fontWeight: on ? 600 : 400,
-                           border: `1px solid ${on ? C.moss : C.line}`,
-                           background: on ? C.mossSoft : "transparent", color: on ? C.moss : C.ink3 }}>
-                  {DOW_KR[Number(d)]}
-                </button>
-              );
-            })}
-          </div>
           <div className="flex gap-1.5" style={{ marginBottom: 10 }}>
             {[["sked", "일정"], ["med", "약"], ["bag", "준비물"]].map(([k, lab]) => (
               <button key={k} className="press" onClick={() => setKind(k)}
@@ -7110,6 +7106,29 @@ function CallScreen() {
                 <button className="press" onClick={add}
                   style={{ flexShrink: 0, padding: "0 16px", borderRadius: 12, background: C.moss, color: "#fff", border: "none", fontSize: 14, fontWeight: 600 }}>넣기</button>
               </div>
+              {/* 이 줄은 "지금 넣는 것"에만 붙습니다. 이미 들어 있는 줄을 다른 요일로
+                  보내는 것은 아래 "그대로 옮기기"입니다. 위에 떨어뜨려 놨더니
+                  이미 있는 것도 같이 가는 줄 아셨습니다. 넣기 바로 밑으로 내렸습니다. */}
+              <div className="flex items-center gap-1.5" style={{ marginTop: 10, flexWrap: "wrap" }}>
+                <span style={{ fontSize: 12, color: C.ink3, marginRight: 2 }}>지금 넣는 것을 이 요일에도</span>
+                {["1", "2", "3", "4", "5"].filter((d) => d !== dow).map((d) => {
+                  const on = alsoDows.includes(d);
+                  return (
+                    <button key={d} className="press" onClick={() => setAlsoDows((v) => on ? v.filter((x) => x !== d) : v.concat(d))}
+                      style={{ padding: "5px 11px", borderRadius: 999, fontSize: 12, fontWeight: on ? 600 : 400,
+                               border: `1px solid ${on ? C.moss : C.line}`,
+                               background: on ? C.mossSoft : "transparent", color: on ? C.moss : C.ink3 }}>
+                      {DOW_KR[Number(d)]}
+                    </button>
+                  );
+                })}
+              </div>
+              {!!alsoDows.length && (
+                <p style={{ fontSize: 11.5, color: C.moss, marginTop: 6, lineHeight: 1.7 }}>
+                  넣기를 누르면 <b>{[dow, ...alsoDows].map((d) => DOW_KR[Number(d)]).join("·")}요일</b>에 들어갑니다.
+                  이미 들어 있는 {rows.length}개는 안 따라갑니다 — 그건 아래 <b>그대로 옮기기</b>예요.
+                </p>
+              )}
               <button className="press flex items-center gap-2" onClick={() => setAlert((v) => !v)}
                 style={{ marginTop: 10, background: "transparent", border: "none", padding: 0, textAlign: "left" }}>
                 <span style={{ width: 15, height: 15, borderRadius: 4, flexShrink: 0,
@@ -7197,9 +7216,13 @@ function CallScreen() {
 
         {rows.length > 0 && (
           <div className="flex items-center gap-1.5" style={{ marginTop: 12, flexWrap: "wrap" }}>
-            <span style={{ fontSize: 11.5, color: C.ink3 }}>이 요일을 그대로 복사 →</span>
+            <span style={{ fontSize: 11.5, color: C.ink3 }}>
+              여기 <b style={{ color: C.ink2 }}>{rows.length}개</b>를 그대로 옮기기 →</span>
             {["1", "2", "3", "4", "5"].filter((d) => d !== dow).map((d) => (
-              <button key={d} className="press" onClick={() => { copyTo(d); setDow(d); say(`${DOW_KR[Number(d)]}요일에 복사했습니다`); }}
+              <button key={d} className="press" onClick={() => {
+                if (!copyTo(d)) return;
+                setDow(d); say(`${DOW_KR[Number(d)]}요일에 ${rows.length}개 넣었습니다`);
+              }}
                 style={{ padding: "5px 11px", borderRadius: 999, border: `1px solid ${C.line}`, background: "transparent", fontSize: 11.5, color: C.ink2 }}>
                 {DOW_KR[Number(d)]}
               </button>
