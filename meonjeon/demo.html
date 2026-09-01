@@ -1266,6 +1266,20 @@ function nextCallDay(st, now) {
   return startOfDay(t < cut.getTime() ? t : t + DAY);
 }
 
+/* 고른 요일이 다음에 오는 날짜.
+   미리보기가 늘 "내일"에 못 박혀 있어서, 월요일을 고쳐도 화면이 안 움직였습니다.
+   오늘이 화요일이면 내일은 수요일이고, 수요일이 비어 있으니까요.
+   base(보통 nextCallDay)와 요일이 같으면 그날을 그대로 씁니다. */
+function dayForDow(dow, base) {
+  const from = startOfDay(base || Date.now());
+  const want = Number(dow);
+  for (let i = 0; i < 7; i++) {
+    const d = from + i * DAY;
+    if (new Date(d).getDay() === want) return d;
+  }
+  return from;
+}
+
 /* 그날 어른께 갈 줄들. 요일 반복에서 가져와 그날 것만 더하고 뺍니다 */
 function callItemsFor(st, when) {
   const day = startOfDay(when || Date.now());
@@ -2013,7 +2027,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-cb";
+const BUILD = "0901-cc";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -6091,7 +6105,9 @@ function CarDates() {
    요일별로 한 번 넣어두면 앱이 매일 아침 대신 읽어드립니다. */
 function CallScreen() {
   const { st, setSt, say, setTab, log } = use();
-  const [dow, setDow] = useState(String(new Date().getDay() || 1));
+  /* 앱을 열면 다음 전화 날의 요일부터 보입니다 — 예전과 같은 화면입니다.
+     요일을 바꾸면 미리보기도 따라갑니다. */
+  const [dow, setDow] = useState(String(new Date(nextCallDay(st)).getDay() || 1));
   const [time, setTime] = useState("");
   const [what, setWhat] = useState("");
   const [kind, setKind] = useState("sked");   /* sked 일정 · med 약 · bag 준비물 */
@@ -6103,8 +6119,13 @@ function CallScreen() {
   const rows = ((st.callPlan || {})[dow] || []).slice()
     .map((r) => ({ ...r, what: callSpace(r.what) }))
     .sort((a, b) => String(a.time || "").localeCompare(String(b.time || "")));
-  const day = nextCallDay(st);
+  const 다음전화 = nextCallDay(st);
+  const day = dayForDow(dow, 다음전화);
   const tomorrow = day > todayKey();
+  /* 무슨 날을 보고 있는지 제목에 그대로 씁니다 */
+  const dayLabel = day === todayKey() ? "오늘"
+    : day === todayKey() + DAY ? "내일"
+    : `다음 ${DOW_KR[Number(dow)]}요일`;
   const byApp = elderByApp(st);
   const batches = callBatches(st, day).map((b) => {
     if (b.app) {
@@ -6467,10 +6488,10 @@ function CallScreen() {
       </Section>
 
 
-      <Section eyebrow="CALL-03" title={tomorrow ? "내일 이렇게 나갑니다" : "오늘 이렇게 나갑니다"}>
+      <Section eyebrow="CALL-03" title={`${dayLabel}(${DOW_KR[new Date(day).getDay()]}) 이렇게 나갑니다`}>
         {((st.callToday || {})[day] || {}).off && (
           <div style={{ marginBottom: 12, background: C.persimSoft, borderRadius: 12, padding: "13px 15px", fontSize: 13, color: C.persim, lineHeight: 1.75 }}>
-            <b>{tomorrow ? "내일" : "오늘"}은 쉬는 날로 해두셨습니다.</b> 아무것도 안 나갑니다.
+            <b>{dayLabel}은 쉬는 날로 해두셨습니다.</b> 아무것도 안 나갑니다.
             <button className="press" onClick={() => setSt((sv) => {
               const t = { ...(sv.callToday || {}) }; t[day] = { ...(t[day] || {}), off: false };
               return { ...sv, callToday: t };
@@ -6519,7 +6540,7 @@ function CallScreen() {
             </div>
           </>
         ) : (
-          <p style={{ fontSize: 13, color: C.ink3 }}>{tomorrow ? "내일" : "오늘"}({DOW_KR[new Date(day).getDay()]}요일)은 넣어둔 것이 없어서 전화가 나가지 않습니다.</p>
+          <p style={{ fontSize: 13, color: C.ink3 }}>{dayLabel}({DOW_KR[new Date(day).getDay()]}요일)은 넣어둔 것이 없어서 전화가 나가지 않습니다.</p>
         )}
         {/* 무엇이 나가는지 본 그 자리에서 바로 끄고 켭니다.
             설정까지 들어가서 끄게 하면 안 끕니다. */}
