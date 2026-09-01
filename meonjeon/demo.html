@@ -1284,6 +1284,31 @@ function callItemsFor(st, when) {
     .slice(0, CALL_MAX);
 }
 
+/* 시각을 사람이 쓰는 대로 받습니다. "1430"을 안 받아서
+   넣기가 안 눌리고, 왜 안 되는지도 안 알려주고 있었습니다. */
+function toTime(v) {
+  const raw = String(v || "").trim();
+  if (!raw) return "";
+  let m = /^(\d{1,2})\s*[:.시\s-]\s*(\d{1,2})\s*분?$/.exec(raw);
+  if (!m) {
+    const d = raw.replace(/\D/g, "");
+    if (d.length === 4) m = [null, d.slice(0, 2), d.slice(2)];
+    else if (d.length === 3) m = [null, d.slice(0, 1), d.slice(1)];
+    else if (d.length === 1 || d.length === 2) m = [null, d, "00"];
+    else return "";
+  }
+  const h = Number(m[1]), mi = Number(m[2]);
+  if (!(h >= 0 && h <= 23 && mi >= 0 && mi <= 59)) return "";
+  return `${String(h).padStart(2, "0")}:${String(mi).padStart(2, "0")}`;
+}
+
+/* "피아노데려다주기"가 그대로 읽혀서 어른이 한 덩어리로 들으십니다 */
+function callSpace(w) {
+  return String(w || "").replace(
+    /^(.+?)\s*(데려다주기|데리러\s*가기|데려오기|하원하기|등원하기|하교하기)$/,
+    (_, a, b) => `${a.trim()} ${b.replace(/\s+/g, " ")}`);
+}
+
 /* 어른께 나갈 말은 명사로 끝나야 합니다.
    "소아과 진료 있어요"가 그대로 들어와서
    "오후 3시 소아과 진료 있어요입니다"가 나가고 있었습니다. */
@@ -1291,7 +1316,7 @@ const CALL_TAIL = /\s*(있어요|있습니다|있음|이에요|예요|에요|입
 function callWhat(s) {
   let w = String(s || "").trim().slice(0, 40);
   for (let i = 0; i < 3 && CALL_TAIL.test(w); i++) w = w.replace(CALL_TAIL, "").trim();
-  return w;
+  return callSpace(w);
 }
 /* 같은 것을 두 번 말씀하셨는지 보는 열쇠 */
 const callKey = (r) => `${r.kid || ""}|${r.kind || "sked"}|${callWhat(r.what)}`;
@@ -1981,7 +2006,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-by";
+const BUILD = "0901-bz";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -3080,8 +3105,9 @@ function Onboarding({ preview }) {
               </div>
             ))}
             <div className="flex gap-2" style={{ marginTop: 12 }}>
-              <input style={{ ...inp, width: 82, flexShrink: 0 }} placeholder="15:20 (꼭)" value={time}
-                onChange={(e) => setTime(e.target.value.slice(0, 5))} />
+              <input style={{ ...inp, width: 82, flexShrink: 0 }} placeholder="1430 (꼭)" value={time}
+                onChange={(e) => setTime(e.target.value.slice(0, 8))}
+                onBlur={() => setTime((v) => toTime(v) || v)} />
               <input style={inp} placeholder="태권도 데려다주기" value={what}
                 onChange={(e) => setWhat(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addRow(); }} />
               <button className="press" onClick={addRow}
@@ -4569,14 +4595,14 @@ ${CALL_SPLIT(st, todayStr())}
       setSt((sv) => {
         const rows = callRows.map((x) => ({
           id: uid("cl"),
-          time: /^\d{1,2}:\d{2}$/.test(String(x.time || "")) ? x.time : "",
+          time: toTime(x.time),
           what: callWhat(x.what),
           kind: ["sked", "med", "bag"].includes(x.kind) ? x.kind : "sked",
           kid: ((sv.children || []).find((k) => k.name && k.name === String(x.who || "")) || {}).id
                || ((sv.children || []).length === 1 ? (sv.children[0] || {}).id : ""),
           /* 여기서 false로 못박고 있었습니다. 그래서 "내일 3시 소아과"가
              아침 통에 묻히고, 정작 세 시 전에는 아무 전화도 안 갔습니다. */
-          alert: !!x.alert && /^\d{1,2}:\d{2}$/.test(String(x.time || "")),
+          alert: !!x.alert && !!toTime(x.time),
         })).filter((r) => r.what);
         return { ...sv, callToday: callMerge(sv, cday, rows), callOn: true };
       });
@@ -6109,8 +6135,11 @@ function CallScreen() {
     /* 시각 없는 일정은 어른께 "태권도"라고만 읽힙니다. 언제인지 모르십니다.
        준비물은 시각이 필요 없으니 일정에만 막습니다.
        */
-    if (kind === "sked" && !/^\d{1,2}:\d{2}$/.test(time.trim())) {
-      say("몇 시인지 같이 넣어주세요. 시각이 없으면 어른이 언제인지 모르십니다");
+    const t = toTime(time);
+    if (kind === "sked" && !t) {
+      say(time.trim()
+        ? `"${time.trim()}"을 시각으로 못 읽었어요. 1430 이나 14:30 처럼 넣어주세요`
+        : "몇 시인지 같이 넣어주세요. 시각이 없으면 어른이 언제인지 모르십니다");
       return;
     }
     const 넣을요일 = [...new Set([dow, ...alsoDows])];
@@ -6118,8 +6147,8 @@ function CallScreen() {
       const plan = { ...(sv.callPlan || {}) };
       넣을요일.forEach((d) => {
         plan[d] = (plan[d] || []).concat([{
-          id: uid("cl"), time: kind === "bag" ? "" : time.trim(),
-          what: w.slice(0, 30), kind, kid, alert: kind === "sked" ? !!alert : false }]);
+          id: uid("cl"), time: kind === "bag" ? "" : t,
+          what: callSpace(w.slice(0, 30)), kind, kid, alert: kind === "sked" ? !!alert : false }]);
       });
       return { ...sv, callPlan: plan, callOn: true };
     });
@@ -6188,8 +6217,9 @@ function CallScreen() {
         </div>
         <div className="flex items-center gap-2.5" style={{ marginTop: 10 }}>
           <span style={{ fontSize: 13, color: C.ink2, flexShrink: 0 }}>전화 나가는 시각</span>
-          <input style={{ ...inp, width: 110 }} placeholder="07:50" value={st.callAt || ""}
-            onChange={(e) => setSt((sv) => ({ ...sv, callAt: e.target.value.slice(0, 5) }))} />
+          <input style={{ ...inp, width: 110 }} placeholder="0750 또는 07:50" value={st.callAt || ""}
+            onChange={(e) => setSt((sv) => ({ ...sv, callAt: e.target.value.slice(0, 8) }))}
+            onBlur={(e) => setSt((sv) => ({ ...sv, callAt: toTime(e.target.value) || sv.callAt }))} />
         </div>
         <div style={{ marginTop: 12, background: C.bgSoft || C.bg, border: `1px solid ${C.line}`, borderRadius: 12, padding: "12px 13px", fontSize: 12.5, color: C.ink2, lineHeight: 1.75 }}>
           ⚠ <b>어른 폰에 이 번호를 저장해드려야 합니다.</b> 모르는 번호로 뜨면 어른들은 안 받으십니다.
@@ -6298,8 +6328,9 @@ function CallScreen() {
                 ))}
               </div>
               <div className="flex gap-2">
-                <input style={{ ...inp, width: 82, flexShrink: 0 }} placeholder="15:20" value={time}
-                  onChange={(e) => setTime(e.target.value.slice(0, 5))} />
+                <input style={{ ...inp, width: 82, flexShrink: 0 }} placeholder="1430 또는 14:30" value={time}
+                  onChange={(e) => setTime(e.target.value.slice(0, 8))}
+                  onBlur={() => setTime((v) => toTime(v) || v)} />
                 <input style={inp} placeholder="태권도 데려다주기" value={what}
                   onChange={(e) => setWhat(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") add(); }} />
                 <button className="press" onClick={add}
@@ -6701,7 +6732,8 @@ function Settings() {
             <div className="flex items-center gap-2.5" style={{ marginTop: 10 }}>
               <span style={{ fontSize: 13, color: C.ink2, flexShrink: 0 }}>아침 시각</span>
               <input style={{ ...inp, width: 110 }} value={d.callAt || "07:50"}
-                onChange={(e) => setD((v) => ({ ...v, callAt: e.target.value.slice(0, 5) }))} />
+                onChange={(e) => setD((v) => ({ ...v, callAt: e.target.value.slice(0, 8) }))}
+                onBlur={(e) => setD((v) => ({ ...v, callAt: toTime(e.target.value) || v.callAt }))} />
             </div>
           )}
           <button className="press flex items-center gap-2" onClick={() => setD((v) => ({ ...v, callOn: !v.callOn }))}
