@@ -119,6 +119,9 @@ export default async function handler(req, res) {
       if (at == null) continue;
       if (at > min || at < min - WINDOW) continue;      /* 아직 이르거나, 너무 지났거나 */
       if (!String(it.text || "").trim()) continue;
+      /* 앱 알림으로 고른 것은 전화도 문자도 아닙니다.
+         부모 푸시와 같은 길로 가야 해서 여기서는 건너뜁니다. */
+      if (it.app) continue;
       보낼것.push({ hh: h.id, code: h.code, to, it });
     }
   }

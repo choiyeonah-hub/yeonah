@@ -127,7 +127,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0901-bo';
+const GATE_BUILD = '0901-bp';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#9DB5AF;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1539,10 +1539,15 @@ function callBatches(st, when) {
   const way = (b2) => {
     const w = b2.rows.map((r) => r.way).filter(Boolean);
     if (w.includes("call")) return "call";                     /* 하나라도 꼭 전화면 전화 */
-    if (w.length === b2.rows.length && w.every((x) => x === "sms")) return "sms";
+    if (!w.length || w.length !== b2.rows.length) return "auto";
+    if (w.every((x) => x === "sms")) return "sms";
+    if (w.every((x) => x === "app")) return "app";
     return "auto";
   };
   const 고정전화 = out.filter((b2) => way(b2) === "call");
+  /* 앱으로 고른 것은 값이 안 듭니다. 다만 어른이 앱을 안 보시면
+     조용히 안 갑니다 — 그래서 기본값이 아니라 부모가 눌러서 고르는 것입니다. */
+  const 고정앱 = new Set(out.filter((b2) => way(b2) === "app"));
   const 고정문자 = new Set(out.filter((b2) => way(b2) === "sms"));
   const 나머지 = out.filter((b2) => way(b2) === "auto");
 
@@ -1551,7 +1556,10 @@ function callBatches(st, when) {
   left -= 고정전화.length;                                      /* 꼭 전화가 예산을 먼저 먹습니다 */
   나머지.filter((b2) => b2.must).forEach((b2) => { if (left > 0) { 전화.add(b2); left--; } });
   나머지.filter((b2) => !b2.must).forEach((b2) => { if (left > 0) { 전화.add(b2); left--; } });
-  return out.map((b2) => (전화.has(b2) && !고정문자.has(b2) ? b2 : { ...b2, sms: true }));
+  return out.map((b2) =>
+    고정앱.has(b2) ? { ...b2, app: true }
+    : 전화.has(b2) && !고정문자.has(b2) ? b2
+    : { ...b2, sms: true });
 }
 
 /* 오늘과 내일 나갈 말을 미리 구워둡니다.
@@ -1571,9 +1579,9 @@ function bakeOutbox(st) {
          "안 보낸 통"이 되고, 09:00에 한 번 더 나갑니다.
          시각과 차례로만 만듭니다 — 고치면 아직 안 나간 통에만 반영되고,
          이미 나간 통은 그대로 둡니다. 나간 말을 되돌릴 수는 없으니까요. */
-      id: `${b.at}-${b.sms ? "s" : "c"}-${i}`,
-      at: b.at, sms: !!b.sms,
-      text: b.sms ? smsText(st, when, b.rows) : callScript(st, when, b.rows),
+      id: `${b.at}-${b.app ? "a" : b.sms ? "s" : "c"}-${i}`,
+      at: b.at, sms: !!b.sms, app: !!b.app,
+      text: (b.sms || b.app) ? smsText(st, when, b.rows) : callScript(st, when, b.rows),
     }));
   });
   return box;
@@ -1987,7 +1995,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-bo";
+const BUILD = "0901-bp";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -4745,8 +4753,11 @@ function Home() {
                   : `${callTomorrow ? "내일" : "오늘"}은 넣어둔 것이 없어서 전화가 나가지 않아요.`)
               : (remain > 0 ? `나머지 ${remain}개는 제가 기억하고 있을게요.` : "지금은 급한 게 없어요.")}
           </div>
-          <button className="press" onClick={() => setTab("speak")}
-            style={{ width: "100%", marginTop: 17, background: "#fff", color: C.ink, border: "none", borderRadius: R.md, padding: "15px 0", fontSize: 14.5, fontWeight: 600 }}>생각나는 거 말하기</button>
+          {/* "생각나는 거 말하기" 버튼이 여기 있었습니다.
+              아래 말하기 탭이 같은 일을 하니 자리가 둘이었고,
+              자리가 둘이면 부모가 "어디로 가지"를 매번 정해야 합니다.
+              오늘 탭은 이제 부모가 오늘 챙길 것만 봅니다 —
+              준비물 담기, 약봉투 담기 같은 것. 말하는 건 말하기 탭에서. */}
         </div>
       </div>
 
@@ -4929,6 +4940,8 @@ function Speak() {
   const fileRef = useRef(null);
   const [note, setNote] = useState("");
   const [failed, setFailed] = useState(false);
+  /* 방금 어른께 넣은 것 — 결과 화면에서 바로 빼실 수 있게 */
+  const [justCall, setJustCall] = useState(null);
   const [ex, setEx] = useState(0);
   const [edit, setEdit] = useState(null);
   /* 공유하기로 들어온 글인지. 결과 화면에서 "몇 번째인지"를 말해주려고 들고 있습니다 */
@@ -5196,7 +5209,9 @@ ${CALL_SPLIT(st, todayStr())}
       });
       const lab = ((st.elders || [])[0] || {}).label || "어른";
       const when = nextCallDay(st) > todayKey() ? "내일" : "오늘";
-      say(`${when} ${lab}께 갈 것 ${callRows.length}개를 넣었어요`);
+      /* 결과 화면에 보여주려고 들고 있습니다. 넣어놓고 안 보여주면
+         부모가 "어른께 뭐가 갔지"를 전하기 탭까지 들어가서 확인해야 합니다. */
+      setJustCall({ day: cday, when, label: lab, ids: callRows.map(() => null) });
       log("talk_to_call", { n: callRows.length });
     }
     /* 실패했을 때 "두부 소진 · 휴지 구매"를 지어내 보여주던 자리입니다.
@@ -5326,6 +5341,41 @@ ${CALL_SPLIT(st, todayStr())}
         <p style={{ fontSize: 13.5, color: C.ink2, marginTop: 7, lineHeight: 1.65 }}>
           {answer ? "괜찮으면 아래에서 필요한 일만 담으세요." : "담으면 가족 모두에게 보이고, 담당자를 나눌 수 있어요."}
         </p>
+        {/* 어른께 간 것을 안 보여주면 부모가 전하기 탭까지 들어가 확인해야 합니다.
+            여기서 바로 보고 바로 뺄 수 있어야 합니다. */}
+        {justCall && (() => {
+          const rows = ((st.callToday || {})[justCall.day] || {}).add || [];
+          if (!rows.length) return null;
+          return (
+            <Card style={{ marginTop: 14, borderColor: C.moss }}>
+              <div style={{ padding: "14px 16px" }}>
+                <div style={{ fontSize: 13.5, fontWeight: 600, color: C.moss, marginBottom: 9 }}>
+                  ☏ {justCall.when} {justCall.label}께 이렇게 갑니다
+                </div>
+                {rows.map((r) => (
+                  <div key={r.id} className="flex items-center justify-between" style={{ padding: "7px 0", borderTop: `1px solid ${C.lineSoft}` }}>
+                    <span style={{ fontSize: 13.5, color: C.ink }}>
+                      <b className="mono" style={{ fontSize: 11.5, color: C.moss, marginRight: 7, fontWeight: 500 }}>
+                        {r.kind === "bag" ? "가방" : r.kind === "med" ? "약" : (r.time || "—")}
+                      </b>
+                      {r.what}
+                    </span>
+                    <button className="press" onClick={() => setSt((sv) => {
+                      const t = { ...(sv.callToday || {}) };
+                      const cur = t[justCall.day] || {};
+                      t[justCall.day] = { ...cur, add: (cur.add || []).filter((x) => x.id !== r.id) };
+                      return { ...sv, callToday: t };
+                    })} style={{ background: "transparent", border: "none", color: C.ink3, fontSize: 12 }}>빼기</button>
+                  </div>
+                ))}
+                <button className="press" onClick={() => setTab("call")}
+                  style={{ marginTop: 11, background: "transparent", border: `1px solid ${C.line}`, borderRadius: 999, padding: "7px 14px", fontSize: 12.5, color: C.ink2 }}>
+                  시각·말투 고치기
+                </button>
+              </div>
+            </Card>
+          );
+        })()}
         {failed && <div style={{ marginTop: 12, background: C.sunSoft, color: C.sun, borderRadius: 12, padding: "11px 13px", fontSize: 12.5, lineHeight: 1.7 }}>
           {typeof failed === "string" ? failed : "이번엔 못 알아들었어요."} 아무것도 담지 않았습니다 — 횟수도 안 깎였어요.
           시각과 무엇을 하실지 같이 말씀해 보세요. 예: “내일 3시 소아과”
@@ -6530,6 +6580,11 @@ function CallScreen() {
   const tomorrow = day > todayKey();
   const byApp = elderByApp(st);
   const batches = callBatches(st, day).map((b) => {
+    if (b.app) {
+      /* 앱 알림은 값이 안 듭니다. 대신 어른이 앱을 안 보시면 조용히 안 갑니다 */
+      const text = smsText(st, day, b.rows);
+      return { ...b, text, cost: { sec: 0, won: 0, bytes: 0 } };
+    }
     if (b.sms) {
       const text = smsText(st, day, b.rows);
       const c = smsCost(text);
@@ -6540,8 +6595,9 @@ function CallScreen() {
   });
   const dayWon = batches.reduce((a, b) => a + b.cost.won, 0);
   const dropped = callDropped(st, day);
-  const callN = batches.filter((b) => !b.sms).length;
+  const callN = batches.filter((b) => !b.sms && !b.app).length;
   const smsN = batches.filter((b) => b.sms).length;
+  const appN = batches.filter((b) => b.app).length;
 
   const setElder = (k, v) => setSt((sv) => {
     const list = (sv.elders || []).slice();
@@ -6549,6 +6605,10 @@ function CallScreen() {
     list[0] = { ...cur, [k]: v };
     return { ...sv, elders: list };
   });
+
+  /* 넣을 때 고른 요일들. 비어 있으면 지금 보고 있는 요일에만 넣습니다.
+     피아노가 월·수·금이면 세 번 넣게 하지 않습니다. */
+  const [alsoDows, setAlsoDows] = useState([]);
 
   const add = () => {
     const w = what.trim();
@@ -6561,29 +6621,34 @@ function CallScreen() {
       say("몇 시인지 같이 넣어주세요. 시각이 없으면 어른이 언제인지 모르십니다");
       return;
     }
+    const 넣을요일 = [...new Set([dow, ...alsoDows])];
     setSt((sv) => {
       const plan = { ...(sv.callPlan || {}) };
-      plan[dow] = (plan[dow] || []).concat([{
-        id: uid("cl"), time: kind === "bag" ? "" : time.trim(),
-        what: w.slice(0, 30), kind, kid, alert: kind === "sked" ? !!alert : false }]);
+      넣을요일.forEach((d) => {
+        plan[d] = (plan[d] || []).concat([{
+          id: uid("cl"), time: kind === "bag" ? "" : time.trim(),
+          what: w.slice(0, 30), kind, kid, alert: kind === "sked" ? !!alert : false }]);
+      });
       return { ...sv, callPlan: plan, callOn: true };
     });
-    setTime(""); setWhat(""); setAlert(false);
-    log("call_plan_add", { dow, kind });
+    setTime(""); setWhat(""); setAlert(false); setAlsoDows([]);
+    if (넣을요일.length > 1) say(`${넣을요일.map((d) => DOW_KR[Number(d)]).join("·")}요일에 넣었어요`);
+    log("call_plan_add", { dow, kind, n: 넣을요일.length });
   };
   /* 약은 이름만 적고 마는 일이 많습니다. 때·용량을 따로 받습니다 */
   const addMed = () => {
     /* 약봉투는 이름을 안 받습니다 — 그게 이 선택지의 뜻입니다 */
     if (med.how !== MED_BAG && !med.name.trim()) return;
     const line = medLine({ ...med, name: med.name.trim() });
+    const 넣을요일 = [...new Set([dow, ...alsoDows])];
     setSt((sv) => {
       const plan = { ...(sv.callPlan || {}) };
-      plan[dow] = (plan[dow] || []).concat([{
+      넣을요일.forEach((d) => { plan[d] = (plan[d] || []).concat([{
         id: uid("cl"), time: med.when === "정한 시각에" ? time.trim() : "",
         what: line.slice(0, 40), kind: "med", kid,
         /* 시각을 정한 약(안약·연고)만 그 시각에 따로 겁니다 */
         /* 시각을 정한 약(안약·연고)은 놓치면 안 되니 두 번 울립니다 */
-        alert: med.when === "정한 시각에" && !!time.trim() }]);
+        alert: med.when === "정한 시각에" && !!time.trim() }]); });
       return { ...sv, callPlan: plan, callOn: true };
     });
     setMed({ when: MED_WHEN[0], name: "", dose: "", how: MED_HOW[0] });
@@ -6594,7 +6659,7 @@ function CallScreen() {
   const setWay = (id) => setSt((sv) => {
     const plan = { ...(sv.callPlan || {}) };
     plan[dow] = (plan[dow] || []).map((r) => r.id !== id ? r
-      : { ...r, way: r.way === "call" ? "sms" : r.way === "sms" ? "" : "call" });
+      : { ...r, way: r.way === "call" ? "sms" : r.way === "sms" ? "app" : r.way === "app" ? "" : "call" });
     return { ...sv, callPlan: plan };
   });
 
@@ -6680,8 +6745,8 @@ function CallScreen() {
                 기본은 "알아서" — 앱이 그날 형편대로 정합니다. */}
             <button className="press" onClick={() => setWay(r.id)}
               style={{ background: "transparent", border: "none", flexShrink: 0, padding: "0 8px",
-                       fontSize: 11, color: r.way === "call" ? C.moss : r.way === "sms" ? C.sun : C.ink3 }}>
-              {r.way === "call" ? "전화" : r.way === "sms" ? "문자" : "알아서"}
+                       fontSize: 11, color: r.way === "call" ? C.moss : r.way === "sms" ? C.sun : r.way === "app" ? C.sea : C.ink3 }}>
+              {r.way === "call" ? "전화" : r.way === "sms" ? "문자" : r.way === "app" ? "앱" : "알아서"}
             </button>
             <button className="press" onClick={() => del(r.id)}
               style={{ background: "transparent", border: "none", color: C.ink3, fontSize: 12, flexShrink: 0 }}>빼기</button>
@@ -6701,6 +6766,22 @@ function CallScreen() {
               ))}
             </div>
           )}
+          {/* 피아노가 월·수·금이면 세 번 넣게 하지 않습니다.
+              여기서 같이 고르면 한 번에 들어갑니다. */}
+          <div className="flex items-center gap-1.5" style={{ marginBottom: 10, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 12, color: C.ink3, marginRight: 2 }}>이 요일에도</span>
+            {["1", "2", "3", "4", "5"].filter((d) => d !== dow).map((d) => {
+              const on = alsoDows.includes(d);
+              return (
+                <button key={d} className="press" onClick={() => setAlsoDows((v) => on ? v.filter((x) => x !== d) : v.concat(d))}
+                  style={{ padding: "5px 11px", borderRadius: 999, fontSize: 12, fontWeight: on ? 600 : 400,
+                           border: `1px solid ${on ? C.moss : C.line}`,
+                           background: on ? C.mossSoft : "transparent", color: on ? C.moss : C.ink3 }}>
+                  {DOW_KR[Number(d)]}
+                </button>
+              );
+            })}
+          </div>
           <div className="flex gap-1.5" style={{ marginBottom: 10 }}>
             {[["sked", "일정"], ["med", "약"], ["bag", "준비물"]].map(([k, lab]) => (
               <button key={k} className="press" onClick={() => setKind(k)}
@@ -6831,11 +6912,11 @@ function CallScreen() {
           <>
             {batches.map((b, i) => (
               <div key={i} style={{ marginTop: i ? 10 : 0 }}>
-                <div className="mono" style={{ fontSize: 11, color: b.sms ? C.sun : C.moss, marginBottom: 5 }}>
-                  {b.at} · {b.kind}{b.sms ? " · 문자" : " · 전화"}
+                <div className="mono" style={{ fontSize: 11, color: b.app ? C.sea : b.sms ? C.sun : C.moss, marginBottom: 5 }}>
+                  {b.at} · {b.kind}{b.app ? " · 앱" : b.sms ? " · 문자" : " · 전화"}
                 </div>
-                <div style={{ background: C.card, border: `1px solid ${b.sms ? C.sun : C.moss}`, borderRadius: 14, padding: "14px 15px", fontSize: 14, lineHeight: 1.85, color: C.ink, whiteSpace: b.sms ? "pre-wrap" : "normal" }}>
-                  {b.sms ? b.text : `“${b.text}”`}
+                <div style={{ background: C.card, border: `1px solid ${b.app ? C.sea : b.sms ? C.sun : C.moss}`, borderRadius: 14, padding: "14px 15px", fontSize: 14, lineHeight: 1.85, color: C.ink, whiteSpace: (b.sms || b.app) ? "pre-wrap" : "normal" }}>
+                  {(b.sms || b.app) ? b.text : `“${b.text}”`}
                 </div>
                 {/* 부모에게 "기본료 220원, 348원"을 보여줄 이유가 없습니다.
                     통신사가 문자마다 22원이라고 알려주지 않는 것과 같습니다.
@@ -6847,7 +6928,7 @@ function CallScreen() {
             ))}
             <div style={{ marginTop: 14, background: C.mossSoft, borderRadius: 12, padding: "13px 15px" }}>
               <div style={{ fontSize: 13.5, fontWeight: 600, color: C.moss }}>
-                하루 {callN ? `전화 ${callN}통` : ""}{callN && smsN ? " · " : ""}{smsN ? `문자 ${smsN}통` : ""}
+                하루 {[callN && `전화 ${callN}통`, smsN && `문자 ${smsN}통`, appN && `앱 ${appN}건`].filter(Boolean).join(" · ")}
               </div>
               <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 5, lineHeight: 1.7 }}>
                 {byApp
@@ -7198,7 +7279,7 @@ function TabBar() {
   const items = [
     { id: "home", label: "오늘", icon: "◉" },
     { id: "speak", label: "말하기", icon: "✦", primary: true },
-    { id: "call", label: "전화·문자", icon: "☏" },
+    { id: "call", label: "전하기", icon: "☏" },
   ];
   return (
     <nav style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 440,
