@@ -2238,7 +2238,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-dx";
+const BUILD = "0901-dy";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -4717,8 +4717,11 @@ function Speak() {
       ...st.tasks.filter((t) => !t.done).map((t) => t.title),
       ...dueRoutines(st).map((r) => r.seed.t),
     ].slice(0, 40).join(", ");
-    /* 웹을 뒤져야 답이 되는 말인지 먼저 봅니다 */
-    const web = wantsWeb(speech) && !shots.length;
+    /* 살림 앱 때는 "체험·추천·모집" 같은 말에 웹 검색을 붙였습니다.
+       여기서 말하기는 어른께 전할 그날 일정입니다. "금요일은 체험학습이라…"에
+       검색이 붙어 AI 호출이 400으로 죽고, 어른께 갈 것이 한 줄도 안 담겼습니다.
+       검색은 한 번에 25원이고 답을 느리게 만들 뿐, 여기서 얻을 것이 없습니다. 끕니다. */
+    const web = false;
     const prompt = `당신은 한국 가정의 인지부하를 대신 기억해주는 AI 비서 '${BRAND}'입니다.
 ${web ? `사는 곳: ${String(st.region || "").trim() || (st.place && st.place.label) || "한국"}\n` : ""}
 사용자가 두서없이 말한 내용을 실행 가능한 할 일로 분해·분류하세요.

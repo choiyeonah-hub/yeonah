@@ -7,9 +7,12 @@ const MAX_IMAGES = 3;
 /* 웹 검색은 주 2회 "미리 찾아보기"에서만 켭니다. 검색 한 번마다 따로 과금되기 때문에
    말하기 정리·사진 인식에서는 절대 켜지 않습니다.
    찾는 곳도 살림에 쓸모 있는 데로 좁힙니다. 아무 데나 뒤지면 광고 글이 올라옵니다. */
+/* reddit.com·blog.naver.com 은 Anthropic 검색이 못 들어가는 곳이라 allowed_domains에
+   넣으면 요청 자체가 400으로 거절됩니다("not accessible to our user agent").
+   목록에 있는 것만으로 호출이 통째로 죽으니 넣지 않습니다. */
 const SEARCH_DOMAINS = [
-  "reddit.com", "youtube.com",
-  "blog.naver.com", "cafe.naver.com", "post.naver.com", "in.naver.com",
+  "youtube.com",
+  "cafe.naver.com", "post.naver.com", "in.naver.com",
   "brunch.co.kr", "tistory.com",
   "gov.kr", "korea.kr", "kdca.go.kr", "childcare.go.kr", "schoolinfo.go.kr",
   "seoul.go.kr", "nhis.or.kr", "familynet.or.kr",
