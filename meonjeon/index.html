@@ -127,7 +127,7 @@ function merge3(base, mine, theirs) {
 const gate = document.getElementById('gate');
 const bar  = document.getElementById('bar');
 
-const GATE_BUILD = '0901-ck';
+const GATE_BUILD = '0901-cl';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#A0A096;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -1714,6 +1714,10 @@ function CALL_SPLIT(st, today) {
   · 심부름 부탁(세탁소 찾기·택배 받아두기)은 call에 넣지 마세요.
     이 앱은 아이 일정을 전하는 곳이지 심부름을 시키는 곳이 아닙니다. items로 보내세요.
   · what은 15자 이내, ${label}이 들으실 말투로. 아이 이름은 what이 아니라 who에.
+  · **병원·치과·검진이면 why에 왜 가는지를 넣으세요.**
+    "어금니 왼쪽 아래 충치", "영유아 건강검진", "중이염 재진"처럼요.
+    ${label}이 접수대에서 "어디가 아파서 왔냐"를 물으십니다. 모르시면 진료가 안 돼요.
+    부모가 말씀하신 것만 넣으세요 — 없으면 빈 문자열로 두고, 지어내지 마세요.
   · **what은 명사로 끝내세요.** "소아과 진료"이지 "소아과 진료 있어요"가 아닙니다.
     이 말이 그대로 읽혀서, 서술어를 붙이면 "오후 3시 소아과 진료 있어요입니다"가 나갑니다.
   · 부모가 앞서 말한 것을 **고쳐 말하면 고친 것만 보내세요.**
@@ -1894,12 +1898,22 @@ function callScript(st, when, rows) {
   const 가방줄 = 가방.length
     ? ` ${가방목록}${/가방$/.test(가방목록) ? "에" : " 가방에"} 챙겨뒀어요. 현관에 두겠습니다.`
     : "";
+  /* 병원은 어른이 데려가시면 접수대에서 "어디가 아파서 왔냐"를 물으십니다.
+     부모는 회사에 있고, 어른이 모르시면 진료가 안 됩니다.
+     그래서 왜 가는지를 그 자리에서 같이 읽어드립니다. 두 개까지만 —
+     그보다 많으면 어른이 못 외우십니다. */
+  const 이유들 = list.filter((r) => r.why && String(r.why).trim()).slice(0, 2);
+  /* "소아과 데려다주기는 충치 때문이에요"는 말이 겹칩니다. 앞말만 씁니다 */
+  const 곳 = (w) => String(w || "").replace(/\s*(데려다주기|데리러\s*가기|데려오기|하원하기|등원하기|하교하기|가기)$/, "").trim() || String(w || "");
+  const 이유줄 = 이유들.length
+    ? " " + 이유들.map((r) => `${은는(곳(r.what))} ${String(r.why).trim()} 때문이에요.`).join(" ")
+    : "";
   const 곧 = list === rows && rows.length === 1 && rows[0].alert;
   const 머리 = 하나 ? `${label}, ${첫아이} ` : `${label}, `;
   const 앞 = 일정.length
     ? `${머리}${곧 ? "곧 있을 일정입니다" : "오늘 일정입니다"}. ${문장}`
     : `${머리}오늘입니다.`;
-  return `${앞}${가방줄}${confirmTail()} 끊으셔도 됩니다.`;
+  return `${앞}${이유줄}${가방줄}${confirmTail()} 끊으셔도 됩니다.`;
 }
 
 /* 약은 이름·용량·때를 따로 받습니다. 자유롭게 적게 두면
@@ -2208,7 +2222,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-ck";
+const BUILD = "0901-cl";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -5347,7 +5361,7 @@ ${web ? `
   "정리할 게 없었어요"가 잘못된 할 일 네 개보다 낫습니다.
 
 ${CALL_SPLIT(st, todayStr())}
-출력은 JSON 객체만: {"answer":"질문이 아니면 빈 문자열","offDay":false,"call":[{"kind":"sked|med|bag","time":"HH:MM","what":"…","who":"…","alert":true|false}],"plan":[{"dows":[1,3],"time":"HH:MM","what":"…","who":"…","alert":true|false}],"items":[{"title":"12자 이내","category":"...","status":"...","note":"20자 이내","event":"YYYY-MM-DD 또는 빈 문자열","lead":숫자,"when":"YYYY-MM-DD 또는 빈 문자열","newCategory":"","cycle":""}]}`;
+출력은 JSON 객체만: {"answer":"질문이 아니면 빈 문자열","offDay":false,"call":[{"kind":"sked|med|bag","time":"HH:MM","what":"…","why":"병원이면 왜 가는지, 아니면 빈 문자열","who":"…","alert":true|false}],"plan":[{"dows":[1,3],"time":"HH:MM","what":"…","who":"…","alert":true|false}],"items":[{"title":"12자 이내","category":"...","status":"...","note":"20자 이내","event":"YYYY-MM-DD 또는 빈 문자열","lead":숫자,"when":"YYYY-MM-DD 또는 빈 문자열","newCategory":"","cycle":""}]}`;
 
         /* 사진이 있으면 무엇을 읽어야 하는지 알려줍니다 */
     const shotPrompt = !shots.length ? "" : `\n\n[사진] 무언가를 알려주는 문서나 화면 캡처입니다. 다음 중 하나일 수 있습니다.
@@ -5420,6 +5434,7 @@ ${CALL_SPLIT(st, todayStr())}
           id: uid("cl"),
           time: toTime(x.time),
           what: callWhat(x.what),
+          why: String(x.why || "").trim().slice(0, 30),
           kind: ["sked", "med", "bag"].includes(x.kind) ? x.kind : "sked",
           kid: ((sv.children || []).find((k) => k.name && k.name === String(x.who || "")) || {}).id
                || ((sv.children || []).length === 1 ? (sv.children[0] || {}).id : ""),
@@ -6988,6 +7003,8 @@ function CallScreen() {
   const [dow, setDow] = useState(String(new Date(nextCallDay(st)).getDay() || 1));
   const [time, setTime] = useState("");
   const [what, setWhat] = useState("");
+  /* 병원에 왜 가는지. 어른이 접수대에서 말씀하셔야 합니다 */
+  const [why, setWhy] = useState("");
   const [kind, setKind] = useState("sked");   /* sked 일정 · med 약 · bag 준비물 */
   const [alert, setAlert] = useState(false);  /* 그 시각 30분 전과 정각, 두 번 울릴지 */
   const [med, setMed] = useState({ when: MED_WHEN[0], name: "", dose: "", how: MED_HOW[0] });
@@ -7057,11 +7074,12 @@ function CallScreen() {
       넣을요일.forEach((d) => {
         plan[d] = (plan[d] || []).concat([{
           id: uid("cl"), time: kind === "bag" ? "" : t,
-          what: callSpace(w.slice(0, 30)), kind, kid, alert: kind === "sked" ? !!alert : false }]);
+          what: callSpace(w.slice(0, 30)), kind, kid, alert: kind === "sked" ? !!alert : false,
+          why: why.trim().slice(0, 30) }]);
       });
       return { ...sv, callPlan: plan, callOn: true };
     });
-    setTime(""); setWhat(""); setAlert(false); setAlsoDows([]);
+    setTime(""); setWhat(""); setAlert(false); setAlsoDows([]); setWhy("");
     if (넣을요일.length > 1) say(`${넣을요일.map((d) => DOW_KR[Number(d)]).join("·")}요일에 넣었어요`);
     log("call_plan_add", { dow, kind, n: 넣을요일.length });
   };
@@ -7241,6 +7259,19 @@ function CallScreen() {
                 <button className="press" onClick={add}
                   style={{ flexShrink: 0, padding: "0 16px", borderRadius: 12, background: C.moss, color: "#fff", border: "none", fontSize: 14, fontWeight: 600 }}>넣기</button>
               </div>
+              {/* 병원일 때만 칸을 하나 더 엽니다. 늘 열어두면 모든 일정에
+                  칸이 하나 더 늘어나는데, 학원에는 이유를 적을 일이 없습니다. */}
+              {/^.*(병원|의원|치과|소아과|한의원|검진|보건소).*$/.test(what) && (
+                <div style={{ marginTop: 8 }}>
+                  <input style={inp} placeholder="왜 가는지 (예: 어금니 왼쪽 아래 충치)"
+                    value={why} onChange={(e) => setWhy(e.target.value.slice(0, 30))}
+                    onKeyDown={(e) => { if (e.key === "Enter") add(); }} />
+                  <p style={{ fontSize: 11.5, color: C.ink3, marginTop: 6, lineHeight: 1.7 }}>
+                    접수대에서 <b style={{ color: C.ink2 }}>어디가 아파서 왔는지</b>를 물으십니다.
+                    적어두시면 어른께 같이 읽어드립니다 — 그 자리에서 부모께 전화하지 않으셔도 되게요.
+                  </p>
+                </div>
+              )}
               {/* 이 줄은 "지금 넣는 것"에만 붙습니다. 이미 들어 있는 줄을 다른 요일로
                   보내는 것은 아래 "그대로 옮기기"입니다. 위에 떨어뜨려 놨더니
                   이미 있는 것도 같이 가는 줄 아셨습니다. 넣기 바로 밑으로 내렸습니다. */}
