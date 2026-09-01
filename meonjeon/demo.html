@@ -1196,7 +1196,10 @@ const DEFAULT_STATE = {
      그래서 넣는 일은 전부 부모 몫이고, 요일별로 한 번만 넣으면 됩니다. */
   callOn: false,
   elders: [],        /* { id, label, phone } — 이름 대신 호칭으로 부릅니다 */
-  callAt: "07:50",   /* 아침 통화를 켰을 때 나가는 시각 */
+  callAt: "07:50",
+  /* 하루에 걸 전화 수. 넘는 것은 문자로 내려갑니다.
+     한 통 285원, 문자 20원이라 이 숫자 하나가 그 집의 값을 정합니다. */
+  callMax: 2,   /* 아침 통화를 켰을 때 나가는 시각 */
   /* 아침에 한 번 몰아 알려드릴지. 기본은 끔 — 어른이 아침에 오시면
      부모가 그 자리에서 말하고 나갑니다. 부모가 먼저 나가는 집만 켭니다. */
   callMorning: false,
@@ -1229,7 +1232,12 @@ const isoDay = (s) => (s && /^\d{4}-\d{2}-\d{2}$/.test(s) ? new Date(s + "T00:00
    전화 한 통에 기본료 200원이 붙습니다. 나눠 걸수록 손해라서
    그날 것을 한 통에 다 담습니다. 한 항목이 8~10초라 대여섯 개가 한계고,
    그것보다 많으면 어른이 못 외우십니다. 그래서 여섯 개에서 끊습니다. */
-const CALL_MAX = 6;
+/* 하루에 어른께 전할 수 있는 항목 수.
+   6이던 시절에는 통마다 값이 들어서 막아둔 것이었는데,
+   이제는 넘는 것이 문자(20원)로 내려가니 그럴 이유가 없습니다.
+   아이 둘이면 하원 둘·학원 둘·하원 둘로 여섯이 그냥 차고,
+   거기에 준비물이 붙으면 하원 하나가 조용히 잘렸습니다. */
+const CALL_MAX = 12;
 /* 원가를 화면에 띄울지. 베타 동안 만드는 사람은 봐야 하고,
    부모에게는 보일 이유가 없습니다 — 통신사도 문자마다 22원이라고 안 알려줍니다.
    주소 뒤에 ?cost 를 붙이면 켜집니다. */
@@ -1255,10 +1263,26 @@ function callItemsFor(st, when) {
   const t = (st.callToday || {})[day] || {};
   const skip = t.skip || [];
   const rows = base.filter((r) => skip.indexOf(r.id) < 0).concat(t.add || []);
+  /* 시각 없는 것(준비물·먹는 약)을 뒤로 보냅니다.
+     빈 문자열이 "11:50"보다 앞서 정렬돼서, 넘칠 때 잘리는 쪽이
+     준비물이 아니라 하원이 되고 있었습니다. */
+  const key = (r) => (/^\d{1,2}:\d{2}$/.test(String(r.time || "")) ? r.time : "99:99");
   return rows
     .filter((r) => r && r.what)
-    .sort((a, b) => String(a.time || "").localeCompare(String(b.time || "")))
+    .sort((a, b) => key(a).localeCompare(key(b)))
     .slice(0, CALL_MAX);
+}
+
+/* 상한에 걸려 안 나가는 것이 있으면 부모가 알아야 합니다.
+   조용히 자르면 어른이 못 들으신 줄도 모릅니다. */
+function callDropped(st, when) {
+  const day = startOfDay(when || Date.now());
+  const dow = String(new Date(day).getDay());
+  const t = (st.callToday || {})[day] || {};
+  const skip = t.skip || [];
+  const all = ((st.callPlan || {})[dow] || []).filter((r) => skip.indexOf(r.id) < 0)
+    .concat(t.add || []).filter((r) => r && r.what);
+  return Math.max(0, all.length - CALL_MAX);
 }
 
 /* 시각을 어른이 들으시는 대로 읽습니다. "15:20"을 "십오 시"라고 하면
@@ -1305,95 +1329,67 @@ const callTime = (t) => {
 const elderByApp = (st) => (((st.elders || [])[0] || {}).how === "app");
 
 function callBatches(st, when) {
-  const all = callItemsFor(st, when);
-  if (!all.length) return [];
+  const rows = callItemsFor(st, when);
+  if (!rows.length) return [];
   const byApp = elderByApp(st);
 
-  /* ── 부탁은 전화가 아니라 문자입니다 ──────────────
-     "3시 20분 태권도"는 사실이라 기계가 읽어드려도 됩니다.
-     "세탁소 옷 좀 찾아주세요"는 부탁이라, 기계가 읽으면
-     앱이 하는 말이 아니라 며느리가 시어머니께 하는 말이 됩니다.
-     매체가 예의를 정합니다 — 부탁은 부모 이름을 달고 글로 가야 하고,
-     어른이 나중에 다시 보실 수 있어야 합니다("세탁소 몇 시까지였더라").
-     값도 훨씬 쌉니다. 전화 한 통 285원, 단문 한 통 20원 안팎.
-
-     전화 묶음과 문자 묶음을 따로 모읍니다. 섞어서 쌓으면
-     약·준비물이 문자 쪽에 얹히는 일이 생깁니다. */
-  const rows = all.filter((r) => r.kind !== "ask");
-  const sms = all.filter((r) => r.kind === "ask")
-    .map((r) => ({ at: r.time || (st.callAt || "07:50"), rows: [r], kind: "부탁", sms: true }));
-
   const out = [];
-  if (rows.length) {
-    /* 아침 통화는 기본이 아닙니다.
-       어른이 아침에 오시면 부모가 그 자리에서 브리핑하고 나갑니다.
-       그 직후에 앱이 또 전화하면 방금 들은 것을 다시 듣는 것이라 이상합니다.
+  /* 아침 통화는 기본이 아닙니다.
+     어른이 아침에 오시면 부모가 그 자리에서 브리핑하고 나갑니다.
+     그 직후에 앱이 또 전화하면 방금 들은 것을 다시 듣는 것이라 이상합니다.
 
-       진짜 문제는 아침에 모르시는 게 아니라, 오후 세 시까지 기억하시기
-       어려운 것입니다. 그래서 기본은 "그 일 30분 전"입니다.
-       아침 통화는 부모가 브리핑을 못 하고 먼저 나가는 집만 켭니다. */
-    const two = rows.filter((r) => r.alert && r.time);
-    const rest = rows.filter((r) => !(r.alert && r.time));
+     진짜 문제는 아침에 모르시는 게 아니라, 오후 세 시까지 기억하시기
+     어려운 것입니다. 그래서 기본은 "그 일 30분 전"입니다. */
+  const two = rows.filter((r) => r.alert && r.time);
+  const rest = rows.filter((r) => !(r.alert && r.time));
 
-    two.forEach((r) => {
-      out.push({ at: minus30(r.time), rows: [r], kind: "30분 전" });
-      /* 앱 알림은 값이 안 드니 정각에 한 번 더 — 30분 전은 준비하시라고,
-         정각은 지금이라고. 전화는 통마다 값이 들어 30분 전 한 번만 겁니다. */
-      if (byApp) out.push({ at: r.time, rows: [r], kind: "정각" });
-    });
-    out.sort((a2, b2) => String(a2.at).localeCompare(String(b2.at)));
+  two.forEach((r) => {
+    out.push({ at: minus30(r.time), rows: [r], kind: "30분 전", must: true });
+    /* 앱 알림은 값이 안 드니 정각에 한 번 더 */
+    if (byApp) out.push({ at: r.time, rows: [r], kind: "정각", must: true });
+  });
+  out.sort((a2, b2) => String(a2.at).localeCompare(String(b2.at)));
 
-    /* 안 켠 것(약·준비물·간식)도 어딘가에는 실려야 합니다.
-       아침 통화를 켰으면 아침에, 안 켰으면 그날 첫 통에 얹습니다.
-       통이 하나도 없으면 그것만 담아 한 통 보냅니다 — 안 그러면 아무것도 안 갑니다. */
-    if (rest.length) {
-      if (st.callMorning || !out.length) {
-        out.unshift({ at: st.callAt || "07:50", rows: rest, kind: "아침" });
-      } else {
-        out[0] = { ...out[0], rows: rest.concat(out[0].rows) };
-      }
+  /* 안 켠 것(약·준비물)도 어딘가에는 실려야 합니다 */
+  if (rest.length) {
+    if (st.callMorning || !out.length) {
+      out.unshift({ at: st.callAt || "07:50", rows: rest, kind: "아침" });
+    } else {
+      out[0] = { ...out[0], rows: rest.concat(out[0].rows) };
     }
   }
 
-  return out.concat(sms).sort((a2, b2) => String(a2.at).localeCompare(String(b2.at)));
+  /* ── 전화는 아껴 쓰는 자원입니다 ────────────────────
+     한 통 285원, 문자 20원. 열네 배 차이입니다.
+     아이가 둘이면 하원 둘·학원 둘·하원 둘로 하루 여섯 건이 되는데,
+     전부 전화로 걸면 월 37,620원이라 아무도 안 삽니다.
+
+     그래서 하루에 걸 전화 수를 정해두고, 넘는 것은 문자로 내립니다.
+     먼저 먹는 쪽은 "놓치면 되돌릴 수 없는 것"(must)이고,
+     아침 요약은 남을 때만 전화로 갑니다 — 아침엔 어른이 여유가 있고
+     글로 오면 나중에 다시 보실 수 있으니까요.
+
+     부모에게는 이걸 안 알립니다. "오늘 전화 2통 다 쓰셨어요"는
+     우리 사정이지 부모 사정이 아니고, 그걸 읽는 순간 부모 일이 하나 늡니다.
+     미리보기에 전화인지 문자인지만 보이면 됩니다. */
+  if (byApp) return out;
+  let left = Math.max(0, Number(st.callMax != null ? st.callMax : 2));
+  const must = out.filter((b2) => b2.must);
+  const soft = out.filter((b2) => !b2.must);
+  const 전화 = new Set();
+  must.forEach((b2) => { if (left > 0) { 전화.add(b2); left--; } });
+  soft.forEach((b2) => { if (left > 0) { 전화.add(b2); left--; } });
+  return out.map((b2) => (전화.has(b2) ? b2 : { ...b2, sms: true }));
 }
 
-/* 부모가 말한 것 중 "어른께 갈 것"과 "내가 챙길 것"을 갈라주는 지시문.
-   자리를 둘로 두면 부모가 어디에 말할지를 매번 정해야 합니다.
-   그건 앱이 할 일이지 부모가 할 일이 아닙니다. */
-function CALL_SPLIT(st, today) {
-  if (!st.callOn || !(st.elders || []).length) return "";
-  const label = ((st.elders || [])[0] || {}).label || "어른";
-  return `
-- **${label}께 전화로 갈 것은 call 배열에 따로 담으세요.** items에는 넣지 마세요.
-  아이를 그날 맡기시는 집이라, 부모가 "내일 3시 소아과"라고 하면
-  그건 내 할 일이 아니라 ${label}께 알려드릴 말입니다.
-  · 시각이 있는 일정은 kind "sked", time "HH:MM".
-  · 약은 kind "med", "언제 이름 용량" 순으로.
-  · 부모가 챙겨둔 준비물은 kind "bag", 물건 이름만.
-  · 심부름 부탁(세탁소 찾기·택배 받아두기)은 kind "ask", 말한 그대로 다듬지 말고.
-  · what은 15자 이내, ${label}이 들으실 말투로. 아이 이름은 what이 아니라 who에.
-  · **놓치면 되돌릴 수 없는 것은 alert를 true로 하세요.** 그러면 그 시각 30분 전에
-    따로 전화가 갑니다. 아침에 한 번 들으신 것을 오후 세 시까지 기억하시라고 할 수는 없습니다.
-    true로 할 것: 병원·진료, 하교·하원, 정해진 시각에 데려다주는 학원,
-    시각이 정해진 약(안약·연고·흡입기).
-    false로 둘 것: 먹는 약처럼 밥에 붙어 있는 것, 준비물, 부탁, 시각이 없는 것.
-    판단이 서지 않으면 true로 두세요 — 놓치는 쪽이 더 나쁩니다.
-  · 아이를 어떻게 키우라는 말(배변훈련·훈육·수면교육)은 만들지 마세요.
-  · 매주 똑같이 반복되는 것은 call에 넣지 마세요 — 그건 전화 탭에 한 번만 넣는 것입니다.
-    call은 **그날만 다른 것**입니다.
-- 예약 잡기·체육복 빨아두기·학원비 내기처럼 **부모가 직접 할 일**은 그대로 items로.
-  어른께 시킬 수 없는 것, 시켜서는 안 되는 것이 여기입니다.
-- 오늘은 ${today}입니다. 날짜가 오늘이나 내일이 아니면 call이 아니라 items로 보내세요.
-`;
-}
-
-/* 부탁 문자. 부모가 적은 말을 그대로 두고, 보내는 사람 이름만 답니다.
-   앱이 다듬으면 앱의 말투가 되고, 그 순간 부탁이 아니라 지시가 됩니다. */
-function askText(st, rows) {
+/* 전화 대신 문자로 갈 때의 글. 읽어드리는 말투를 그대로 쓰지 않습니다 —
+   "끊으셔도 됩니다"는 글에서는 뜻이 없고, 보낸 사람이 누구인지가 필요합니다. */
+function smsText(st, when, rows) {
+  const body = callScript(st, when, rows)
+    .replace(/^[^,]+,\s*/, "")            /* "어머니, " 머리말은 뺍니다 */
+    .replace(/\s*끊으셔도 됩니다\.?\s*$/, "");
   const me = (st.members || []).find((m) => m.id === (st.me || "m1"));
   const who = (me && me.name) ? me.name : "";
-  const body = (rows || []).map((r) => String(r.what || "").trim()).filter(Boolean).join("\n");
   return who ? `${body}\n- ${who}` : body;
 }
 
@@ -1435,9 +1431,7 @@ function callScript(st, when, rows) {
   const 하나 = kids.length <= 1;
   const 첫아이 = kids[0] && kids[0].name ? kids[0].name : "아이";
 
-  /* 부탁(ask)은 전화에 안 실립니다. 아래 callBatches에서 이미 걸러내지만,
-     그날 문장을 손으로 만들 때도 섞이지 않게 여기서 한 번 더 뺍니다. */
-  const 일정 = list.filter((r) => r.kind !== "bag" && r.kind !== "ask");
+  const 일정 = list.filter((r) => r.kind !== "bag");
   const 가방 = list.filter((r) => r.kind === "bag");
 
   /* ── 아이별로 묶고, 그 안에서 시간순 ────────────────
@@ -1773,7 +1767,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-bj";
+const BUILD = "0901-bk";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -4268,7 +4262,7 @@ ${web ? `
   "정리할 게 없었어요"가 잘못된 할 일 네 개보다 낫습니다.
 
 ${CALL_SPLIT(st, todayStr())}
-출력은 JSON 객체만: {"answer":"질문이 아니면 빈 문자열","call":[{"kind":"sked|med|bag|ask","time":"HH:MM","what":"…","who":"…","alert":true|false}],"items":[{"title":"12자 이내","category":"...","status":"...","note":"20자 이내","event":"YYYY-MM-DD 또는 빈 문자열","lead":숫자,"when":"YYYY-MM-DD 또는 빈 문자열","newCategory":"","cycle":""}]}`;
+출력은 JSON 객체만: {"answer":"질문이 아니면 빈 문자열","call":[{"kind":"sked|med|bag","time":"HH:MM","what":"…","who":"…","alert":true|false}],"items":[{"title":"12자 이내","category":"...","status":"...","note":"20자 이내","event":"YYYY-MM-DD 또는 빈 문자열","lead":숫자,"when":"YYYY-MM-DD 또는 빈 문자열","newCategory":"","cycle":""}]}`;
 
         /* 사진이 있으면 무엇을 읽어야 하는지 알려줍니다 */
     const shotPrompt = !shots.length ? "" : `\n\n[사진] 무언가를 알려주는 문서나 화면 캡처입니다. 다음 중 하나일 수 있습니다.
@@ -4337,7 +4331,7 @@ ${CALL_SPLIT(st, todayStr())}
           id: uid("cl"),
           time: /^\d{1,2}:\d{2}$/.test(String(x.time || "")) ? x.time : "",
           what: String(x.what).slice(0, 40),
-          kind: ["sked", "med", "bag", "ask"].includes(x.kind) ? x.kind : "sked",
+          kind: ["sked", "med", "bag"].includes(x.kind) ? x.kind : "sked",
           kid: ((sv.children || []).find((k) => k.name && k.name === String(x.who || "")) || {}).id
                || ((sv.children || []).length === 1 ? (sv.children[0] || {}).id : ""),
           /* 여기서 false로 못박고 있었습니다. 그래서 "내일 3시 소아과"가
@@ -5671,7 +5665,7 @@ function CallScreen() {
   const [dow, setDow] = useState(String(new Date().getDay() || 1));
   const [time, setTime] = useState("");
   const [what, setWhat] = useState("");
-  const [kind, setKind] = useState("sked");   /* sked 일정 · med 약 · bag 준비물 · ask 부탁 */
+  const [kind, setKind] = useState("sked");   /* sked 일정 · med 약 · bag 준비물 */
   const [alert, setAlert] = useState(false);  /* 그 시각 30분 전과 정각, 두 번 울릴지 */
   const [med, setMed] = useState({ when: MED_WHEN[0], name: "", dose: "", how: MED_HOW[0] });
   const [kid, setKid] = useState(((st.children || [])[0] || {}).id || "");
@@ -5683,7 +5677,7 @@ function CallScreen() {
   const byApp = elderByApp(st);
   const batches = callBatches(st, day).map((b) => {
     if (b.sms) {
-      const text = askText(st, b.rows);
+      const text = smsText(st, day, b.rows);
       const c = smsCost(text);
       return { ...b, text, cost: { sec: 0, won: byApp ? 0 : c.won, bytes: c.bytes, long: c.long } };
     }
@@ -5691,6 +5685,7 @@ function CallScreen() {
     return { ...b, text, cost: callCost(text, byApp) };
   });
   const dayWon = batches.reduce((a, b) => a + b.cost.won, 0);
+  const dropped = callDropped(st, day);
   const callN = batches.filter((b) => !b.sms).length;
   const smsN = batches.filter((b) => b.sms).length;
 
@@ -5707,14 +5702,9 @@ function CallScreen() {
     if (!w) return;
     /* 시각 없는 일정은 어른께 "태권도"라고만 읽힙니다. 언제인지 모르십니다.
        준비물은 시각이 필요 없으니 일정에만 막습니다.
-       부탁은 시각을 비워두시면 아침 문자에 얹습니다 — 세탁소처럼
-       "오늘 안에만" 하면 되는 것이 많아서 시각을 강요하지 않습니다. */
+       */
     if (kind === "sked" && !/^\d{1,2}:\d{2}$/.test(time.trim())) {
       say("몇 시인지 같이 넣어주세요. 시각이 없으면 어른이 언제인지 모르십니다");
-      return;
-    }
-    if (kind === "ask" && time.trim() && !/^\d{1,2}:\d{2}$/.test(time.trim())) {
-      say("시각은 15:20처럼 적어주세요. 비워두시면 아침 문자에 같이 보냅니다");
       return;
     }
     setSt((sv) => {
@@ -5812,7 +5802,7 @@ function CallScreen() {
           <div key={r.id} className="flex items-center gap-2.5"
             style={{ padding: "10px 0", borderBottom: `1px solid ${C.lineSoft || C.line}` }}>
             <span className="mono" style={{ fontSize: 12.5, color: C.moss, width: 46, flexShrink: 0 }}>
-              {r.kind === "bag" ? "가방" : r.kind === "med" ? "약" : r.kind === "ask" ? (r.time || "부탁") : (r.time || "—")}
+              {r.kind === "bag" ? "가방" : r.kind === "med" ? "약" : (r.time || "—")}
             </span>
             <span style={{ fontSize: 14, flex: 1, minWidth: 0 }}>
               {(st.children || []).length > 1 && r.kid
@@ -5841,7 +5831,7 @@ function CallScreen() {
             </div>
           )}
           <div className="flex gap-1.5" style={{ marginBottom: 10 }}>
-            {[["sked", "일정"], ["med", "약"], ["bag", "준비물"], ["ask", "부탁"]].map(([k, lab]) => (
+            {[["sked", "일정"], ["med", "약"], ["bag", "준비물"]].map(([k, lab]) => (
               <button key={k} className="press" onClick={() => setKind(k)}
                 style={{ padding: "6px 14px", borderRadius: 999, fontSize: 12.5, fontWeight: kind === k ? 600 : 400,
                          border: `1px solid ${kind === k ? C.moss : C.line}`,
@@ -5934,36 +5924,6 @@ function CallScreen() {
             </>
           )}
 
-          {/* 부탁은 전화에 안 실립니다. 기계 목소리가 "세탁소 좀 찾아주세요"라고 하면
-              그건 앱이 하는 말이 아니라 며느리가 시어머니께 하는 말이 됩니다.
-              글로, 부모 이름을 달고, 부모가 쓴 그대로 나갑니다. */}
-          {kind === "ask" && (
-            <>
-              <div className="flex gap-2">
-                <input style={{ ...inp, width: 82, flexShrink: 0 }} placeholder="14:00" value={time}
-                  onChange={(e) => setTime(e.target.value.slice(0, 5))} />
-                <input style={inp} placeholder="세탁소 옷 좀 찾아다 주세요" value={what}
-                  onChange={(e) => setWhat(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") add(); }} />
-                <button className="press" onClick={add}
-                  style={{ flexShrink: 0, padding: "0 16px", borderRadius: 12, background: C.moss, color: "#fff", border: "none", fontSize: 14, fontWeight: 600 }}>넣기</button>
-              </div>
-              {(() => {
-                const me = (st.members || []).find((m) => m.id === (st.me || "m1"));
-                const who = (me && me.name) ? me.name : "";
-                const c = smsCost((what || "세탁소 옷 좀 찾아다 주세요") + (who ? "\n- " + who : ""));
-                return (
-                  <p style={{ fontSize: 12, color: C.ink3, marginTop: 10, lineHeight: 1.7 }}>
-                    <b style={{ color: C.ink2 }}>부탁은 전화가 아니라 문자로 갑니다.</b>
-                    적으신 말 그대로{who ? <> 끝에 “- {who}”만 붙여서</> : null} 보냅니다 —
-                    앱이 다듬으면 앱의 말투가 되고, 그러면 부탁이 아니라 지시가 됩니다.<br />
-                    글이라 어른이 나중에 다시 보실 수 있고, 값도 <b style={{ color: C.ink2 }}>{c.won}원</b>입니다
-                    (전화는 285원).
-                    {c.long ? <><br /><b style={{ color: C.persim }}>한글 45자가 넘어 장문이 됩니다.</b> 줄이시면 20원입니다.</> : null}
-                  </p>
-                );
-              })()}
-            </>
-          )}
         </div>
 
         {rows.length > 0 && (
@@ -5981,12 +5941,18 @@ function CallScreen() {
 
 
       <Section eyebrow="CALL-03" title={tomorrow ? "내일 이렇게 나갑니다" : "오늘 이렇게 나갑니다"}>
+        {dropped > 0 && (
+          <div style={{ marginBottom: 12, background: C.persimSoft, color: C.persim, borderRadius: 12, padding: "12px 14px", fontSize: 12.5, lineHeight: 1.7 }}>
+            넣어두신 것이 많아 <b>{dropped}개는 안 나갑니다.</b> 하루에 {CALL_MAX}개까지만 전해드려요 —
+            그보다 많으면 어른이 다 기억하실 수가 없습니다. 덜 급한 것을 빼주세요.
+          </div>
+        )}
         {batches.length ? (
           <>
             {batches.map((b, i) => (
               <div key={i} style={{ marginTop: i ? 10 : 0 }}>
                 <div className="mono" style={{ fontSize: 11, color: b.sms ? C.sun : C.moss, marginBottom: 5 }}>
-                  {b.at} · {b.sms ? "부탁 · 문자" : b.kind === "아침" ? (byApp ? "아침 알림" : "아침 한 통") : b.kind}
+                  {b.at} · {b.kind}{b.sms ? " · 문자" : " · 전화"}
                 </div>
                 <div style={{ background: C.card, border: `1px solid ${b.sms ? C.sun : C.moss}`, borderRadius: 14, padding: "14px 15px", fontSize: 14, lineHeight: 1.85, color: C.ink, whiteSpace: b.sms ? "pre-wrap" : "normal" }}>
                   {b.sms ? b.text : `“${b.text}”`}
@@ -6220,6 +6186,25 @@ function Settings() {
                            color: "#fff", fontSize: 10, lineHeight: "13px", textAlign: "center" }}>{d.callOn ? "✓" : ""}</span>
             <span style={{ fontSize: 13, color: d.callOn ? C.ink2 : C.ink3 }}>전화 걸기 켬</span>
           </button>
+          <div style={{ marginTop: 13, paddingTop: 13, borderTop: `1px solid ${C.lineSoft}` }}>
+            <div style={{ fontSize: 12.5, color: C.ink2, marginBottom: 8, lineHeight: 1.7 }}>
+              하루에 전화는 <b style={{ color: C.ink }}>몇 통까지</b> 걸까요?
+            </div>
+            <div className="flex gap-1.5">
+              {[1, 2, 3, 4].map((n) => (
+                <button key={n} className="press" onClick={() => setSt((sv) => ({ ...sv, callMax: n }))}
+                  style={{ padding: "7px 15px", borderRadius: 999, fontSize: 13,
+                           fontWeight: (st.callMax || 2) === n ? 600 : 400,
+                           border: `1px solid ${(st.callMax || 2) === n ? C.moss : C.line}`,
+                           background: (st.callMax || 2) === n ? C.mossSoft : "transparent",
+                           color: (st.callMax || 2) === n ? C.moss : C.ink3 }}>{n}통</button>
+              ))}
+            </div>
+            <p style={{ fontSize: 12, color: C.ink3, marginTop: 9, lineHeight: 1.75 }}>
+              넘는 것은 <b style={{ color: C.ink2 }}>문자</b>로 갑니다. 어른이 받으시는 내용은 그대로예요 — 오는 길만 달라집니다.
+              병원·하교처럼 놓치면 되돌릴 수 없는 것이 전화를 먼저 씁니다.
+            </p>
+          </div>
           <p style={{ fontSize: 12, color: C.ink3, marginTop: 11, lineHeight: 1.75 }}>
             요일별 일정과 약·준비물은 <b style={{ color: C.ink2 }}>전화</b> 탭에서 넣습니다.
           </p>
