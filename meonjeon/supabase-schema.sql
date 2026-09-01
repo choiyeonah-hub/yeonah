@@ -160,3 +160,52 @@ create policy ps_del on public.push_subs for delete
 
 -- 보내는 쪽(api/push-send)은 service_role로 접근하므로 RLS를 통과합니다.
 -- 그 키는 Vercel 환경변수에만 두고 브라우저에는 절대 내려보내지 않습니다.
+
+-- ════════════════════════════════════════════════════════
+-- 자동전화 발송 기록
+-- 이 부분만 따로 붙여넣어도 됩니다
+-- ════════════════════════════════════════════════════════
+-- 같은 통을 두 번 걸지 않으려고 둡니다. 앱의 state를 서버가 고쳐 쓰면
+-- 부모가 그 순간 화면에서 고치던 것과 부딪칩니다. 그래서 따로 적습니다.
+create table if not exists public.voice_sent (
+  household_id uuid not null references public.households(id) on delete cascade,
+  day          date not null,               -- 그날 (한국 시간 기준)
+  item_id      text not null,               -- 그 통의 id (앱이 만든 것)
+  at           text,                        -- 나가기로 한 시각 "14:30"
+  sms          boolean not null default false,
+  sent_at      timestamptz not null default now(),
+  ok           boolean,                     -- 솔라피가 받아줬나
+  err          text,
+  -- 웹훅이 나중에 채웁니다
+  sec          int,                         -- 통화 길이
+  press        text,                        -- 눌러주신 번호 (베타에서만)
+  primary key (household_id, day, item_id)
+);
+
+create index if not exists voice_sent_day on public.voice_sent(day);
+
+alter table public.voice_sent enable row level security;
+
+-- 부모는 자기 집 기록만 봅니다. 쓰는 쪽은 service_role이라 정책을 안 탑니다.
+drop policy if exists vs_sel on public.voice_sent;
+create policy vs_sel on public.voice_sent for select
+  using (household_id in (select public.my_household_ids()));
+
+-- ── 베타에서 볼 것: 통화 길이 판정이 실제와 맞았나 ──
+-- 정식판은 "길이만 보고" 들으셨는지 정합니다. 그게 맞는지를 여기서 봅니다.
+create or replace view public.voice_check as
+select
+  day,
+  count(*)                                             as 나간통,
+  count(*) filter (where ok)                           as 받아준통,
+  count(*) filter (where press = '1')                  as 눌러주심,
+  count(*) filter (where sec >= 10)                    as 길이로_들으심,
+  count(*) filter (where press is not null and sec is not null
+                     and (press = '1') <> (sec >= 10)) as 어긋난통,
+  round(avg(sec) filter (where press = '1'), 1)        as 누르신분_평균초,
+  round(avg(sec) filter (where press is null), 1)      as 안누르신분_평균초
+from public.voice_sent
+where not sms
+group by day order by day desc;
+
+revoke all on public.voice_check from anon, authenticated;
