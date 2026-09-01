@@ -66,3 +66,51 @@ model Message {
   @@index([sessionId])
   @@index([memberId])
 }
+
+// ─────────────────────────────────────────────────────────────
+// 안경 추천 앱 (아이핏 / EyeFit)
+//
+// 개인정보 설계 원칙:
+//  - 얼굴 사진 원본과 처방전 이미지 원본은 절대 저장하지 않는다.
+//    (요청 처리 중 메모리에서만 사용하고 응답 후 폐기)
+//  - 얼굴 분석 결과는 "얼굴형/비율" 같은 파생 수치만 남긴다.
+//  - 도수(처방 정보)는 민감정보이므로, 사용자가 매장 예약을 확정하며
+//    별도 동의(sensitiveConsent)를 준 경우에만 저장한다.
+// ─────────────────────────────────────────────────────────────
+
+// 매장 예약(견적 요청). 앱에서 결제하지 않는다.
+// 의료기사법상 도수 안경은 전자상거래 판매가 불가하므로,
+// 최종 검안·조제·피팅은 매장의 안경사가 담당한다.
+model FitReservation {
+  id   String @id @default(cuid())
+  code String @unique // 매장에 보여주는 6자리 예약 코드
+
+  // 얼굴 분석 파생 결과 (원본 사진은 저장하지 않음)
+  faceShape     String? // "oval" | "round" | ...
+  faceSummary   String? @db.Text
+  faceMetrics   Json? // widthToHeight, jawline, noseBridge 등 파생 수치
+
+  // 선택한 테 / 렌즈
+  frameId     String
+  lensIndex   String // "1.56" | "1.60" | "1.67" | "1.74"
+  lensOptions String[] // 코팅/기능 옵션 id 목록
+
+  // 도수. sensitiveConsent가 true일 때만 채워진다.
+  prescription     Json?
+  sensitiveConsent Boolean @default(false)
+
+  // 매장 / 견적
+  storeId    String
+  framePrice Int
+  lensPrice  Int
+  totalPrice Int
+
+  // 연락처 (예약 확인용 최소 정보)
+  contactName  String
+  contactPhone String
+
+  status    String   @default("requested") // requested | confirmed | done | canceled
+  createdAt DateTime @default(now())
+
+  @@index([storeId])
+}
