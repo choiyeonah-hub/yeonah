@@ -9,8 +9,8 @@
     "method": "GET",
     "params": { "title": "title", "text": "text", "url": "url" }
   },
-  "background_color": "#F3F2EE",
-  "theme_color": "#F3F2EE",
+  "background_color": "#F4F2F8",
+  "theme_color": "#F4F2F8",
   "icons": [
     {
       "src": "/icon-192.png",
