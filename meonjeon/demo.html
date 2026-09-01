@@ -1883,9 +1883,12 @@ function medLine(m) {
 
 /* 통화 길이와 값. 초당 4원에 기본료 200원 — 이 숫자가 요금제를 정합니다.
    한글 한 글자를 0.18초로 잡았습니다(보통 TTS 속도) */
+/* 솔라피 음성: 기본 200원 + 길이 초당 4원. (2026-09-01 고객지원 확인)
+   그래서 문장을 줄이면 돈이 바로 줄어듭니다 — 10초 240원, 56초 424원.
+   ⚠ 안 받으셔도 차감됩니다. 통화가 연결되면 과금이라고 안내받았습니다. */
 function callCost(text, byApp) {
   const sec = Math.max(10, Math.ceil(String(text || "").length * 0.18) + 3);
-  return { sec, won: byApp ? 0 : 220 + sec * 4 };
+  return { sec, won: byApp ? 0 : 200 + sec * 4 };
 }
 
 function toFragments(text) {
@@ -2152,7 +2155,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-df";
+const BUILD = "0901-dg";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
