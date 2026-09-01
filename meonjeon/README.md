@@ -93,7 +93,28 @@ Vercel 프로젝트 설정 → Environment Variables:
    - Site URL: 배포 주소 (예: `https://meonjeon.vercel.app`)
    - Redirect URLs: 같은 주소와 `https://meonjeon.vercel.app/**`
    가족 초대 링크가 `/?join=CODE` 형태라 와일드카드가 필요합니다.
-5. **Project Settings → API**에서 Project URL과 `anon` `public` 키를 복사해
+5. **Authentication → Emails → Magic Link** — 로그인 숫자가 담긴 메일입니다.
+   앱은 `verifyOtp`로 여섯 자리를 받으므로 본문에 `{{ .Token }}`이 꼭 있어야 합니다.
+   이름을 바꿨으면 **여기도 같이 바꿔야 합니다** — 코드에 없어서 앱을 고쳐도 안 바뀝니다.
+
+   제목:
+   ```
+   손주한통 로그인 숫자 {{ .Token }}
+   ```
+   본문:
+   ```html
+   <h2 style="font-family:sans-serif">손주한통 로그인 숫자</h2>
+   <p style="font-family:sans-serif">아래 여섯 자리를 앱에 넣어주세요.</p>
+   <p style="font-family:monospace;font-size:32px;letter-spacing:8px;font-weight:700;color:#1F4B73">{{ .Token }}</p>
+   <p style="font-family:sans-serif;font-size:13px">10분 안에 넣으셔야 합니다.
+      본인이 요청한 것이 아니면 그냥 두셔도 됩니다.</p>
+   <p style="font-family:sans-serif;font-size:12px;color:#767A6F">
+      손주한통 — 어머니께 오늘 일정을 전화로 읽어드립니다</p>
+   ```
+   보내는 사람 이름은 템플릿이 아니라 SMTP 설정입니다. 기본 메일러를 쓰면
+   Supabase 이름으로 나가고, 바꾸려면 **Project Settings → Authentication → SMTP**에
+   따로 붙여야 합니다.
+6. **Project Settings → API**에서 Project URL과 `anon` `public` 키를 복사해
    Vercel 환경변수에 넣고 **Redeploy**합니다.
 
 ---
