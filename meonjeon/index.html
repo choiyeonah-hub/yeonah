@@ -130,7 +130,7 @@ const bar  = document.getElementById('bar');
 /* 첫 화면에 놓는 마크. 아이콘과 같은 그림이라 따로 안 받아도 되고,
    글자만 있던 화면이 앱처럼 보입니다. */
 const MARK = `<svg width="62" height="62" viewBox="0 0 512 512" aria-hidden="true"><defs><linearGradient id="mkb" x1="0" y1="0" x2="512" y2="512"><stop offset="0" stop-color="#D5C3F2"/><stop offset="1" stop-color="#F1E7FC"/></linearGradient><linearGradient id="mkp" x1="150" y1="150" x2="360" y2="360"><stop offset="0" stop-color="#249C7C"/><stop offset="1" stop-color="#7FE3C2"/></linearGradient></defs><rect width="512" height="512" rx="115" fill="url(#mkb)"/><circle cx="256" cy="256" r="180" fill="white" fill-opacity="0.2"/><path d="M180 120C160 120 140 140 140 160V220C140 300 210 370 290 370H350C370 370 390 350 390 330V290C390 275 378 263 363 263L315 263C300 263 288 275 288 290V300C240 290 220 270 210 220H222C237 220 249 208 249 193V145C249 130 237 118 222 118L180 120Z" fill="url(#mkp)"/><circle cx="290" cy="180" r="45" fill="#FBE3BD"/><path d="M250 175C250 145 270 130 290 130C310 130 330 145 330 175C320 165 305 165 290 170C275 165 260 165 250 175Z" fill="#5B4394"/><circle cx="275" cy="180" r="5" fill="#3A2A5C"/><circle cx="305" cy="180" r="5" fill="#3A2A5C"/><circle cx="268" cy="190" r="6" fill="#E8CE3E" opacity="0.6"/><circle cx="312" cy="190" r="6" fill="#E8CE3E" opacity="0.6"/><path d="M283 193Q290 202 297 193" stroke="#3A2A5C" stroke-width="3" stroke-linecap="round" fill="none"/><path d="M370 140C390 160 400 185 400 210" stroke="#E8CE3E" stroke-width="12" stroke-linecap="round" fill="none"/></svg>`;
-const GATE_BUILD = '0902-es';
+const GATE_BUILD = '0902-et';
 const show = (html) => {
   gate.innerHTML = html +
     `<p style="margin-top:26px;font-size:10.5px;color:#A0A096;font-family:'IBM Plex Mono',monospace">BUILD ${GATE_BUILD}</p>`;
@@ -2408,7 +2408,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0902-es";
+const BUILD = "0902-et";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -5821,7 +5821,7 @@ ${CALL_SPLIT(st, todayStr())}
           /* 00:00 은 "시각 모름"으로 봅니다. 아이 일정에 자정은 없습니다 */
           time: (() => { const t = toTime(x.time); return t === "00:00" ? "" : t; })(),
           what: w,
-          why: String(x.why || "").trim().slice(0, 30),
+          why: String(x.why || "").trim().slice(0, 60),
           kind: ["sked", "med", "bag"].includes(실제kind) ? 실제kind : "sked",
           kid: ((sv.children || []).find((k) => k.name && k.name === String(x.who || "")) || {}).id
                || ((sv.children || []).length === 1 ? (sv.children[0] || {}).id : ""),
@@ -7609,7 +7609,7 @@ function PlanEditor() {
         plan[d] = (plan[d] || []).concat([{
           id: uid("cl"), time: kind === "bag" ? "" : t,
           what: callSpace(w.slice(0, 30)), kind, kid, alert: kind === "sked" ? !!alert : false,
-          way: way || undefined, why: why.trim().slice(0, 30) }]);
+          way: way || undefined, why: why.trim().slice(0, 60) }]);
       });
       return { ...sv, callPlan: plan, callOn: true };
     });
@@ -7929,7 +7929,7 @@ function PlanEditor() {
               {/^.*(병원|의원|치과|소아과|한의원|검진|보건소).*$/.test(what) && (
                 <div style={{ marginTop: 8 }}>
                   <input style={inp} placeholder="왜 가는지 (예: 어금니 왼쪽 아래 충치)"
-                    value={why} onChange={(e) => setWhy(e.target.value.slice(0, 30))}
+                    value={why} onChange={(e) => setWhy(e.target.value.slice(0, 60))}
                     onKeyDown={(e) => { if (e.key === "Enter") add(); }} />
                   <p style={{ fontSize: 11.5, color: C.ink3, marginTop: 6, lineHeight: 1.7 }}>
                     접수대에서 <b style={{ color: C.ink2 }}>어디가 아파서 왔는지</b>를 물으십니다.
@@ -8134,7 +8134,7 @@ function PlanEditor() {
             {/^.*(병원|의원|치과|소아과|한의원|검진|보건소).*$/.test(r.what || "") && <>
               <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 14 }}>왜 가는지</div>
               <input className="hae" value={r.why || ""} placeholder="예: 어금니 왼쪽 아래 충치"
-                onChange={(e) => patchRow(r.id, { why: e.target.value.slice(0, 30) })}
+                onChange={(e) => patchRow(r.id, { why: e.target.value.slice(0, 60) })}
                 style={{ width: "100%", marginTop: 8, border: `1px solid ${C.line}`, borderRadius: 12, padding: "11px 13px", fontSize: 14, background: C.bg, color: C.ink }} />
             </>}
 

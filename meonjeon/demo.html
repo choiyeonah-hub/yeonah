@@ -2275,7 +2275,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0902-es";
+const BUILD = "0902-et";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -5051,7 +5051,7 @@ ${CALL_SPLIT(st, todayStr())}
           /* 00:00 은 "시각 모름"으로 봅니다. 아이 일정에 자정은 없습니다 */
           time: (() => { const t = toTime(x.time); return t === "00:00" ? "" : t; })(),
           what: w,
-          why: String(x.why || "").trim().slice(0, 30),
+          why: String(x.why || "").trim().slice(0, 60),
           kind: ["sked", "med", "bag"].includes(실제kind) ? 실제kind : "sked",
           kid: ((sv.children || []).find((k) => k.name && k.name === String(x.who || "")) || {}).id
                || ((sv.children || []).length === 1 ? (sv.children[0] || {}).id : ""),
@@ -6839,7 +6839,7 @@ function PlanEditor() {
         plan[d] = (plan[d] || []).concat([{
           id: uid("cl"), time: kind === "bag" ? "" : t,
           what: callSpace(w.slice(0, 30)), kind, kid, alert: kind === "sked" ? !!alert : false,
-          way: way || undefined, why: why.trim().slice(0, 30) }]);
+          way: way || undefined, why: why.trim().slice(0, 60) }]);
       });
       return { ...sv, callPlan: plan, callOn: true };
     });
@@ -7159,7 +7159,7 @@ function PlanEditor() {
               {/^.*(병원|의원|치과|소아과|한의원|검진|보건소).*$/.test(what) && (
                 <div style={{ marginTop: 8 }}>
                   <input style={inp} placeholder="왜 가는지 (예: 어금니 왼쪽 아래 충치)"
-                    value={why} onChange={(e) => setWhy(e.target.value.slice(0, 30))}
+                    value={why} onChange={(e) => setWhy(e.target.value.slice(0, 60))}
                     onKeyDown={(e) => { if (e.key === "Enter") add(); }} />
                   <p style={{ fontSize: 11.5, color: C.ink3, marginTop: 6, lineHeight: 1.7 }}>
                     접수대에서 <b style={{ color: C.ink2 }}>어디가 아파서 왔는지</b>를 물으십니다.
@@ -7364,7 +7364,7 @@ function PlanEditor() {
             {/^.*(병원|의원|치과|소아과|한의원|검진|보건소).*$/.test(r.what || "") && <>
               <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 14 }}>왜 가는지</div>
               <input className="hae" value={r.why || ""} placeholder="예: 어금니 왼쪽 아래 충치"
-                onChange={(e) => patchRow(r.id, { why: e.target.value.slice(0, 30) })}
+                onChange={(e) => patchRow(r.id, { why: e.target.value.slice(0, 60) })}
                 style={{ width: "100%", marginTop: 8, border: `1px solid ${C.line}`, borderRadius: 12, padding: "11px 13px", fontSize: 14, background: C.bg, color: C.ink }} />
             </>}
 
