@@ -2265,7 +2265,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-ek";
+const BUILD = "0901-el";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -3401,7 +3401,8 @@ function Onboarding({ preview }) {
               </div>
             </div>
             <p style={{ fontSize: 12, color: C.ink3, marginTop: 6, lineHeight: 1.7 }}>
-              하원 4시 40분이면 {lead ? `${minus30("16:40", lead).replace(/^0/, "")}에` : "4시 40분 정각에"} 전화가 갑니다.
+              하원 4시 40분이면 {lead ? `${minus30("16:40", lead).replace(/^0/, "")}에` : "4시 40분 정각에"}
+              <b style={{ color: C.ink }}> 전화·문자·앱 알림 중 정하신 방법</b>으로 갑니다.
             </p>
             {/* 어른이 안 받으시면 이 앱은 아무것도 아닙니다. 그리고 어른은
                 저장 안 된 번호를 안 받으십니다. 화면에서 제일 중요한 자리입니다. */}
@@ -7502,7 +7503,8 @@ function CallPreview() {
           </div>
         </div>
         <p style={{ fontSize: 12, color: C.ink3, marginTop: 7, lineHeight: 1.75 }}>
-          하원 4시 40분이면 {callLead(st) ? `${callLead(st)}분 전인 ${minus30("16:40", callLead(st)).replace(/^0/, "")}` : "4시 40분 정각"}에 전화가 갑니다.
+          하원 4시 40분이면 {callLead(st) ? `${callLead(st)}분 전인 ${minus30("16:40", callLead(st)).replace(/^0/, "")}` : "4시 40분 정각"}에
+          <b style={{ color: C.ink2 }}> 전화·문자·앱 알림 중 정하신 방법</b>으로 갑니다.
         </p>
         {/* 아침 문자 시각은 설정 "아침 알림"에 있습니다 */}
         {/* "어른 폰에 이 번호를 저장해드려야 합니다" 상자가 여기 있었습니다.
