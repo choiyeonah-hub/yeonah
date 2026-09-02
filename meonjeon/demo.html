@@ -2275,7 +2275,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-en";
+const BUILD = "0901-eo";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -6745,6 +6745,7 @@ function PlanEditor() {
   const rows = ((st.callPlan || {})[dow] || []).slice()
     .map((r) => ({ ...r, what: callSpace(r.what) }))
     .sort((a, b) => String(a.time || "").localeCompare(String(b.time || "")));
+  const 오늘skip = ((st.callToday || {})[day] || {}).skip || [];
   const add = () => {
     const w = what.trim();
     if (kind === "med") { addMed(); return; }
@@ -6911,10 +6912,16 @@ function PlanEditor() {
             {DOW_KR[Number(dow)]}요일마다 되풀이될 것은 아직 없습니다. 학원·하원 시각처럼 매주 같은 것을 넣으세요.
           </p>
         )}
-        {rows.map((r) => (
+        {/* 말하기 결과 화면에서 요일 계획 줄을 "빼기"로 누르면, 지우는 게 아니라
+           "그날만 빼기"(skip)로 담깁니다 — 화요일 하원까지 통째로 사라지면 안 되니까요.
+           그런데 여기 요일 계획에는 그 표시가 전혀 없었습니다. 매주 있는 줄인데
+           오늘만 조용히 안 나가서, "학원 일정이 안 갔다"는 것을 알아챌 길이 없었습니다. */}
+        {rows.map((r) => {
+          const 오늘빠짐 = 오늘skip.includes(r.id);
+          return (
           <div key={r.id} className="flex items-center gap-2.5"
-            style={{ padding: "10px 0", borderBottom: `1px solid ${C.lineSoft || C.line}` }}>
-            <span className="mono" style={{ fontSize: 12.5, color: C.moss, width: 46, flexShrink: 0 }}>
+            style={{ padding: "10px 0", borderBottom: `1px solid ${C.lineSoft || C.line}`, opacity: 오늘빠짐 ? .55 : 1 }}>
+            <span className="mono" style={{ fontSize: 12.5, color: 오늘빠짐 ? C.ink3 : C.moss, width: 46, flexShrink: 0 }}>
               {r.kind === "bag" ? "가방" : r.kind === "med" ? "약" : (r.time || "—")}
             </span>
             {/* 눌러서 고칠 수 있게. 전에는 시각이나 이름을 고치려면
@@ -6928,21 +6935,35 @@ function PlanEditor() {
                   </b> : null}
               {r.what}
               {r.alert && r.time ? <b style={{ color: C.moss, fontSize: 11, marginLeft: 6, fontWeight: 500 }}>· 알림 2번</b> : null}
+              {오늘빠짐 ? <b style={{ color: C.persim, fontSize: 11, marginLeft: 6, fontWeight: 500 }}>· {dayLabel}은 안 감</b> : null}
             </button>
-            {/* 11px 글자를 여러 번 눌러 돌리게 해뒀습니다. 손가락이 안 닿습니다.
-                여기서는 보여주기만 하고, 고치는 것은 줄을 눌러 여는 시트에서
-                큰 버튼으로 합니다. */}
-            <button className="press" onClick={() => setRowEdit(r.id)}
-              style={{ flexShrink: 0, padding: "5px 9px", borderRadius: 999, fontSize: 11.5,
-                       border: `1px solid ${r.way ? "transparent" : C.line}`,
-                       background: r.way === "call" ? C.mossSoft : r.way === "sms" ? C.sunSoft : r.way === "app" ? C.seaSoft : "transparent",
-                       color: r.way === "call" ? C.moss : r.way === "sms" ? C.sun : r.way === "app" ? C.sea : C.ink3 }}>
-              {r.way === "call" ? "전화" : r.way === "sms" ? "문자" : r.way === "app" ? "앱" : "설정대로"}
-            </button>
-            <button className="press" onClick={() => del(r.id)}
-              style={{ background: "transparent", border: "none", color: C.ink3, fontSize: 12, flexShrink: 0 }}>빼기</button>
+            {오늘빠짐 ? (
+              <button className="press" onClick={() => setSt((sv) => {
+                const t = { ...(sv.callToday || {}) };
+                const cur = t[day] || {};
+                t[day] = { ...cur, skip: (cur.skip || []).filter((id) => id !== r.id) };
+                return { ...sv, callToday: t };
+              })} style={{ flexShrink: 0, padding: "5px 9px", borderRadius: 999, fontSize: 11.5,
+                          border: `1px solid ${C.moss}`, background: "transparent", color: C.moss }}>다시 켜기</button>
+            ) : (
+              <>
+                {/* 11px 글자를 여러 번 눌러 돌리게 해뒀습니다. 손가락이 안 닿습니다.
+                    여기서는 보여주기만 하고, 고치는 것은 줄을 눌러 여는 시트에서
+                    큰 버튼으로 합니다. */}
+                <button className="press" onClick={() => setRowEdit(r.id)}
+                  style={{ flexShrink: 0, padding: "5px 9px", borderRadius: 999, fontSize: 11.5,
+                           border: `1px solid ${r.way ? "transparent" : C.line}`,
+                           background: r.way === "call" ? C.mossSoft : r.way === "sms" ? C.sunSoft : r.way === "app" ? C.seaSoft : "transparent",
+                           color: r.way === "call" ? C.moss : r.way === "sms" ? C.sun : r.way === "app" ? C.sea : C.ink3 }}>
+                  {r.way === "call" ? "전화" : r.way === "sms" ? "문자" : r.way === "app" ? "앱" : "설정대로"}
+                </button>
+                <button className="press" onClick={() => del(r.id)}
+                  style={{ background: "transparent", border: "none", color: C.ink3, fontSize: 12, flexShrink: 0 }}>빼기</button>
+              </>
+            )}
           </div>
-        ))}
+          );
+        })}
 
         {/* 말하기로 담긴 그날치는 여기 안 보이고 있었습니다. 요일 계획이 비었는데
             "3통 나갑니다"가 뜨니 어긋나 보였어요. 같은 자리에 같이 보여줍니다. */}
