@@ -16,7 +16,8 @@ export default function handler(req, res) {
   };
   const keys = ["SUPABASE_URL", "SUPABASE_ANON_KEY", "ANTHROPIC_API_KEY",
                 "VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY", "VAPID_SUBJECT",
-                "CRON_SECRET", "SUPABASE_SERVICE_KEY", "ADMIN_EMAIL"];
+                "CRON_SECRET", "SUPABASE_SERVICE_KEY", "ADMIN_EMAIL",
+                "SOLAPI_API_KEY", "SOLAPI_API_SECRET", "SOLAPI_FROM"];
 
   res.status(200).json({
     url: env("SUPABASE_URL"),
@@ -24,6 +25,9 @@ export default function handler(req, res) {
     /* 알림을 켤 때 브라우저에 필요한 공개 키입니다. 이름 그대로 공개용이라
        내려보내도 됩니다. 짝이 되는 비밀 키는 서버에만 있습니다. */
     vapidPublicKey: env("VAPID_PUBLIC_KEY"),
+    /* 어른께 실제로 걸리는 발신번호. 부모가 어른 폰에 저장해드릴 번호라 화면에 보여야 하고,
+       서버가 거는 번호와 같은 값이어야 합니다. 숫자만 내려보냅니다. 키·시크릿은 절대 안 나갑니다. */
+    callFrom: env("SOLAPI_FROM").replace(/[^0-9]/g, ""),
     /* 설정 점검용 — 값은 안 나갑니다 */
     env: Object.fromEntries(keys.map((k) => [k, check(k)])),
   });
