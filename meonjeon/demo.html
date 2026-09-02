@@ -2265,7 +2265,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-eg";
+const BUILD = "0901-eh";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -7492,6 +7492,31 @@ function CallPreview() {
           부모가 바꾸실 일은 위 요일 계획에서 그 요일을 골라 손보시는 것입니다.
           다만 "나에게 미리 알려주기"는 부모 것이라 여기 남습니다. */}
       {/* 쉬는 날로 해둔 것을 되돌릴 길이 없으면, 잘못 껐을 때 그날 하원을 아무도 안 갑니다 */}
+      {/* 조부모님 탭은 이제 늘 "오늘"만 보여줍니다(어른이 실제로 보시는 화면이라).
+          그런데 나갈 말은 전날 저녁에 만들어지고, 부모는 저녁에 "내일" 것을 확인해야 합니다.
+          내일 문구를 볼 곳이 없어졌던 이유입니다 — 여기, 부모 탭에 그 문구를 그대로 둡니다. */}
+      <Section eyebrow="CALL-03" title={`${dayLabel} 이렇게 갑니다`}
+        right={tomorrow ? "전날 저녁 확인용" : null}>
+        {((st.callToday || {})[day] || {}).off ? (
+          <div style={{ fontSize: 13, color: C.ink3, padding: "4px 0 2px" }}>{dayLabel}은 쉬는 날이라 안 나갑니다.</div>
+        ) : batches.length === 0 ? (
+          <div style={{ fontSize: 13, color: C.ink3, padding: "4px 0 2px" }}>{dayLabel}은 알려드릴 것이 없습니다.</div>
+        ) : (
+          batches.map((b, i) => (
+            <Card key={b.at + i} style={{ marginTop: i ? 8 : 0 }}>
+              <div style={{ padding: "12px 14px" }}>
+                <div className="mono" style={{ fontSize: 11.5, color: C.moss, letterSpacing: ".05em", marginBottom: 6 }}>
+                  {b.at} · {b.app ? "앱 알림" : b.sms ? "문자" : "전화"}
+                </div>
+                <div style={{ fontSize: 13.5, lineHeight: 1.75, color: C.ink, whiteSpace: (b.sms || b.app) ? "pre-wrap" : "normal" }}>
+                  {b.text}
+                </div>
+              </div>
+            </Card>
+          ))
+        )}
+      </Section>
+
       <Section eyebrow="CALL-04" title={`${dayLabel} 어떻게 할까요`}>
         {((st.callToday || {})[day] || {}).off ? (
           <div style={{ background: C.persimSoft, borderRadius: 12, padding: "13px 15px", fontSize: 13, color: C.persim, lineHeight: 1.75 }}>
