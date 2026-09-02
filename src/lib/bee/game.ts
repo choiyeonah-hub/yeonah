@@ -3,6 +3,7 @@
 // 청소벌 → 육아벌 → 건축벌 → 경비벌 → 채집벌 → (내가 기른 왕대에서 나온) 처녀왕.
 import { BeeAudio } from "./music";
 import { REGIONS, Region, nextRegion, regionById } from "./regions";
+import { BEE, BLOSSOM, BLOSSOM_DROOP, BLOSSOM_SMALL, DRONE, HORNET, LARVA, QUEEN, Sprite } from "./sprites";
 import {
   BOX,
   GROUND_Y,
@@ -230,6 +231,71 @@ function unstick(hive: Hive, box: Box) {
   return false;
 }
 
+/** 화소 하나. 좌표를 반올림해 격자에 딱 맞춘다 — 안 그러면 움직일 때 떨린다. */
+function px(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  color: string
+) {
+  ctx.fillStyle = color;
+  ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h));
+}
+
+/** 도트 스프라이트를 찍는다. dir 이 -1 이면 좌우로 뒤집는다. */
+function blit(
+  ctx: CanvasRenderingContext2D,
+  sp: Sprite,
+  palette: Record<string, string | undefined>,
+  cx: number,
+  cy: number,
+  dir: number,
+  zoom = 1
+) {
+  const ox = Math.round(cx - (sp.w * zoom) / 2);
+  const oy = Math.round(cy - (sp.h * zoom) / 2);
+  for (let r = 0; r < sp.h; r++) {
+    const row = sp.rows[r];
+    for (let c = 0; c < sp.w; c++) {
+      const key = row[c];
+      if (key === ".") continue;
+      const color = palette[key];
+      if (!color) continue;
+      const col = dir < 0 ? sp.w - 1 - c : c;
+      ctx.fillStyle = color;
+      ctx.fillRect(ox + col * zoom, oy + r * zoom, zoom, zoom);
+    }
+  }
+}
+
+/** 계단식 육각형 — 곡선을 쓰면 픽셀아트가 뭉개진다. */
+function pixelHex(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  r: number,
+  fill: string,
+  edge: string
+) {
+  const h = Math.round(r);
+  const wide = Math.round(r * 0.866);
+  for (let dy = -h; dy <= h; dy++) {
+    const a = Math.abs(dy);
+    // 가운데 절반은 곧은 옆면, 위아래 절반은 꼭짓점으로 좁아진다
+    const half = a <= h / 2 ? wide : Math.round((wide * (h - a)) / (h / 2));
+    if (half <= 0) continue;
+    const y = cy + dy;
+    px(ctx, cx - half, y, half * 2, 1, fill);
+    px(ctx, cx - half, y, 1, 1, edge);
+    px(ctx, cx + half - 1, y, 1, 1, edge);
+  }
+  // 위아래 꼭짓점 근처의 빗변을 또렷하게
+  px(ctx, cx - 1, cy - h, 2, 1, edge);
+  px(ctx, cx - 1, cy + h, 2, 1, edge);
+}
+
 function hexToRgb(hex: string) {
   const h = hex.replace("#", "");
   return [
@@ -270,8 +336,6 @@ export class BeeGame {
   private vh = VIEW_H;
   /** 게임 좌표 → 화면 픽셀 배율 */
   private scale = 1;
-  /** 픽셀아트 모드 — 저해상도로 그린 뒤 그대로 확대한다 */
-  private pixelArt = false;
   private lastCssWidth = 0;
   private bgCache: HTMLCanvasElement | null = null;
   private bgCacheKey = "";
@@ -341,8 +405,7 @@ export class BeeGame {
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("canvas 2d context unavailable");
     this.ctx = ctx;
-    this.ctx.imageSmoothingEnabled = true;
-    this.ctx.imageSmoothingQuality = "high";
+    this.ctx.imageSmoothingEnabled = false;
     this.vw = canvas.width || VIEW_W;
     this.vh = canvas.height || VIEW_H;
     this.onState = opts.onState;
@@ -570,33 +633,21 @@ export class BeeGame {
     if (cssWidth && cssWidth > 0) this.lastCssWidth = cssWidth;
     const dpr = Math.min(2.5, typeof window === "undefined" ? 1 : window.devicePixelRatio || 1);
     const css = this.lastCssWidth;
+    // 화소 하나가 화면 픽셀 정수 배가 되게 한다. 소수 배율은 픽셀이 들쭉날쭉해진다.
     const target = css > 0 ? (css * dpr) / w : this.scale;
-    // 픽셀아트는 저해상도 그대로 두고 CSS 가 확대하게 둔다
-    const scale = this.pixelArt ? 1 : Math.max(1, Math.min(4, target));
-    if (!force && w === this.vw && h === this.vh && Math.abs(scale - this.scale) < 0.01) return;
+    const scale = Math.max(1, Math.min(4, Math.round(target)));
+    if (!force && w === this.vw && h === this.vh && scale === this.scale) return;
     this.vw = w;
     this.vh = h;
     this.scale = scale;
     this.canvas.width = Math.round(w * scale);
     this.canvas.height = Math.round(h * scale);
-    this.canvas.style.imageRendering = this.pixelArt ? "pixelated" : "auto";
-    this.ctx.imageSmoothingEnabled = !this.pixelArt;
-    this.ctx.imageSmoothingQuality = "high";
+    this.canvas.style.imageRendering = "pixelated";
+    this.ctx.imageSmoothingEnabled = false;
     this.combCache.clear();
     this.bgCache = null;
     this.updateCamera(true);
     this.draw();
-  }
-
-  get isPixelArt() {
-    return this.pixelArt;
-  }
-
-  /** 픽셀아트 ↔ 부드럽게 전환. 게임 진행에는 영향이 없다. */
-  setPixelArt(on: boolean) {
-    if (this.pixelArt === on) return;
-    this.pixelArt = on;
-    this.resize(this.vw, this.vh, undefined, true);
   }
 
   start() {
@@ -1225,6 +1276,9 @@ export class BeeGame {
       this.camX += (cx - this.camX) * 0.11;
       this.camY += (cy - this.camY) * 0.11;
     }
+    // 카메라가 소수 자리에 있으면 배경 전체가 미세하게 떤다
+    this.camX = Math.round(this.camX);
+    this.camY = Math.round(this.camY);
   }
 
   private target(): { x: number; y: number } | null {
@@ -1346,79 +1400,69 @@ export class BeeGame {
     }
   }
 
-  /** 뉴질랜드 계곡의 먼 능선 */
+  /** 먼 능선 — 4칸짜리 계단으로 찍는다 */
   private drawHills(camX: number, camY: number) {
     const ctx = this.ctx;
     const baseY = GROUND_Y * TILE;
+    const step = 4;
     for (let layer = 0; layer < 2; layer++) {
       const p = 0.55 + layer * 0.2;
-      const amp = 46 - layer * 16;
+      const amp = 44 - layer * 16;
       const off = camX * (1 - p);
       ctx.fillStyle = this.region.hills[layer];
-      ctx.beginPath();
-      ctx.moveTo(camX - 20, baseY + 10);
-      for (let x = camX - 20; x < camX + this.vw + 20; x += 12) {
+      const x0 = Math.floor((camX - 20) / step) * step;
+      for (let x = x0; x < camX + this.vw + 20; x += step) {
         const t = (x + off) * 0.006 + layer * 2.3;
-        ctx.lineTo(x, baseY - 40 - layer * 26 + Math.sin(t) * amp + Math.sin(t * 2.7) * amp * 0.35);
+        const top = Math.round(
+          (baseY - 40 - layer * 26 + Math.sin(t) * amp + Math.sin(t * 2.7) * amp * 0.35) / 3
+        ) * 3;
+        px(ctx, x, top, step, baseY + 10 - top, this.region.hills[layer]);
       }
-      ctx.lineTo(camX + this.vw + 20, baseY + 10);
-      ctx.closePath();
-      ctx.fill();
     }
     void camY;
   }
 
-  /** 땅 — 잔디와 흙을 타일이 아니라 하나의 면으로 그린다. */
+  /** 땅 — 몇 개의 평평한 띠와 디더로. 그라디언트는 픽셀아트에서 지저분해진다. */
   private drawTerrain(camX: number, camY: number) {
     const ctx = this.ctx;
     const gy = GROUND_Y * TILE;
     const bottom = WORLD_H * TILE;
     if (camY + this.vh < gy) return;
+    const left = Math.round(camX) - 20;
+    const wide = this.vw + 40;
 
-    const soil = ctx.createLinearGradient(0, gy, 0, bottom);
-    soil.addColorStop(0, shade(this.region.soil, 0.06));
-    soil.addColorStop(1, shade(this.region.soil, -0.42));
-    ctx.fillStyle = soil;
-    ctx.fillRect(camX - 20, gy, this.vw + 40, bottom - gy);
-
-    // 흙 속 결
-    ctx.save();
-    ctx.globalAlpha = 0.14;
-    ctx.fillStyle = shade(this.region.soil, -0.5);
-    for (let i = 0; i < 26; i++) {
+    // 흙 — 위에서 아래로 세 단계
+    const soils = [shade(this.region.soil, 0.04), this.region.soil, shade(this.region.soil, -0.3)];
+    px(ctx, left, gy + 6, wide, 26, soils[0]);
+    px(ctx, left, gy + 32, wide, 40, soils[1]);
+    px(ctx, left, gy + 72, wide, bottom - gy - 72, soils[2]);
+    // 단 사이 디더 (한 칸씩 건너뛰며 찍는다)
+    for (let x = left - (left % 4); x < left + wide; x += 4) {
+      px(ctx, x, gy + 30, 2, 2, soils[1]);
+      px(ctx, x + 2, gy + 70, 2, 2, soils[2]);
+    }
+    // 흙 속 돌
+    for (let i = 0; i < 30; i++) {
       const n = hash2(i, 11);
-      const x = camX - 20 + ((n * 1600 + i * 137) % (this.vw + 40));
-      const y = gy + 26 + ((hash2(i, 21) * 900) % (bottom - gy - 30));
-      ctx.beginPath();
-      ctx.ellipse(x, y, 12 + n * 22, 3 + n * 5, n * 1.4, 0, Math.PI * 2);
-      ctx.fill();
+      const x = left + ((n * 1600 + i * 137) % wide);
+      const y = gy + 20 + ((hash2(i, 21) * 900) % (bottom - gy - 26));
+      px(ctx, Math.round(x / 2) * 2, Math.round(y / 2) * 2, 4 + (n > 0.6 ? 2 : 0), 2, shade(this.region.soil, -0.45));
     }
-    ctx.restore();
 
-    // 잔디 — 위쪽에 부드러운 띠와 풀잎
-    const grass = ctx.createLinearGradient(0, gy - 5, 0, gy + 22);
-    grass.addColorStop(0, shade(this.region.grass, 0.26));
-    grass.addColorStop(0.55, this.region.grass);
-    grass.addColorStop(1, shade(this.region.grass, -0.45));
-    ctx.fillStyle = grass;
-    ctx.fillRect(camX - 20, gy - 3, this.vw + 40, 24);
-
-    ctx.strokeStyle = shade(this.region.grass, 0.3);
-    ctx.lineWidth = 1.4;
-    ctx.beginPath();
-    const step = 7;
-    const x0 = Math.floor((camX - 20) / step) * step;
-    for (let x = x0; x < camX + this.vw + 20; x += step) {
+    // 잔디 — 밝은 윗줄, 본체, 그늘
+    px(ctx, left, gy, wide, 3, shade(this.region.grass, 0.3));
+    px(ctx, left, gy + 3, wide, 3, this.region.grass);
+    px(ctx, left, gy + 6, wide, 2, shade(this.region.grass, -0.3));
+    // 풀잎
+    for (let x = left - (left % 6); x < left + wide; x += 6) {
       const n = hash2(x, 5);
-      const h = 5 + n * 7;
-      const lean = Math.sin(this.elapsed * 1.1 + x * 0.05) * 2.2;
-      ctx.moveTo(x, gy - 1);
-      ctx.quadraticCurveTo(x + lean * 0.5, gy - h * 0.6, x + lean, gy - h);
+      const h = n > 0.66 ? 5 : n > 0.33 ? 3 : 2;
+      const lean = Math.sin(this.elapsed * 1.1 + x * 0.05) > 0 ? 1 : 0;
+      px(ctx, x + lean, gy - h, 1, h, shade(this.region.grass, 0.34));
     }
-    ctx.stroke();
   }
 
-  /** 벌통 — 판자 하나하나가 아니라 상자 한 채로 그린다. */
+  /** 벌통 — 평평한 판과 또렷한 테두리로 */
   private drawHiveShell() {
     const ctx = this.ctx;
     const hv = this.region.hive;
@@ -1427,69 +1471,40 @@ export class BeeGame {
     const bw = LAYOUT.box.w * TILE;
     const bh = LAYOUT.box.h * TILE;
 
-    ctx.save();
-    ctx.shadowColor = "rgba(0,0,0,0.45)";
-    ctx.shadowBlur = 26;
-    ctx.shadowOffsetY = 10;
-    const shell = ctx.createLinearGradient(bx, by, bx + bw, by + bh);
-    shell.addColorStop(0, shade(hv.wall, 0.16));
-    shell.addColorStop(0.5, hv.wall);
-    shell.addColorStop(1, shade(hv.wall, -0.26));
-    ctx.fillStyle = shell;
-    ctx.beginPath();
-    ctx.roundRect(bx, by, bw, bh, hv.material === "clay" ? 26 : 8);
-    ctx.fill();
-    ctx.restore();
+    px(ctx, bx, by, bw, bh, hv.wall);
+    px(ctx, bx, by, bw, 3, shade(hv.wall, 0.28)); // 위쪽 빛
+    px(ctx, bx, by + bh - 4, bw, 4, hv.wallDark); // 아래 그늘
+    px(ctx, bx, by, 3, bh, shade(hv.wall, 0.14));
+    px(ctx, bx + bw - 3, by, 3, bh, hv.wallDark);
 
     // 재료의 결
-    ctx.save();
-    ctx.beginPath();
-    ctx.roundRect(bx, by, bw, bh, hv.material === "clay" ? 26 : 8);
-    ctx.clip();
-    ctx.strokeStyle = hv.wallDark + "44";
-    ctx.lineWidth = 1.4;
-    if (hv.material === "stone") {
-      for (let y = by + 20; y < by + bh; y += 26) {
-        ctx.beginPath();
-        ctx.moveTo(bx, y + Math.sin(y) * 3);
-        ctx.lineTo(bx + bw, y + Math.cos(y) * 3);
-        ctx.stroke();
-      }
-    } else if (hv.material === "clay") {
-      for (let y = by + 24; y < by + bh; y += 30) {
-        ctx.beginPath();
-        ctx.ellipse(bx + bw / 2, y, bw * 0.48, 12, 0, 0, Math.PI * 2);
-        ctx.stroke();
-      }
-    } else {
-      for (let y = by + 22; y < by + bh; y += 24) {
-        ctx.beginPath();
-        ctx.moveTo(bx, y);
-        ctx.lineTo(bx + bw, y + 2);
-        ctx.stroke();
+    for (let y = by + 14; y < by + bh - 6; y += 14) {
+      if (hv.material === "clay") {
+        for (let x = bx + 4; x < bx + bw - 4; x += 8) px(ctx, x, y, 4, 1, hv.wallDark + "aa");
+      } else if (hv.material === "stone") {
+        for (let x = bx + ((y / 14) % 2 ? 10 : 2); x < bx + bw - 4; x += 20) {
+          px(ctx, x, y, 1, 12, hv.wallDark + "88");
+        }
+        px(ctx, bx + 2, y, bw - 4, 1, hv.wallDark + "88");
+      } else {
+        px(ctx, bx + 2, y, bw - 4, 1, hv.wallDark + "66");
       }
     }
-    ctx.restore();
 
     // 속을 파낸다
     const ix = LAYOUT.interior.x * TILE;
     const iy = LAYOUT.interior.y * TILE;
     const iw = LAYOUT.interior.w * TILE;
     const ih = LAYOUT.interior.h * TILE;
-    const inner = ctx.createLinearGradient(0, iy, 0, iy + ih);
-    inner.addColorStop(0, "#3a2510");
-    inner.addColorStop(1, "#201407");
-    ctx.fillStyle = inner;
-    ctx.fillRect(ix, iy, iw, ih);
+    px(ctx, ix, iy, iw, ih, "#2c1c0b");
+    px(ctx, ix, iy, iw, 2, "#1a1005");
 
-    // 입구 구멍과 착륙판
+    // 입구와 착륙판
     const e = LAYOUT.entry;
-    ctx.fillStyle = "#160e05";
-    ctx.fillRect(e.x * TILE - 2, e.y * TILE, e.w * TILE + 4, e.h * TILE);
-    ctx.fillStyle = shade(hv.wall, -0.1);
-    ctx.beginPath();
-    ctx.roundRect(e.x * TILE - 30, (e.y + e.h) * TILE - 3, 34, 6, 3);
-    ctx.fill();
+    px(ctx, e.x * TILE - 2, e.y * TILE, e.w * TILE + 4, e.h * TILE, "#120b04");
+    px(ctx, e.x * TILE - 2, e.y * TILE, e.w * TILE + 4, 2, "#000000");
+    px(ctx, e.x * TILE - 28, (e.y + e.h) * TILE - 4, 30, 4, shade(hv.wall, -0.08));
+    px(ctx, e.x * TILE - 28, (e.y + e.h) * TILE - 4, 30, 1, shade(hv.wall, 0.2));
   }
 
   /** 층을 나누는 소비 칸막이 */
@@ -1511,25 +1526,14 @@ export class BeeGame {
       for (const [a, b] of segs) {
         const x = a * TILE;
         const w = (b - a) * TILE;
-        const g = ctx.createLinearGradient(0, y, 0, y + TILE);
-        g.addColorStop(0, "#f0c268");
-        g.addColorStop(0.45, "#d9a441");
-        g.addColorStop(1, "#8d6420");
-        ctx.fillStyle = g;
-        ctx.beginPath();
-        ctx.roundRect(x, y, w, TILE, 4);
-        ctx.fill();
+        px(ctx, x, y, w, TILE, "#d9a441");
+        px(ctx, x, y, w, 3, "#f0c268");
+        px(ctx, x, y + TILE - 4, w, 4, "#8d6420");
       }
-      // 통로 가장자리에 그림자
-      ctx.strokeStyle = "rgba(0,0,0,0.3)";
-      ctx.lineWidth = 2;
+      // 통로 가장자리
       for (const gp of d.gaps) {
-        ctx.beginPath();
-        ctx.moveTo(gp.x * TILE, y);
-        ctx.lineTo(gp.x * TILE, y + TILE);
-        ctx.moveTo((gp.x + gp.w) * TILE, y);
-        ctx.lineTo((gp.x + gp.w) * TILE, y + TILE);
-        ctx.stroke();
+        px(ctx, gp.x * TILE - 2, y, 2, TILE, "#6f4c15");
+        px(ctx, (gp.x + gp.w) * TILE, y, 2, TILE, "#6f4c15");
       }
       void ix;
       void iw;
@@ -1557,31 +1561,16 @@ export class BeeGame {
       for (let col = 0; col * stepX < w + stepX; col++) {
         const cx = col * stepX + (row % 2 ? stepX / 2 : 0);
         const cy = row * stepY;
-        c.beginPath();
-        for (let i = 0; i < 6; i++) {
-          const a = (Math.PI / 3) * i - Math.PI / 2;
-          const px = cx + Math.cos(a) * (r - 1.2);
-          const py = cy + Math.sin(a) * (r - 1.2);
-          if (i === 0) c.moveTo(px, py);
-          else c.lineTo(px, py);
-        }
-        c.closePath();
         const n = hash2(col, row);
-        const g = c.createLinearGradient(cx - r, cy - r, cx + r, cy + r);
-        g.addColorStop(0, `rgb(${(132 + n * 26) | 0},${(94 + n * 20) | 0},${(40 + n * 14) | 0})`);
-        g.addColorStop(1, `rgb(${(88 + n * 20) | 0},${(60 + n * 16) | 0},${(24 + n * 10) | 0})`);
-        c.fillStyle = g;
-        c.fill();
-        c.strokeStyle = "rgba(240,196,110,0.28)";
-        c.lineWidth = 1.2;
-        c.stroke();
-        // 위쪽 모서리에만 빛이 걸린다
-        c.strokeStyle = "rgba(255,226,160,0.22)";
-        c.beginPath();
-        c.moveTo(cx - r * 0.87, cy - r * 0.5);
-        c.lineTo(cx, cy - r);
-        c.lineTo(cx + r * 0.87, cy - r * 0.5);
-        c.stroke();
+        const tone = n > 0.62 ? 12 : n > 0.3 ? 0 : -12;
+        pixelHex(
+          c,
+          Math.round(cx),
+          Math.round(cy),
+          r - 1,
+          `rgb(${(110 + tone) | 0},${(78 + tone * 0.8) | 0},${(32 + tone * 0.6) | 0})`,
+          "rgb(150,108,44)"
+        );
       }
     }
     this.combCache.set(zone.id, cv);
@@ -1641,99 +1630,58 @@ export class BeeGame {
   private drawFlowers(camX: number, camY: number) {
     const ctx = this.ctx;
     const fl = this.region.flower;
-    const heads = this.flowerHeads();
     const droop = fl.form === "acacia";
+    const heads = this.flowerHeads();
+    const sp =
+      fl.form === "acacia" ? BLOSSOM_DROOP : fl.form === "sidr" ? BLOSSOM_SMALL : BLOSSOM;
+
     for (const f of this.hive.flowers) {
       if (f.x < camX - 40 || f.x > camX + this.vw + 40) continue;
       if (f.y < camY - 80 || f.y > camY + this.vh + 40) continue;
-      const sway = Math.sin(f.sway) * 3;
-      const topY = f.y - (droop ? 44 : 32);
+      const sway = Math.round(Math.sin(f.sway) * 2);
+      const topY = Math.round(f.y - (droop ? 44 : 32));
+      const fx = Math.round(f.x);
 
-      ctx.strokeStyle = f.sprayed ? "#6b7a52" : fl.stem;
-      ctx.lineWidth = fl.form === "almond" ? 3.2 : 2.4;
-      ctx.beginPath();
-      ctx.moveTo(f.x, f.y);
-      ctx.quadraticCurveTo(f.x + sway * 0.5, f.y - 18, f.x + sway, topY);
-      ctx.stroke();
-      if (fl.form === "acacia" || fl.form === "almond") {
-        // 잎 한 장
-        ctx.fillStyle = f.sprayed ? "#8fa06a" : fl.stem;
-        ctx.beginPath();
-        ctx.ellipse(f.x + sway + 7, topY + 20, 6, 2.6, -0.5, 0, Math.PI * 2);
-        ctx.fill();
+      // 줄기 — 두 칸짜리 계단
+      const stem = f.sprayed ? "#6b7a52" : fl.stem;
+      const steps = Math.round((f.y - topY) / 3);
+      for (let i = 0; i < steps; i++) {
+        const t = i / steps;
+        px(ctx, fx + Math.round(sway * t) - 1, f.y - i * 3, 2, 3, stem);
       }
+      px(ctx, fx + sway + 2, topY + 16, 5, 2, stem);
+      px(ctx, fx + sway + 6, topY + 15, 2, 2, stem);
 
-      for (const [ox, oy, scale, petals] of heads) {
-        const hx = f.x + sway + ox;
-        const hy = topY + oy;
-        const open = (f.used ? 0.55 : 1) * scale;
-        for (let i = 0; i < petals; i++) {
-          const a = (i / petals) * Math.PI * 2 + f.sway * 0.2;
-          ctx.fillStyle = f.sprayed
-            ? "#cfe0c0"
-            : f.used
-              ? "#d8d2c4"
-              : i % 2
-                ? fl.petal
-                : fl.petal2;
-          ctx.beginPath();
-          ctx.ellipse(
-            hx + Math.cos(a) * 4.4 * open,
-            hy + Math.sin(a) * 4.4 * open,
-            3.6 * open,
-            3 * open,
-            a,
-            0,
-            Math.PI * 2
-          );
-          ctx.fill();
-        }
-        ctx.fillStyle = f.sprayed ? "#8fa06a" : f.used ? "#b9ac8a" : fl.center;
-        ctx.beginPath();
-        ctx.arc(hx, hy, 2.1 * scale, 0, Math.PI * 2);
-        ctx.fill();
+      const palette: Record<string, string | undefined> = f.sprayed
+        ? { p: "#cfe0c0", q: "#b9cfaa", o: "#8fa06a" }
+        : f.used
+          ? { p: "#d8d2c4", q: "#c4bdad", o: "#b9ac8a" }
+          : { p: fl.petal, q: fl.petal2, o: fl.center };
+
+      for (const [ox, oy, scale] of heads) {
+        blit(ctx, sp, palette, fx + sway + ox, topY + oy, 1, Math.max(1, Math.round(scale * 2)));
       }
 
       if (f.sprayed) {
-        ctx.fillStyle = `rgba(150,235,140,${0.16 + Math.sin(this.elapsed * 3 + f.sway) * 0.06})`;
-        ctx.beginPath();
-        ctx.arc(f.x + sway, topY + 6, 19, 0, Math.PI * 2);
-        ctx.fill();
+        // 농약 — 초록 안개와 표시
+        const t = Math.sin(this.elapsed * 3 + f.sway) > 0 ? 1 : 0;
+        ctx.fillStyle = "rgba(150,235,140,0.18)";
+        ctx.fillRect(fx + sway - 14, topY - 8 - t, 28, 26);
         ctx.fillStyle = "rgba(190,255,180,0.9)";
         ctx.font = "9px system-ui, sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText("농약", f.x + sway, topY - 14);
+        ctx.fillText("농약", fx + sway, topY - 14);
       } else if (!f.used) {
-        ctx.fillStyle = "rgba(255,240,190,0.2)";
-        ctx.beginPath();
-        ctx.arc(
-          f.x + sway,
-          topY + 6,
-          15 + Math.sin(this.elapsed * 3 + f.sway) * 1.6,
-          0,
-          Math.PI * 2
-        );
-        ctx.fill();
+        // 꿀이 남아 있으면 반짝인다
+        const t = Math.floor(this.elapsed * 3 + f.sway) % 2;
+        px(ctx, fx + sway - 10 + t * 20, topY - 6, 2, 2, "rgba(255,246,200,0.9)");
+        px(ctx, fx + sway + 6 - t * 14, topY + 12, 2, 2, "rgba(255,246,200,0.7)");
       }
     }
   }
 
   private hex(x: number, y: number, r: number, fill: string, stroke: string) {
-    const ctx = this.ctx;
-    ctx.beginPath();
-    for (let i = 0; i < 6; i++) {
-      const a = (Math.PI / 3) * i - Math.PI / 2;
-      const px = x + Math.cos(a) * r;
-      const py = y + Math.sin(a) * r;
-      if (i === 0) ctx.moveTo(px, py);
-      else ctx.lineTo(px, py);
-    }
-    ctx.closePath();
-    ctx.fillStyle = fill;
-    ctx.fill();
-    ctx.strokeStyle = stroke;
-    ctx.lineWidth = 2;
-    ctx.stroke();
+    pixelHex(this.ctx, Math.round(x), Math.round(y), r, fill, stroke);
   }
 
   private drawProps(camX: number, camY: number) {
@@ -1753,30 +1701,32 @@ export class BeeGame {
         }
       } else if (c.larva) {
         this.hex(c.x, c.y, 15, "rgba(58,38,14,0.85)", "rgba(226,176,84,0.8)");
-        const wig = Math.sin(this.elapsed * 3 + c.wiggle) * 1.6;
-        ctx.fillStyle = c.fed ? "#fff6dd" : "#f0dfb6";
-        ctx.beginPath();
-        ctx.ellipse(c.x, c.y + 2, 7.5, 5.5, wig * 0.06, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = "rgba(196,164,110,0.75)";
-        ctx.lineWidth = 1;
-        for (let i = -1; i <= 1; i++) {
-          ctx.beginPath();
-          ctx.moveTo(c.x + i * 3.2, c.y - 2.4);
-          ctx.lineTo(c.x + i * 3.2, c.y + 6);
-          ctx.stroke();
-        }
+        const wig = Math.sin(this.elapsed * 3 + c.wiggle) > 0 ? 1 : 0;
+        blit(
+          ctx,
+          LARVA,
+          {
+            L: c.fed ? "#fff6dd" : "#f0dfb6",
+            m: c.fed ? "#e4d3ac" : "#d6c49a",
+            E: "#5b4327",
+          },
+          c.x + wig,
+          c.y + 2,
+          1,
+          2
+        );
         if (c.fed) {
           ctx.fillStyle = "rgba(255,236,168,0.9)";
           ctx.font = "9px system-ui, sans-serif";
           ctx.textAlign = "center";
           ctx.fillText("♪", c.x, c.y - 12);
         } else if (this.stage === 1 && this.jelly > 0) {
-          ctx.strokeStyle = `rgba(255,226,150,${0.4 + Math.sin(this.elapsed * 4 + c.x) * 0.18})`;
-          ctx.lineWidth = 1.6;
-          ctx.beginPath();
-          ctx.arc(c.x, c.y, 24, 0, Math.PI * 2);
-          ctx.stroke();
+          if (Math.floor(this.elapsed * 4 + c.x) % 2 === 0) {
+            for (let i = 0; i < 8; i++) {
+              const a = (i / 8) * Math.PI * 2;
+              px(ctx, c.x + Math.cos(a) * 22, c.y + Math.sin(a) * 22, 3, 3, "#ffe296");
+            }
+          }
         }
       } else {
         this.hex(c.x, c.y, 15, "rgba(96,66,28,0.75)", "rgba(226,176,84,0.6)");
@@ -1786,18 +1736,25 @@ export class BeeGame {
     // 로열젤리 웅덩이
     const j = this.hive.jellyPool;
     if (vis(j.x, j.y) && this.stage <= 1) {
-      ctx.fillStyle = "rgba(255,245,214,0.22)";
-      ctx.beginPath();
-      ctx.ellipse(j.x, j.y, 24 + Math.sin(this.elapsed * 2) * 2, 11, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = "#fdf3d3";
-      ctx.beginPath();
-      ctx.ellipse(j.x, j.y, 17, 8, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = "rgba(255,255,255,0.85)";
-      ctx.beginPath();
-      ctx.ellipse(j.x - 5, j.y - 2, 4.4, 2, -0.4, 0, Math.PI * 2);
-      ctx.fill();
+      const bob = Math.sin(this.elapsed * 2) > 0 ? 1 : 0;
+      const jx = Math.round(j.x);
+      const jy = Math.round(j.y);
+      // 계단으로 쌓은 웅덩이
+      const rows: Array<[number, number]> = [
+        [10, 3],
+        [15, 3],
+        [17, 3],
+        [15, 3],
+        [10, 3],
+      ];
+      let ry = jy - 7;
+      for (const [half, hgt] of rows) {
+        px(ctx, jx - half, ry + bob, half * 2, hgt, "#fdf3d3");
+        ry += hgt;
+      }
+      px(ctx, jx - 17, jy - 7 + bob, 34, 2, "#ffffff");
+      px(ctx, jx - 8, jy - 4 + bob, 6, 2, "rgba(255,255,255,0.9)");
+      px(ctx, jx - 20, jy + 9 + bob, 40, 2, "rgba(255,245,214,0.3)");
       ctx.font = "bold 10px system-ui, sans-serif";
       ctx.textAlign = "center";
       const jw = ctx.measureText("로열젤리").width;
@@ -1821,53 +1778,40 @@ export class BeeGame {
       ctx.beginPath();
       ctx.arc(0, 8, 46, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = q.capped ? "#e0ae46" : "#c9963c";
-      ctx.beginPath();
-      ctx.ellipse(0, 4, 12, 11, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.ellipse(0, 18, 10, 12, 0, 0, Math.PI * 2);
-      ctx.fill();
+      const qc = q.capped ? "#e0ae46" : "#c9963c";
+      const qd = "#8d6420";
+      // 아래로 늘어진 왕대 — 폭이 줄어드는 계단
+      const seg: Array<[number, number, number]> = [
+        [-6, 11, 6],
+        [0, 12, 6],
+        [6, 12, 6],
+        [12, 11, 6],
+        [18, 10, 6],
+        [24, 8, 5],
+      ];
+      for (const [oy, half, hgt] of seg) {
+        px(ctx, -half, oy, half * 2, hgt, qc);
+        px(ctx, -half, oy, 2, hgt, qd);
+        px(ctx, half - 2, oy, 2, hgt, qd);
+      }
+      px(ctx, -11, -6, 22, 2, shade(qc, 0.24));
+      for (let i = 0; i < 4; i++) px(ctx, -9, 2 + i * 7, 18, 1, qd);
+
       if (q.capped) {
-        // 봉인된 왕대는 끝까지 밀랍으로 막혀 있다
-        ctx.beginPath();
-        ctx.ellipse(0, 31, 7, 8, 0, 0, Math.PI * 2);
-        ctx.fill();
+        px(ctx, -8, 29, 16, 5, qc);
+        px(ctx, -8, 29, 16, 2, shade(qc, 0.2));
       } else {
-        // 아직 열려 있다 — 안의 애벌레가 입을 내밀고 있어야 먹일 대상으로 읽힌다
-        const wig = Math.sin(this.elapsed * 4) * 1.2;
-        ctx.fillStyle = "#f7e9c4";
-        ctx.beginPath();
-        ctx.ellipse(wig * 0.4, 30, 7, 7.5, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = "#5b4327";
-        ctx.beginPath();
-        ctx.arc(-2.4 + wig * 0.4, 30, 1.1, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(2.4 + wig * 0.4, 30, 1.1, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = "rgba(91,67,39,0.8)";
-        ctx.lineWidth = 1.2;
-        ctx.beginPath();
-        ctx.arc(wig * 0.4, 32, 2.4, 0.15 * Math.PI, 0.85 * Math.PI);
-        ctx.stroke();
-      }
-      ctx.strokeStyle = "rgba(120,78,20,0.5)";
-      ctx.lineWidth = 1.5;
-      for (let i = 0; i < 3; i++) {
-        ctx.beginPath();
-        ctx.arc(0, 2 + i * 9, 9, 0.15 * Math.PI, 0.85 * Math.PI);
-        ctx.stroke();
-      }
-      // 젤리를 들고 있으면 어디를 건드려야 하는지 고리로 알려 준다
-      if (!q.capped && this.stage === 1) {
-        const on = this.jelly > 0;
-        ctx.strokeStyle = `rgba(255,226,150,${on ? 0.45 + Math.sin(this.elapsed * 4) * 0.2 : 0.14})`;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(0, QUEEN_CELL_MID, QUEEN_CELL_R - 6, 0, Math.PI * 2);
-        ctx.stroke();
+        // 안의 애벌레가 내다본다
+        const wig = Math.sin(this.elapsed * 4) > 0 ? 1 : 0;
+        blit(
+          ctx,
+          LARVA,
+          { L: "#f7e9c4", m: "#e0d0a4", E: "#5b4327" },
+          wig,
+          31,
+          1,
+          2
+        );
       }
       const label = q.capped ? "왕대 · 봉인됨" : `왕대 — 여왕이 될 애벌레 ${q.jelly}/3`;
       ctx.font = "bold 10px system-ui, sans-serif";
@@ -1901,6 +1845,7 @@ export class BeeGame {
     }
   }
 
+  /** 벌 한 마리. 도트 스프라이트를 격자에 딱 맞춰 찍는다. */
   private drawBee(
     x: number,
     y: number,
@@ -1910,109 +1855,36 @@ export class BeeGame {
     kind: "player" | "queen" | "worker" | "drone" | "hornet"
   ) {
     const ctx = this.ctx;
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.scale(dir * scale, scale);
+    const zoom = Math.max(1, Math.round(scale * 2));
+    const flap = Math.sin(wingPhase) > 0;
+    const pred = this.region.predator;
 
-    const body = kind === "hornet" ? this.region.predator.body : "#f6c343";
-    const dark = kind === "hornet" ? this.region.predator.dark : "#3d2c10";
-    const fuzz = kind === "hornet" ? mixHex(this.region.predator.body, "#000000", 0.22) : "#e8b13a";
-    const abdomen = kind === "queen" ? 15 : kind === "hornet" ? 14 : 10;
+    const sp: Sprite =
+      kind === "queen" ? QUEEN : kind === "drone" ? DRONE : kind === "hornet" ? HORNET : BEE;
 
-    const flap = Math.sin(wingPhase) * 0.55 + 0.6;
-    ctx.fillStyle = kind === "hornet" ? "rgba(220,220,230,0.4)" : "rgba(226,242,255,0.55)";
-    ctx.strokeStyle = "rgba(255,255,255,0.5)";
-    ctx.lineWidth = 0.6;
-    for (const s of [-1, 1]) {
-      ctx.save();
-      ctx.translate(-2, -5);
-      ctx.rotate(s * 0.25);
-      ctx.beginPath();
-      ctx.ellipse(-4, -3, 11, 4.4 * flap, -0.5, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-      ctx.restore();
-    }
+    const body = kind === "hornet" ? pred.body : "#f6c343";
+    const stripe = kind === "hornet" ? pred.dark : "#3d2c10";
+    const palette: Record<string, string | undefined> = {
+      Y: body,
+      d: stripe,
+      f: kind === "hornet" ? mixHex(pred.body, "#ffffff", 0.2) : "#e8b13a",
+      H: kind === "hornet" ? pred.dark : "#3d2c10",
+      e: "#f4ead2",
+      E: "#241a2e",
+      a: stripe,
+      L: stripe,
+      s: "#d8d0c0",
+      c: "#ffd75e",
+      j: "#ff7ea8",
+      // 날개는 퍼덕임에 따라 두 줄이 번갈아 보인다
+      w: flap ? "rgba(226,242,255,0.75)" : "rgba(226,242,255,0.4)",
+    };
 
-    ctx.fillStyle = body;
-    ctx.beginPath();
-    ctx.ellipse(-abdomen * 0.5, 0, abdomen, 7.4, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = dark;
-    for (let i = 0; i < 3; i++) {
-      ctx.beginPath();
-      ctx.ellipse(-abdomen * 0.28 - i * (abdomen * 0.42), 0, 2.2, 7.2 - i * 1.4, 0, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    if (kind === "hornet") {
-      ctx.strokeStyle = dark;
-      ctx.lineWidth = 1.4;
-      ctx.beginPath();
-      ctx.moveTo(-abdomen * 1.45, 0);
-      ctx.lineTo(-abdomen * 1.9, 1.5);
-      ctx.stroke();
-    }
+    // 날갯짓 — 짝수 프레임엔 위쪽 한 줄을 지운다
+    if (!flap) palette.w = "rgba(214,234,255,0.34)";
 
-    ctx.fillStyle = fuzz;
-    ctx.beginPath();
-    ctx.arc(4, -1, 6.4, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = "rgba(255,236,180,0.7)";
-    ctx.lineWidth = 0.8;
-    for (let i = 0; i < 7; i++) {
-      const a = (i / 7) * Math.PI * 2;
-      ctx.beginPath();
-      ctx.moveTo(4 + Math.cos(a) * 5.4, -1 + Math.sin(a) * 5.4);
-      ctx.lineTo(4 + Math.cos(a) * 8, -1 + Math.sin(a) * 8);
-      ctx.stroke();
-    }
-
-    ctx.fillStyle = dark;
-    ctx.beginPath();
-    ctx.arc(11.5, -1.5, 4.6, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = kind === "drone" ? "#1b1b25" : "#241a08";
-    ctx.beginPath();
-    ctx.ellipse(13.6, -2.6, kind === "drone" ? 3.4 : 2.2, kind === "drone" ? 3.2 : 2.4, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "rgba(255,255,255,0.85)";
-    ctx.beginPath();
-    ctx.arc(14.4, -3.4, 0.9, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = dark;
-    ctx.lineWidth = 1;
-    for (const s of [-1, 1]) {
-      ctx.beginPath();
-      ctx.moveTo(13, -4.5);
-      ctx.quadraticCurveTo(17, -8 + s * 1.5, 19.5, -9 + s * 3 + Math.sin(wingPhase * 0.3) * 0.6);
-      ctx.stroke();
-    }
-
-    ctx.strokeStyle = dark;
-    ctx.lineWidth = 1.1;
-    for (let i = 0; i < 3; i++) {
-      ctx.beginPath();
-      ctx.moveTo(4 - i * 4, 5);
-      ctx.lineTo(2 - i * 4 + Math.sin(wingPhase * 0.2 + i) * 1.5, 10);
-      ctx.stroke();
-    }
-
-    if (kind === "queen") {
-      ctx.fillStyle = "#ffd75e";
-      ctx.beginPath();
-      ctx.moveTo(6, -9);
-      ctx.lineTo(8, -15);
-      ctx.lineTo(10.5, -10);
-      ctx.lineTo(13, -16);
-      ctx.lineTo(15, -9);
-      ctx.closePath();
-      ctx.fill();
-      ctx.fillStyle = "#ff7ea8";
-      ctx.beginPath();
-      ctx.arc(11, -11.5, 1.3, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.restore();
+    blit(ctx, sp, palette, x, y, dir, zoom);
+    void scale;
   }
 
   private drawWorkers() {
@@ -2031,13 +1903,13 @@ export class BeeGame {
   private drawHornets() {
     for (const h of this.hive.hornets) {
       if (!h.alive) continue;
-      this.drawBee(h.x, h.y, h.vx >= 0 ? 1 : -1, 1.0, this.elapsed * 34 + h.wiggle, "hornet");
+      this.drawBee(h.x, h.y, h.vx >= 0 ? 1 : -1, 1, this.elapsed * 34 + h.wiggle, "hornet");
     }
   }
 
   private drawDrones() {
     for (const d of this.drones) {
-      this.drawBee(d.x, d.y, d.dir, 0.78, this.elapsed * 30 + d.phase, "drone");
+      this.drawBee(d.x, d.y, d.dir, 1, this.elapsed * 30 + d.phase, "drone");
     }
   }
 
@@ -2047,7 +1919,7 @@ export class BeeGame {
       this.cx,
       this.cy,
       this.facing,
-      this.isQueen ? 1.15 : 0.82,
+      this.isQueen ? 1 : 1,
       this.wingPhase,
       this.isQueen ? "queen" : "player"
     );
