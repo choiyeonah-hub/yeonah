@@ -2286,7 +2286,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0902-ew";
+const BUILD = "0902-ex";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -3029,7 +3029,7 @@ function NewBuildBar({ build }) {
 function App() {
   const [st, setSt] = useState(DEFAULT_STATE);
   const [ready, setReady] = useState(false);
-  const [tab, setTab] = useState("home");
+  const [tab, setTab] = useState("plan");
   const [me, setMe] = useState(window.__ME || "m1");
   const [toast, setToast] = useState(null);
   const [openCat, setOpenCat] = useState(null);
@@ -3236,7 +3236,8 @@ function App() {
               <Header />
               <div className="px-5">
                 <LinkClaims key={tab}>
-                {tab === "home" && <Home />}
+                {tab === "plan" && <PlanTab />}
+                {tab === "script" && <ScriptTab />}
                 {tab === "speak" && <Speak />}
                 {tab === "news" && <NewsScreen />}
                 {tab === "call" && <ElderScreen />}
@@ -3536,7 +3537,7 @@ function Header() {
             <Avatar member={m} size={28} />
           </button>
         ))}
-        <button className="press" onClick={() => setTab(inSet ? "home" : "set")} aria-label={inSet ? "설정 닫기" : "설정"}
+        <button className="press" onClick={() => setTab(inSet ? "plan" : "set")} aria-label={inSet ? "설정 닫기" : "설정"}
           style={{ width: 30, height: 30, marginLeft: 4, borderRadius: 999, border: `1px solid ${inSet ? C.moss : C.line}`, background: inSet ? C.mossSoft : C.card, color: inSet ? C.moss : C.ink2, fontSize: 13 }}>{inSet ? "✕" : "⚙"}</button>
       </div>
     </div>
@@ -4231,7 +4232,7 @@ function DiscoverCard({ item, onAdd, onLater, onNo, delay = 0 }) {
 /* ── 홈 ───────────────────────────────────────
    판단이 필요한 일은 3가지만. 매일 루틴은 체크리스트로 따로.
    나머지는 접어두고, 가족이 각자 자기 몫만 볼 수도 있게. */
-function Home() {
+function PlanTab() {
   const { st, setSt, me, cats, setTab, addTasks, complete, say, log, setRoutine, routineAction, spendAI, refundAI } = use();
   const [all, setAll] = useState(false);
   const [only, setOnly] = useState("all");   /* all = 다 같이 보기 / mine = 내 몫만 */
@@ -4619,11 +4620,10 @@ function Home() {
 
 
 
-      {/* 요일마다 되풀이될 것 — 부모가 한 번 앉아서 정하는 일이라 여기입니다 */}
+      {/* 요일마다 되풀이될 것 — 부모가 한 번 앉아서 정하는 일이라 여기입니다.
+          그날 나갈 말 미리보기와 고치기는 문구 탭으로 갈라졌습니다 — 일정을
+          짜는 것과 오늘 나갈 문구를 다듬는 것은 다른 때 하는 다른 일입니다. */}
       {(st.elders || []).length > 0 && <PlanEditor />}
-      {/* 그날 나갈 말 미리보기와 고치기. 조부모님 탭은 읽기만 하는 곳이라
-          손대는 것은 전부 여기 있어야 합니다 */}
-      {(st.elders || []).length > 0 && <CallPreview />}
 
       {HOME_LISTS && (<>
       <Section eyebrow="TODAY" title="오늘 살펴둘 일" right={think.length ? "나머지는 접어뒀어요" : null}>
@@ -4696,6 +4696,30 @@ function Home() {
         )}
       </div>
       </>)}
+    </>
+  );
+}
+
+/* ── 문구 ─────────────────────────────────────────
+   부모님 탭이 하던 두 가지 일 — "요일마다 되풀이될 것을 짜는 것"과
+   "오늘 나갈 말을 미리 보고 고치는 것" — 이 한 화면에 같이 있어서
+   찾을 때마다 스크롤을 오르내려야 했습니다. 일정은 앉아서 한 번 짜는 일이고
+   문구는 매일 훑어보는 일이라, 하는 때가 다릅니다. 그래서 갈랐습니다. */
+function ScriptTab() {
+  const { st, setTab } = use();
+  return (
+    <>
+      {(st.elders || []).length > 0 ? <CallPreview /> : (
+        <Card style={{ marginTop: 20, borderColor: C.lineSoft }}>
+          <button className="press w-full text-left" onClick={() => setTab("plan")}
+            style={{ padding: 15, background: "transparent", border: "none" }}>
+            <div style={{ fontSize: 13.5, fontWeight: 600 }}>먼저 일정 탭에서 시작해주세요</div>
+            <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 7, lineHeight: 1.75 }}>
+              어른과 아이 정보를 넣어두셔야 오늘 나갈 말을 보여드릴 수 있어요.
+            </div>
+          </button>
+        </Card>
+      )}
     </>
   );
 }
@@ -5181,7 +5205,7 @@ ${CALL_SPLIT(st, todayStr())}
     const twice = fromShare && result.find((r) => (st.shareSeen || {})[shareKey(r.title)] >= 1);
     setSt((sv) => ({ ...sv, showAll: Date.now(),
       shareNudge: twice ? { title: twice.title, at: Date.now() } : sv.shareNudge }));
-    setTab("home");
+    setTab("plan");
   };
 
   if (capped) {
@@ -5208,7 +5232,7 @@ ${CALL_SPLIT(st, todayStr())}
             직접 적어서 담기
           </Btn>
           <div style={{ height: 8 }} />
-          <Btn kind="ghost" onClick={() => { setCapped(null); setTab("home"); }}>오늘 화면으로</Btn>
+          <Btn kind="ghost" onClick={() => { setCapped(null); setTab("plan"); }}>오늘 화면으로</Btn>
         </div>
       </>
     );
@@ -5245,7 +5269,7 @@ ${CALL_SPLIT(st, todayStr())}
           {HOME_LISTS
             ? (answer ? "괜찮으면 아래에서 필요한 일만 담으세요."
                       : "어른께 갈 것은 이미 담겼어요. 내 할 일은 담아야 오늘 화면에 남습니다.")
-            : (answer || "시각이나 전화·문자를 바꾸시려면 부모님 탭 요일 계획에서 그 줄을 누르세요.")}
+            : (answer || "시각이나 전화·문자를 바꾸시려면 일정 탭 요일 계획에서 그 줄을 누르세요.")}
         </p>
         {/* 어른께 간 것을 안 보여주면 부모가 어른 탭까지 들어가 확인해야 합니다.
             여기서 바로 보고 바로 뺄 수 있어야 합니다. */}
@@ -5535,7 +5559,7 @@ ${CALL_SPLIT(st, todayStr())}
                     })} style={{ background: "transparent", border: "none", color: C.ink3, fontSize: 12 }}>빼기</button>
                   </div>
                 ))}
-                <button className="press" onClick={() => setTab("call")}
+                <button className="press" onClick={() => setTab("plan")}
                   style={{ marginTop: 11, background: "transparent", border: `1px solid ${C.line}`, borderRadius: 999, padding: "7px 14px", fontSize: 12.5, color: C.ink2 }}>
                   시각·말투 고치기
                 </button>
@@ -5794,7 +5818,7 @@ ${CALL_SPLIT(st, todayStr())}
     <>
       <div style={{ marginTop: 18, paddingLeft: 2 }}>
         <div className="disp" style={{ fontSize: 24, fontWeight: 600, lineHeight: 1.38, letterSpacing: "-.03em" }}>그날 달라지는 것만<br />말하세요</div>
-        <p style={{ fontSize: 13.5, color: C.ink2, marginTop: 10, lineHeight: 1.7 }}>매주 같은 것은 부모님 탭에 있습니다. 여기는 병원, 준비물, 오늘만 다른 것.</p>
+        <p style={{ fontSize: 13.5, color: C.ink2, marginTop: 10, lineHeight: 1.7 }}>매주 같은 것은 일정 탭에 있습니다. 여기는 병원, 준비물, 오늘만 다른 것.</p>
       </div>
 
       <Card style={{ marginTop: 16 }}>
@@ -5979,7 +6003,7 @@ function NewsScreen() {
 
   return (
     <>
-      <PageHead onBack={() => setTab("home")} backLabel="부모님" />
+      <PageHead onBack={() => setTab("plan")} backLabel="일정" />
       <div style={{ marginTop: 14, paddingLeft: 2 }}>
         <div className="disp" style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-.03em" }}>이달의 소식</div>
         <p style={{ fontSize: 13.5, color: C.ink2, marginTop: 9, lineHeight: 1.7 }}>
@@ -6006,7 +6030,7 @@ function NewsScreen() {
             {/* 빈 화면에서 되돌아갈 길이 없으면 고장 난 걸로 보입니다.
                 여기서 바로 다시 눌러볼 수 있게 합니다 */}
             <div style={{ marginTop: 16 }}>
-              <Btn kind="ghost" onClick={() => { setSt((sv) => ({ ...sv, newsAsk: Date.now() })); setTab("home"); say("찾는 중이에요"); }}>
+              <Btn kind="ghost" onClick={() => { setSt((sv) => ({ ...sv, newsAsk: Date.now() })); setTab("plan"); say("찾는 중이에요"); }}>
                 지금 찾아보기
               </Btn>
             </div>
@@ -7528,11 +7552,11 @@ function ElderScreen() {
       )}
 
       {/* 부모가 잘못 들어왔을 때만 나가는 길. 어른께는 누를 일이 없습니다 */}
-      <button className="press" onClick={() => setTab("home")}
+      <button className="press" onClick={() => setTab("script")}
         style={{ display: "block", width: "100%", marginTop: 26, background: "transparent",
                  border: `1px solid ${C.line}`, borderRadius: R.pill, padding: "12px 0",
                  fontSize: 13, color: C.ink3 }}>
-        고치려면 · 부모님 탭
+        고치려면 · 문구 탭
       </button>
     </div>
   );
@@ -7814,7 +7838,7 @@ function Settings() {
 
   return (
     <>
-      <PageHead title="설정" onBack={() => setTab("home")} backLabel="오늘로 돌아가기" />
+      <PageHead title="설정" onBack={() => setTab("plan")} backLabel="오늘로 돌아가기" />
       <Section eyebrow="ONB-01" title="함께 챙기는 사람">
         <Card><div style={{ padding: 16 }}>
           {d.members.map((m, i) => (
@@ -7892,7 +7916,7 @@ function Settings() {
       <Section eyebrow="CALL" title="어른께 전화">
         <Card><div style={{ padding: 15 }}>
           {/* 어른이 한 분이 아닙니다 — 어머니가 보시다 시어머니가 오시는 주가 있습니다.
-              여기서 여러 분을 두고, 부모님 탭에서는 이번에 누구께 갈지 고르기만 합니다.
+              여기서 여러 분을 두고, 문구 탭에서는 이번에 누구께 갈지 고르기만 합니다.
               맨 앞(0번)이 지금 받으시는 분입니다 — 서버도 화면도 그 자리를 봅니다. */}
           {(d.elders || []).map((el, i) => {
             const patch = (pt) => setD((v) => ({ ...v, elders: (v.elders || []).map((x, j) => j === i ? { ...x, ...pt } : x) }));
@@ -7941,7 +7965,7 @@ function Settings() {
               ? <>어른께 <b style={{ color: C.ink2 }}>문자</b>가 갑니다. 전화의 <b style={{ color: C.ink2 }}>열몇 배 쌉니다.</b>
                   어른이 하실 일은 없고, 문자는 남아 있어서 나중에 다시 보십니다.<br />
                   다만 <b style={{ color: C.ink2 }}>그 자리에서 알아채시는 건 전화 쪽</b>이에요.
-                  하원처럼 시각이 중요한 것은 <b style={{ color: C.ink2 }}>부모님 탭</b> 요일 계획에서 그 줄만 전화로 바꿔두시면 됩니다.</>
+                  하원처럼 시각이 중요한 것은 <b style={{ color: C.ink2 }}>일정 탭</b> 요일 계획에서 그 줄만 전화로 바꿔두시면 됩니다.</>
               : <>어른께 <b style={{ color: C.ink2 }}>전화</b>가 갑니다. 한 통에 약 300원이라, 놓치면 안 되는 것만 {leadWord(st)} 겁니다. 어른은 받기만 하시면 됩니다.</>}
           </p>
           {/* 고른 것만으로 앱으로 넘어가면, 어른이 안 깔았을 때 아무것도 안 갑니다.
@@ -8024,7 +8048,7 @@ function Settings() {
           </div>
           )}
           <p style={{ fontSize: 12, color: C.ink3, marginTop: 11, lineHeight: 1.75 }}>
-            요일별 일정과 약·준비물은 <b style={{ color: C.ink2 }}>부모님 탭</b>에서 넣습니다.
+            요일별 일정과 약·준비물은 <b style={{ color: C.ink2 }}>일정 탭</b>에서 넣습니다.
           </p>
         </div></Card>
       </Section>
@@ -8111,7 +8135,7 @@ function Settings() {
               이번 달 말하기가 <b>{left}번</b> 남았어요 · {nextResetLabel()}에 다시 채워집니다.</span>;
             return <>말하기는 {PHASE === "beta" ? "베타 동안 " : ""}<b style={{ color: C.ink }}>넉넉합니다.</b> 마음껏 쓰세요.</>;
           })()}
-          <br />부모님 탭 요일 계획에 직접 적으시는 건 횟수와 상관없이 언제든 됩니다.
+          <br />일정 탭 요일 계획에 직접 적으시는 건 횟수와 상관없이 언제든 됩니다.
         </div></Card>
       </Section>
 
@@ -8137,7 +8161,7 @@ function Settings() {
       <div style={{ marginTop: 20 }}>
         {/* 이제 나가기만 해도 저장됩니다. 이 버튼은 "저장했어요"를 눈으로 보고 싶을 때,
             또는 계속 고치던 중에 지금까지 것만 먼저 남겨두고 싶을 때 누르시면 됩니다. */}
-        <Btn onClick={() => { skipAutosave.current = true; commit(d); say("저장했어요"); setTab("home"); }}>저장</Btn>
+        <Btn onClick={() => { skipAutosave.current = true; commit(d); say("저장했어요"); setTab("plan"); }}>저장</Btn>
         <div style={{ height: 8 }} />
         {/* 지우기 전에 내려받을 길이 있어야 합니다. 되돌릴 수 없는 버튼 옆에
             백업이 없으면, 그건 버튼이 아니라 함정입니다. */}
@@ -8169,7 +8193,7 @@ function Settings() {
         <div style={{ marginTop: 20 }}>
           <Btn kind="ghost" onClick={() => setDash(true)}>베타 지표 보기</Btn>
           <div style={{ height: 8 }} />
-          <Btn kind="ghost" onClick={() => { setSt((s2) => ({ ...s2, previewOnboarding: true })); setTab("home"); }}>처음 화면 미리보기</Btn>
+          <Btn kind="ghost" onClick={() => { setSt((s2) => ({ ...s2, previewOnboarding: true })); setTab("plan"); }}>처음 화면 미리보기</Btn>
           <EnvCheck />
         </div>
       )}
@@ -8197,8 +8221,9 @@ function TabBar() {
      그런데 감추는 조건만 남아 있어서, 혼자 등록한 집은 이 탭을 아예 못 봤습니다.
      복지는 오히려 혼자 사는 집에 더 필요하고, 미리 사두기도 여기에만 있습니다. */
   const items = [
-    { id: "home", label: "부모님", icon: "◉" },
+    { id: "plan", label: "일정", icon: "◉" },
     { id: "speak", label: "말하기", icon: "✦", primary: true },
+    { id: "script", label: "문구", icon: "✎" },
     { id: "call", label: "조부모님", icon: "☏" },
   ];
   return (
