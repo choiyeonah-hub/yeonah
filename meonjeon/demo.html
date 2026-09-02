@@ -1620,7 +1620,10 @@ function callBatches(st, when) {
   Object.keys(슬롯).sort().forEach((k) => out.push({ at: k, rows: 슬롯[k], kind: "지금", soft: true }));
   out.sort((a2, b2) => String(a2.at).localeCompare(String(b2.at)));
   /* 아침은 보통 문자입니다(값이 20원, 남아서 다시 보심). 어른이 문자를 안 보시는 집은 전화로 고릅니다 */
-  if (아침줄.length) out.unshift({ at: st.callAt || "07:50", rows: 아침줄, kind: "아침", soft: true, forceCall: st.callMorningHow === "call" });
+  /* 아침 통만 따로 채널을 정하는 자리가 있었습니다("아침 알림" 설정의 문자로/전화로).
+     "어른께 전화"의 기본값과 뜻이 같은데 자리만 둘이라, 같은 걸 두 번 정하는 것처럼 보였습니다.
+     아침 통도 다른 통과 똑같이 — 줄마다 고른 것, 없으면 기본값을 따릅니다. */
+  if (아침줄.length) out.unshift({ at: st.callAt || "07:50", rows: 아침줄, kind: "아침", soft: true });
 
   /* ── 전화는 아껴 쓰는 자원입니다 ────────────────────
      한 통 285원, 문자 20원. 열네 배 차이입니다.
@@ -1647,7 +1650,6 @@ function callBatches(st, when) {
      "피아노는 이제 문자로"가 됩니다. 그게 이 앱이 오래 가는 길입니다 —
      안 그러면 3주차에 "이 전화 왜 오지"가 되고 그대로 해지입니다. */
   const way = (b2) => {
-    if (b2.forceCall) return "call";                            /* 아침을 전화로 받기로 한 집 */
     const w = b2.rows.map((r) => r.way).filter(Boolean);
     if (w.includes("call")) return "call";                     /* 하나라도 꼭 전화면 전화 */
     if (!w.length || w.length !== b2.rows.length) return "auto";
@@ -1681,7 +1683,11 @@ function callBatches(st, when) {
        못 보시면 예약이 날아가고 아이가 아픕니다. 300원이 아깝지 않습니다. */
     must.filter((b2) => 급함(b2) === 3).forEach((b2) => { 전화.add(b2); left--; });
     must.filter((b2) => 급함(b2) !== 3).forEach((b2) => { if (left > 0) { 전화.add(b2); left--; } });
-    나머지.filter((b2) => !b2.must && !b2.soft).forEach((b2) => { if (left > 0) { 전화.add(b2); left--; } });
+    /* !b2.soft 를 빼기 전에는 이 줄이 늘 빈 배열을 돌았습니다 — must 아닌 것은
+       아침·지금뿐인데 둘 다 soft라 걸러졌거든요. 그래서 "아침 요약은 남을 때만
+       전화로 갑니다"라는 말과 달리 아침은 절대 전화로 못 갔고, "기본은 전화로"를
+       고른 집도 아침만은 늘 문자로 나갔습니다. 이제 남는 예산이 있으면 아침·지금도 씁니다. */
+    나머지.filter((b2) => !b2.must).forEach((b2) => { if (left > 0) { 전화.add(b2); left--; } });
   }
   return out.map((b2) =>
     고정앱.has(b2) || 기본앱.has(b2) ? { ...b2, app: true }
@@ -2265,7 +2271,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-el";
+const BUILD = "0901-em";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -3025,7 +3031,7 @@ function App() {
      계획·그날 것·전화 설정이 바뀔 때만 다시 굽습니다.
      매번 구우면 저장이 계속 돌아 동기화가 시끄러워집니다. */
   const outboxKey = JSON.stringify([
-    st.callOn, st.callMax, st.callAt, st.callMorning, st.callMorningHow, st.callLead,
+    st.callOn, st.callMax, st.callAt, st.callMorning, st.callLead,
     st.callPlan, st.callToday, (st.elders || [])[0], (st.children || []).map((k) => [k.id, k.name]),
   ]);
   useEffect(() => {
@@ -6714,7 +6720,11 @@ function PlanEditor() {
   /* "간식·약은 안 켜셔도 됩니다" — 30분 전 알림 이야기입니다. 그런데 전화·문자·앱 중
      어느 길로 갈지는 다른 문제입니다. 약도 문자로만 받고 싶으실 수 있습니다.
      지금까지는 넣고 나서 그 줄을 다시 눌러 고쳐야 했습니다. 넣을 때 바로 고르게 합니다. */
-  const [way, setWay] = useState("");
+  /* "설정대로"를 기본으로 두면 지금 무엇으로 가는지 안 보여서, 넣을 때마다 설정을
+     따로 확인해야 했습니다. 기본값(어른 설정의 "기본은 어떻게 받으실까요")을 미리
+     눌러둬서 처음부터 뭘로 가는지 보이게 합니다. 바꾸고 싶으면 그냥 다른 걸 누르면 됩니다. */
+  const 기본채널 = ((st.elders || [])[0] || {}).how || "call";
+  const [way, setWay] = useState(기본채널);
   const [kid, setKid] = useState(((st.children || [])[0] || {}).id || "");
   const [alsoDows, setAlsoDows] = useState([]);
   const [rowEdit, setRowEdit] = useState(null);   /* 고치고 있는 줄 */
@@ -6755,7 +6765,7 @@ function PlanEditor() {
       });
       return { ...sv, callPlan: plan, callOn: true };
     });
-    setTime(""); setWhat(""); setAlert(false); setAlsoDows([]); setWhy(""); setWay("");
+    setTime(""); setWhat(""); setAlert(false); setAlsoDows([]); setWhy(""); setWay(기본채널);
     if (넣을요일.length > 1) say(`${넣을요일.map((d) => DOW_KR[Number(d)]).join("·")}요일에 넣었어요`);
     log("call_plan_add", { dow, kind, n: 넣을요일.length });
   };
@@ -6776,7 +6786,7 @@ function PlanEditor() {
       return { ...sv, callPlan: plan, callOn: true };
     });
     setMed({ when: MED_WHEN[0], name: "", dose: "", times: "", how: MED_HOW[0] });
-    setTime(""); setWay("");
+    setTime(""); setWay(기본채널);
     log("call_plan_add", { dow, kind: "med" });
   };
   /* 줄 하나를 고치는 자리. 시각·이름·갈래를 한 화면에서 봅니다 */
@@ -7008,13 +7018,15 @@ function PlanEditor() {
             ))}
           </div>
           {/* 갈래(일정·약·준비물)와 상관없이 다 필요합니다 — 약도 문자로만 받고 싶으실 수 있고,
-              준비물도 전화로 확실히 알리고 싶으실 수 있습니다. */}
+              준비물도 전화로 확실히 알리고 싶으실 수 있습니다.
+              "설정대로"는 여기서 뺐습니다 — 지금 뭘로 가는지 안 보여서 헷갈린다고 하셨습니다.
+              기본값이 이미 눌려 있으니, 이 줄만 다르게 하고 싶을 때만 다른 것을 누르면 됩니다. */}
           <div className="flex items-center gap-1.5" style={{ marginBottom: 10, flexWrap: "wrap" }}>
             <span style={{ fontSize: 12, color: C.ink3, marginRight: 2 }}>어떻게 갈까요</span>
-            {wayOptions(way).map(([v, lb]) => {
+            {wayOptions(way).filter(([v]) => v !== "").map(([v, lb]) => {
               const on = way === v;
               return (
-                <button key={v || "auto"} className="press" onClick={() => setWay(v)}
+                <button key={v} className="press" onClick={() => setWay(v)}
                   style={{ padding: "6px 13px", borderRadius: 999, fontSize: 12.5, fontWeight: on ? 600 : 400,
                            border: `1px solid ${on ? C.moss : C.line}`,
                            background: on ? C.mossSoft : "transparent", color: on ? C.moss : C.ink3 }}>{lb}</button>
@@ -7597,7 +7609,7 @@ function Settings() {
   const skipAutosave = useRef(false);
   const commit = (dd) => setSt((s) => ({ ...s, members: dd.members.filter((m) => m.name.trim()), children: dd.children, flags: dd.flags, petTypes: dd.petTypes, cars: carsOf(dd), carType: dd.carType || "ice", extra: dd.extra, region: String(dd.region || "").trim(),
     elders: (dd.elders || []).filter((e) => String(e.label || "").trim() || String(e.phone || "").trim()),
-    callOn: dd.callOn, callMorning: dd.callMorning, callAt: dd.callAt, callMorningHow: dd.callMorningHow,
+    callOn: dd.callOn, callMorning: dd.callMorning, callAt: dd.callAt,
     callHeadsUp: dd.callHeadsUp, callHeadsEve: dd.callHeadsEve, callHeadsMorn: dd.callHeadsMorn }));
   useEffect(() => () => { if (!skipAutosave.current) commit(dRef.current); }, []);
   const [dash, setDash] = useState(false);
@@ -7904,15 +7916,10 @@ function Settings() {
               onChange={(e) => setD((v) => ({ ...v, callAt: e.target.value.slice(0, 5) }))}
               onBlur={(e) => setD((v) => ({ ...v, callAt: toTime(e.target.value) || "07:50" }))} />
             <span style={{ fontSize: 13, color: C.ink2 }}>에</span>
-            {[["sms", "문자로"], ["call", "전화로"]].map(([v, lab]) => {
-              const on = (d.callMorningHow || "sms") === v;
-              return (
-                <button key={v} className="press" onClick={() => setD((w) => ({ ...w, callMorningHow: v }))}
-                  style={{ padding: "7px 13px", borderRadius: 999, fontSize: 12.5, fontWeight: on ? 600 : 400,
-                           border: `1px solid ${on ? C.moss : C.line}`, background: on ? C.mossSoft : "transparent", color: on ? C.moss : C.ink3 }}>{lab}</button>
-              );
-            })}
           </div>
+          {/* "문자로/전화로"를 여기서 또 물었습니다. 위 "어른께 전화" 카드의 "기본은 어떻게
+              받으실까요"와 같은 것을 두 자리에서 물은 셈이라, 하나를 바꾸면 다른 데가
+              그대로인 것처럼 보였습니다. 아침 통도 그 기본값 하나만 따릅니다. */}
           <button className="press flex items-center gap-2" onClick={() => setD((v) => ({ ...v, callMorning: v.callMorning === false }))}
             style={{ marginTop: 11, background: "transparent", border: "none", padding: 0, textAlign: "left" }}>
             <span style={{ width: 15, height: 15, borderRadius: 4, flexShrink: 0,
@@ -7924,7 +7931,7 @@ function Settings() {
             {d.callMorning !== false
               ? <>그날 일정·약·준비물이 아침에 한 번 다 갑니다. 하원·병원처럼 따로 켠 것은 {leadWord(d)} 한 번 더 갑니다.</>
               : <>끄면 시각 없는 것(준비물·먹는 약)만 아침에 가고, 나머지는 각자 {leadWord(d)} 갑니다. 어른이 아침에 오셔서 부모가 직접 말씀드리는 집이면 끄세요.</>}
-            {(d.callMorningHow || "sms") === "call" && <> 전화는 한 통 약 300원이고 하루 통 수를 하나 씁니다.</>}
+            {" "}위 <b style={{ color: C.ink2 }}>기본은 어떻게 받으실까요</b>로 갑니다 — 줄마다 따로 고르셨으면 그걸 따릅니다.
           </p>
 
           <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${C.lineSoft}`, fontSize: 12, color: C.moss, fontWeight: 600, letterSpacing: ".04em" }}>나에게</div>
