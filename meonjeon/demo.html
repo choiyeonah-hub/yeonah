@@ -1261,7 +1261,7 @@ const DEFAULT_STATE = {
   callHeadsUp: true,
   /* 아침에 한 번 몰아 알려드릴지. 기본은 끔 — 어른이 아침에 오시면
      부모가 그 자리에서 말하고 나갑니다. 부모가 먼저 나가는 집만 켭니다. */
-  callMorning: false,
+  callMorning: true,       /* 아침 알림(종이 메모 대신)은 기본 서비스 — 끈 집만 false */
   callPlan: {},      /* "1"~"5" (월~금) → [{ id, time, what }] */
   callToday: {},     /* dateKey → { add: [...], skip: [id...], off: true }  그날만 다른 것 */
   callLog: {},       /* dateKey → { at, ok }  받으셨는지. 어른이 안 하셔도 남습니다 */
@@ -1612,14 +1612,15 @@ function callBatches(st, when) {
     const hh = Math.min(23, Math.floor(m / 60)), mm = m % 60;
     return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
   };
-  const 아침후보 = st.callMorning ? rows : rest;
+  const 아침후보 = st.callMorning !== false ? rows : rest;
   const 지금줄 = 아침후보.filter(늦게넣음);
   const 아침줄 = 아침후보.filter((r) => !늦게넣음(r));
   const 슬롯 = {};
   지금줄.forEach((r) => { const k = 올림5(r.addedAt); (슬롯[k] = 슬롯[k] || []).push(r); });
   Object.keys(슬롯).sort().forEach((k) => out.push({ at: k, rows: 슬롯[k], kind: "지금", soft: true }));
   out.sort((a2, b2) => String(a2.at).localeCompare(String(b2.at)));
-  if (아침줄.length) out.unshift({ at: st.callAt || "07:50", rows: 아침줄, kind: "아침", soft: true });
+  /* 아침은 보통 문자입니다(값이 20원, 남아서 다시 보심). 어른이 문자를 안 보시는 집은 전화로 고릅니다 */
+  if (아침줄.length) out.unshift({ at: st.callAt || "07:50", rows: 아침줄, kind: "아침", soft: true, forceCall: st.callMorningHow === "call" });
 
   /* ── 전화는 아껴 쓰는 자원입니다 ────────────────────
      한 통 285원, 문자 20원. 열네 배 차이입니다.
@@ -1646,6 +1647,7 @@ function callBatches(st, when) {
      "피아노는 이제 문자로"가 됩니다. 그게 이 앱이 오래 가는 길입니다 —
      안 그러면 3주차에 "이 전화 왜 오지"가 되고 그대로 해지입니다. */
   const way = (b2) => {
+    if (b2.forceCall) return "call";                            /* 아침을 전화로 받기로 한 집 */
     const w = b2.rows.map((r) => r.way).filter(Boolean);
     if (w.includes("call")) return "call";                     /* 하나라도 꼭 전화면 전화 */
     if (!w.length || w.length !== b2.rows.length) return "auto";
@@ -2263,7 +2265,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0901-ef";
+const BUILD = "0901-eg";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -3023,7 +3025,7 @@ function App() {
      계획·그날 것·전화 설정이 바뀔 때만 다시 굽습니다.
      매번 구우면 저장이 계속 돌아 동기화가 시끄러워집니다. */
   const outboxKey = JSON.stringify([
-    st.callOn, st.callMax, st.callAt, st.callMorning, st.callLead,
+    st.callOn, st.callMax, st.callAt, st.callMorning, st.callMorningHow, st.callLead,
     st.callPlan, st.callToday, (st.elders || [])[0], (st.children || []).map((k) => [k.id, k.name]),
   ]);
   useEffect(() => {
@@ -7275,8 +7277,10 @@ function PlanEditor() {
 function ElderScreen() {
   const { st, setTab } = use();
   const lab = ((st.elders || [])[0] || {}).label || "어른";
-  const day = nextCallDay(st);
-  const 오늘 = day === todayKey();
+  /* 다음 전화 날(아침 통이 지나면 내일)을 보여주고 있었습니다. 앱으로 보시는 어른께는
+     "오늘 뭐 하나"가 필요합니다 — 내일 것이 크게 떠 있으면 오늘 것을 오늘로 아십니다. */
+  const day = todayKey();
+  const 오늘 = true;
   const d = new Date(day);
   const 날 = `${d.getMonth() + 1}월 ${d.getDate()}일 ${DOW_KR[d.getDay()]}요일`;
   const off = ((st.callToday || {})[day] || {}).off;
@@ -7476,15 +7480,7 @@ function CallPreview() {
         <p style={{ fontSize: 12, color: C.ink3, marginTop: 7, lineHeight: 1.75 }}>
           하원 4시 40분이면 {callLead(st) ? `${callLead(st)}분 전인 ${minus30("16:40", callLead(st)).replace(/^0/, "")}` : "4시 40분 정각"}에 전화가 갑니다.
         </p>
-        {/* 시각 없는 것(준비물·먹는 약)과 따로 안 켠 것은 아침에 문자 한 통으로 갑니다.
-            그 시각을 어디서도 못 고치게 돼 있었습니다. 여기서 고칩니다. */}
-        <div className="flex items-center gap-2.5" style={{ marginTop: 10 }}>
-          <span style={{ fontSize: 13, color: C.ink2, flexShrink: 0 }}>아침 문자</span>
-          <input className="hae" style={{ ...inp, width: 86, padding: "8px 10px", fontSize: 13.5, textAlign: "center" }} value={st.callAt || "07:50"}
-            onChange={(e) => setSt((sv) => ({ ...sv, callAt: e.target.value.slice(0, 5) }))}
-            onBlur={(e) => setSt((sv) => ({ ...sv, callAt: toTime(e.target.value) || "07:50" }))} />
-          <span style={{ fontSize: 12, color: C.ink3, lineHeight: 1.5 }}>준비물·먹는 약처럼 시각이 없는 것은 이 시각에 문자 한 통으로</span>
-        </div>
+        {/* 아침 문자 시각은 설정 "아침 알림"에 있습니다 */}
         {/* "어른 폰에 이 번호를 저장해드려야 합니다" 상자가 여기 있었습니다.
             온보딩 3단계 "시작 전에 꼭 하실 것"에 같은 말이 있어서 거기 한 곳에만 둡니다.
             매일 보는 화면에 경고가 붙어 있으면 며칠 뒤엔 안 읽힙니다. */}
@@ -7526,44 +7522,8 @@ function CallPreview() {
         )}
       </Section>
 
-      <Section eyebrow="CALL-05" title="나에게 확인 알림">
-        {/* 전에는 "첫 통 10분 전" 한 번이었습니다. 부모는 저녁에 내일 것을 한 번 훑고,
-            아침에 바뀐 게 없는지 한 번 더 봅니다. 두 시각 다 부모가 정합니다. */}
-        {[["callHeadsEve", "전날 저녁", "내일 어른께 갈 말을 확인하세요"],
-          ["callHeadsMorn", "아침", "오늘 어른께 갈 말을 확인하세요"]].map(([k, lab, hint]) => {
-          const at = headsAt(st, k);
-          const on = at !== "";
-          return (
-            <div key={k} className="flex items-center gap-2.5" style={{ marginTop: k === "callHeadsEve" ? 0 : 10 }}>
-              <button className="press flex items-center gap-2" onClick={() => setSt((sv) => ({ ...sv, callHeadsUp: true, [k]: on ? "" : HEADS_DEFAULT[k] }))}
-                style={{ background: "none", border: "none", padding: 0, flex: 1, textAlign: "left" }}>
-                <span style={{ width: 15, height: 15, borderRadius: 4, flexShrink: 0,
-                               border: `1.5px solid ${on ? C.moss : C.line}`, background: on ? C.moss : "transparent",
-                               color: "#fff", fontSize: 10, lineHeight: "13px", textAlign: "center" }}>{on ? "✓" : ""}</span>
-                <span style={{ fontSize: 13, color: on ? C.ink2 : C.ink3 }}><b style={{ fontWeight: 600 }}>{lab}</b> · {hint}</span>
-              </button>
-              {on && (
-                <input className="hae" style={{ ...inp, width: 86, padding: "8px 10px", fontSize: 13.5, textAlign: "center" }}
-                  value={st[k] == null ? HEADS_DEFAULT[k] : st[k]}
-                  onChange={(e) => setSt((sv) => ({ ...sv, [k]: e.target.value.slice(0, 5) }))}
-                  onBlur={(e) => setSt((sv) => ({ ...sv, [k]: toTime(e.target.value) || HEADS_DEFAULT[k] }))} />
-              )}
-            </div>
-          );
-        })}
-        <p style={{ fontSize: 12, color: C.ink3, marginTop: 9, lineHeight: 1.75 }}>
-          이 폰에 알림으로 옵니다 (문자가 아니라 값이 안 듭니다). 건마다 알리지 않습니다 —
-          그러면 하루에 여섯 번 울려서 그게 다시 일이 됩니다. 끄셔도 전화는 그대로 나갑니다.
-        </p>
-        <p style={{ fontSize: 12.5, color: C.ink3, marginTop: 12, lineHeight: 1.75 }}>
-          매일 같은 것은 위 요일 계획에 한 번 넣어두시면 알아서 나갑니다.
-          병원·준비물처럼 <b style={{ color: C.ink2 }}>그날만 다른 것</b>은
-          <b style={{ color: C.ink2 }}>말하기</b>에서 그냥 말씀하시면 됩니다 — 어른께 갈 것만 골라 담깁니다.
-        </p>
-        {/* 알림은 폰마다 따로 등록해야 옵니다. 그 등록이 여기 있어야
-            "켰는데 안 온다"를 이 자리에서 풉니다. */}
-        {(headsAt(st, "callHeadsEve") || headsAt(st, "callHeadsMorn")) && <div style={{ marginTop: 12 }}><PushBox /></div>}
-      </Section>
+      {/* "나에게 확인 알림"(전날 저녁·아침)이 여기 있었습니다. 아침 알림은 종이 메모를 대신하는
+          기본 서비스라, 어른께 가는 아침 알림과 함께 설정 "아침 알림" 한 곳에 둡니다. */}
 
       {/* 줄 하나 고치기 — 시각·이름·갈래를 한 화면에서. 전에는 갈래만
           글자 눌러 돌릴 수 있었고, 시각과 이름은 빼고 다시 넣어야 했습니다. */}
@@ -7812,26 +7772,7 @@ function Settings() {
               </div>
             );
           })()}
-          <button className="press flex items-center gap-2" onClick={() => setD((v) => ({ ...v, callMorning: !v.callMorning }))}
-            style={{ marginTop: 14, background: "transparent", border: "none", padding: 0, textAlign: "left" }}>
-            <span style={{ width: 15, height: 15, borderRadius: 4, flexShrink: 0,
-                           border: `1.5px solid ${d.callMorning ? C.moss : C.line}`, background: d.callMorning ? C.moss : "transparent",
-                           color: "#fff", fontSize: 10, lineHeight: "13px", textAlign: "center" }}>{d.callMorning ? "✓" : ""}</span>
-            <span style={{ fontSize: 13, color: d.callMorning ? C.ink2 : C.ink3 }}>아침에 그날 것을 통째로 한 번 더</span>
-          </button>
-          <p style={{ fontSize: 12, color: C.ink3, marginTop: 8, lineHeight: 1.75 }}>
-            <b style={{ color: C.ink2 }}>부모가 어른보다 먼저 나가는 집만 켜세요.</b>
-            어른이 아침에 오시면 대개 부모가 그 자리에서 말씀드리고 나갑니다.
-            그 직후에 또 전화가 가면 방금 들은 것을 다시 듣는 것이라 이상합니다.
-          </p>
-          {d.callMorning && (
-            <div className="flex items-center gap-2.5" style={{ marginTop: 10 }}>
-              <span style={{ fontSize: 13, color: C.ink2, flexShrink: 0 }}>아침 시각</span>
-              <input style={{ ...inp, width: 110 }} value={d.callAt || "07:50"}
-                onChange={(e) => setD((v) => ({ ...v, callAt: e.target.value.slice(0, 8) }))}
-                onBlur={(e) => setD((v) => ({ ...v, callAt: toTime(e.target.value) || v.callAt }))} />
-            </div>
-          )}
+          {/* "아침에 그날 것을 통째로 한 번 더" 토글과 아침 시각이 여기 있었습니다 → 아래 "아침 알림" */}
           <button className="press flex items-center gap-2" onClick={() => setD((v) => ({ ...v, callOn: !v.callOn }))}
             style={{ marginTop: 12, background: "transparent", border: "none", padding: 0, textAlign: "left" }}>
             <span style={{ width: 15, height: 15, borderRadius: 4, flexShrink: 0,
@@ -7882,6 +7823,74 @@ function Settings() {
         </div></Card>
       </Section>
 
+      {/* ── 아침 알림 — 냉장고에 붙이던 종이 메모 대신 ────────────────
+          이게 기본 서비스입니다. 어른께는 그날 것 전부가 아침에 한 번 가고(문자, 원하면 전화),
+          부모에게는 전날 저녁과 아침에 "확인하세요"가 옵니다. 시각은 각자 정합니다. */}
+      <Section eyebrow="MORNING" title="아침 알림 — 종이 메모 대신">
+        <Card><div style={{ padding: 15 }}>
+          <div style={{ fontSize: 12, color: C.moss, fontWeight: 600, letterSpacing: ".04em" }}>
+            {((d.elders || [])[0] || {}).label || "어른"}께
+          </div>
+          <div className="flex items-center gap-2.5" style={{ marginTop: 9, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 13, color: C.ink2, flexShrink: 0 }}>매일</span>
+            <input className="hae" style={{ ...inp, width: 86, padding: "8px 10px", fontSize: 13.5, textAlign: "center" }} value={d.callAt || "07:50"}
+              onChange={(e) => setD((v) => ({ ...v, callAt: e.target.value.slice(0, 5) }))}
+              onBlur={(e) => setD((v) => ({ ...v, callAt: toTime(e.target.value) || "07:50" }))} />
+            <span style={{ fontSize: 13, color: C.ink2 }}>에</span>
+            {[["sms", "문자로"], ["call", "전화로"]].map(([v, lab]) => {
+              const on = (d.callMorningHow || "sms") === v;
+              return (
+                <button key={v} className="press" onClick={() => setD((w) => ({ ...w, callMorningHow: v }))}
+                  style={{ padding: "7px 13px", borderRadius: 999, fontSize: 12.5, fontWeight: on ? 600 : 400,
+                           border: `1px solid ${on ? C.moss : C.line}`, background: on ? C.mossSoft : "transparent", color: on ? C.moss : C.ink3 }}>{lab}</button>
+              );
+            })}
+          </div>
+          <button className="press flex items-center gap-2" onClick={() => setD((v) => ({ ...v, callMorning: v.callMorning === false }))}
+            style={{ marginTop: 11, background: "transparent", border: "none", padding: 0, textAlign: "left" }}>
+            <span style={{ width: 15, height: 15, borderRadius: 4, flexShrink: 0,
+                           border: `1.5px solid ${d.callMorning !== false ? C.moss : C.line}`, background: d.callMorning !== false ? C.moss : "transparent",
+                           color: "#fff", fontSize: 10, lineHeight: "13px", textAlign: "center" }}>{d.callMorning !== false ? "✓" : ""}</span>
+            <span style={{ fontSize: 13, color: d.callMorning !== false ? C.ink2 : C.ink3 }}>그날 것 전부 담기</span>
+          </button>
+          <p style={{ fontSize: 12, color: C.ink3, marginTop: 7, lineHeight: 1.75 }}>
+            {d.callMorning !== false
+              ? <>그날 일정·약·준비물이 아침에 한 번 다 갑니다. 하원·병원처럼 따로 켠 것은 {leadWord(d)} 한 번 더 갑니다.</>
+              : <>끄면 시각 없는 것(준비물·먹는 약)만 아침에 가고, 나머지는 각자 {leadWord(d)} 갑니다. 어른이 아침에 오셔서 부모가 직접 말씀드리는 집이면 끄세요.</>}
+            {(d.callMorningHow || "sms") === "call" && <> 전화는 한 통 약 300원이고 하루 통 수를 하나 씁니다.</>}
+          </p>
+
+          <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${C.lineSoft}`, fontSize: 12, color: C.moss, fontWeight: 600, letterSpacing: ".04em" }}>나에게</div>
+          {[["callHeadsEve", "전날 저녁", "내일 어른께 갈 말을 확인하세요"],
+            ["callHeadsMorn", "아침", "오늘 어른께 갈 말을 확인하세요"]].map(([k, lab, hint]) => {
+            const at = headsAt(d, k);
+            const on = at !== "";
+            return (
+              <div key={k} className="flex items-center gap-2.5" style={{ marginTop: 9 }}>
+                <button className="press flex items-center gap-2" onClick={() => setD((v) => ({ ...v, callHeadsUp: true, [k]: on ? "" : HEADS_DEFAULT[k] }))}
+                  style={{ background: "none", border: "none", padding: 0, flex: 1, textAlign: "left" }}>
+                  <span style={{ width: 15, height: 15, borderRadius: 4, flexShrink: 0,
+                                 border: `1.5px solid ${on ? C.moss : C.line}`, background: on ? C.moss : "transparent",
+                                 color: "#fff", fontSize: 10, lineHeight: "13px", textAlign: "center" }}>{on ? "✓" : ""}</span>
+                  <span style={{ fontSize: 13, color: on ? C.ink2 : C.ink3 }}><b style={{ fontWeight: 600 }}>{lab}</b> · {hint}</span>
+                </button>
+                {on && (
+                  <input className="hae" style={{ ...inp, width: 86, padding: "8px 10px", fontSize: 13.5, textAlign: "center" }}
+                    value={d[k] == null ? HEADS_DEFAULT[k] : d[k]}
+                    onChange={(e) => setD((v) => ({ ...v, [k]: e.target.value.slice(0, 5) }))}
+                    onBlur={(e) => setD((v) => ({ ...v, [k]: toTime(e.target.value) || HEADS_DEFAULT[k] }))} />
+                )}
+              </div>
+            );
+          })}
+          <p style={{ fontSize: 12, color: C.ink3, marginTop: 8, lineHeight: 1.75 }}>
+            이 폰에 알림으로 옵니다 (문자가 아니라 값이 안 듭니다). 건마다 알리지 않습니다. 끄셔도 어른께 가는 것은 그대로 갑니다.
+          </p>
+          {(headsAt(d, "callHeadsEve") || headsAt(d, "callHeadsMorn")) && <div style={{ marginTop: 12 }}><PushBox /></div>}
+          <p style={{ fontSize: 11.5, color: C.ink3, marginTop: 10 }}>아래 저장을 눌러야 시각이 남습니다.</p>
+        </div></Card>
+      </Section>
+
       {/* 막대 셋(말하기·사진·찾기)을 그리던 자리입니다. 부모가 이 앱에서
           AI를 쓰는 건 "내일 달라진 것 말하기" 하나뿐인데 셋을 그리면
           안 쓰는 것 둘을 매번 설명하게 됩니다. 남은 횟수만 한 줄로 둡니다. */}
@@ -7929,7 +7938,8 @@ function Settings() {
             눌러도 아무것도 안 바뀌었던 이유입니다. 호칭도 번호도 없는 빈 줄은 저장하지 않습니다. */}
         <Btn onClick={() => { setSt((s) => ({ ...s, members: d.members.filter((m) => m.name.trim()), children: d.children, flags: d.flags, petTypes: d.petTypes, cars: carsOf(d), carType: d.carType || "ice", extra: d.extra, region: String(d.region || "").trim(),
           elders: (d.elders || []).filter((e) => String(e.label || "").trim() || String(e.phone || "").trim()),
-          callOn: d.callOn, callMorning: d.callMorning, callAt: d.callAt })); say("저장했어요"); setTab("home"); }}>저장</Btn>
+          callOn: d.callOn, callMorning: d.callMorning, callAt: d.callAt, callMorningHow: d.callMorningHow,
+          callHeadsUp: d.callHeadsUp, callHeadsEve: d.callHeadsEve, callHeadsMorn: d.callHeadsMorn })); say("저장했어요"); setTab("home"); }}>저장</Btn>
         <div style={{ height: 8 }} />
         {/* 지우기 전에 내려받을 길이 있어야 합니다. 되돌릴 수 없는 버튼 옆에
             백업이 없으면, 그건 버튼이 아니라 함정입니다. */}
