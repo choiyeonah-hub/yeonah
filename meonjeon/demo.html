@@ -3311,6 +3311,31 @@ function Onboarding({ preview }) {
     say(on ? "다 됐어요. 오늘 화면에서 나갈 말을 미리 보실 수 있어요" : "다 됐어요");
   };
 
+  /* 그냥 둘러보시는 분께 빈 화면을 보여드리면 안 됩니다 — 뭘 하는 앱인지
+     한눈에 안 보이니까요. 지호·할머니로 예시를 채워 넣어 조부모님 탭이
+     실제로 어떻게 쓰이는지 미리 보여드립니다. callOn은 꺼둡니다 —
+     가짜 번호로 전화가 나가면 안 됩니다. */
+  const startExample = () => {
+    if (preview) { setSt((sv) => ({ ...sv, previewOnboarding: false })); say("미리보기였어요. 아무것도 안 바뀌었습니다"); return; }
+    const kidId = uid("k");
+    const row = (t, w) => ({ id: uid("cl"), time: t, what: w, kind: "sked", kid: kidId, alert: false });
+    setSt((sv) => ({
+      ...sv,
+      children: [{ id: kidId, name: "지호", age: "5", months: 60 }],
+      elders: [{ id: uid("e"), label: "할머니", phone: "010-0000-0000", how: "call" }],
+      callAt: at, callLead: lead,
+      callPlan: {
+        "1": [row("15:00", "유치원 하원, 아파트 정문에서 데려와주세요")],
+        "2": [row("16:00", "피아노학원 데려다주기")],
+        "3": [row("15:00", "유치원 하원, 아파트 정문에서 데려와주세요")],
+        "4": [row("16:00", "피아노학원 데려다주기")],
+        "5": [row("15:00", "유치원 하원, 아파트 정문에서 데려와주세요")],
+      },
+      callOn: false, callOff: 0, onboarded: true, exampleSeed: true,
+    }));
+    say("예시로 채워봤어요. 마음대로 고치거나 지우고 새로 넣으셔도 됩니다");
+  };
+
   return (
     <div className="px-5" style={{ paddingBottom: 40 }}>
       <PreviewBar />
@@ -3329,10 +3354,10 @@ function Onboarding({ preview }) {
             <Btn kind="quiet" onClick={() => { setStep(1); }} style={{ marginTop: 6 }}>
               아직은 아니지만 곧 맡길 것 같아요
             </Btn>
-            <button className="press" onClick={() => finish(false)}
+            <button className="press" onClick={startExample}
               style={{ display: "block", width: "100%", marginTop: 10, background: "transparent", border: "none",
                        color: C.ink3, fontSize: 12.5, padding: "10px 0" }}>
-              맡기지 않습니다 — 그냥 둘러볼게요
+              아직 몰라요 — 예시로 먼저 둘러볼게요
             </button>
           </>
         )}
@@ -4488,6 +4513,26 @@ function Home() {
           부담이 되면 며칠 만에 앱을 안 엽니다. 보여드리는 것까지가 우리 몫입니다. */}
       {/* 오늘 나갈 통은 어른 탭에 있습니다. 여기 또 두면 같은 것이 두 군데가 되고,
           부모는 어느 쪽이 진짜인지 헷갈립니다. 한 곳에만 둡니다. */}
+
+      {/* "그냥 둘러볼게요"로 채운 예시 데이터. 지호·할머니는 실제 정보가 아니라
+          목업이라, 실수로 이대로 전화가 나가면 안 됩니다 — callOn은 항상 꺼둡니다.
+          지우는 길을 늘 보여줘야, 예시인지 모르고 진짜 정보인 척 쓰다가
+          나중에 "지호가 누구예요"가 되지 않습니다. */}
+      {st.exampleSeed && (
+        <Card style={{ marginTop: 14, borderColor: C.moss }}>
+          <div style={{ padding: 15 }}>
+            <div style={{ fontSize: 13.5, fontWeight: 600 }}>지금 보시는 건 예시예요</div>
+            <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 7, lineHeight: 1.75 }}>
+              지호·할머니는 실제 정보가 아니라 어떻게 쓰는지 보여드리려고 넣은 예시예요.
+              아래 조부모님 탭에서 어떻게 나가는지 미리 보시고, 준비되시면 우리 집 정보로 바꿔주세요.
+            </div>
+            <button className="press" onClick={() => setSt((sv) => ({ ...sv, children: [], elders: [], callPlan: {}, callOn: false, exampleSeed: false }))}
+              style={{ marginTop: 11, background: C.bg, border: `1px solid ${C.line}`, borderRadius: R.pill, padding: "7px 13px", fontSize: 12, color: C.ink3 }}>
+              예시 지우고 우리 집 정보 넣기
+            </button>
+          </div>
+        </Card>
+      )}
 
       {/* 처음 켜보시라는 안내. 조부모님 정보가 아직 없는 모든 집에 뜹니다.
           예전엔 "저희는 안 맡깁니다"를 누르면(그냥 둘러볼게요 포함) 이 카드가
