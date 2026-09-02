@@ -97,7 +97,16 @@ export default async function handler(req, res) {
 
   const rows = await sb(url, service, "households?select=id,code,state");
   const 보낼것 = [];
-  const 미리알릴집 = [];   /* 그날 첫 통 10분 전, 부모에게 한 번 */
+  const 미리알릴집 = [];   /* 부모에게 "확인하세요" — 전날 저녁(내일 것)과 아침(오늘 것) */
+  const tomorrow = new Date(Date.parse(day) + 86400000).toISOString().slice(0, 10);
+  /* 앱과 같은 규칙: 빈 문자열이면 끔, 값이 없으면 기본, 예전 callHeadsUp=false 면 끔 */
+  const headsAt = (st, k, def) => {
+    const x = st[k];
+    if (x === "") return null;
+    if (x == null && st.callHeadsUp === false) return null;
+    return toMin(x) != null ? toMin(x) : toMin(def);
+  };
+  const due = (t) => t != null && t <= min && t > min - WINDOW;
 
   for (const h of Array.isArray(rows) ? rows : []) {
     const st = h.state || {};
@@ -114,11 +123,16 @@ export default async function handler(req, res) {
        첫 통 10분 전에 알려서 아직 안 나간 통을 고칠 수 있게 합니다.
        한 통마다 알리지 않습니다 — 그러면 부모 일이 하루에 여섯 번 늡니다.
        끄신 집에는 안 갑니다. 꺼도 전화는 그대로 나갑니다. */
-    if (st.callHeadsUp !== false) {
-      const 첫통 = box.map((x) => toMin(x.at)).filter((v) => v != null).sort((a, b) => a - b)[0];
-      if (첫통 != null && 첫통 - 10 <= min && 첫통 - 10 > min - WINDOW) {
-        미리알릴집.push({ hh: h.id, code: h.code, at: box[0] && box[0].at, n: box.length });
-      }
+    /* 전에는 첫 통 10분 전 한 번이었습니다. 부모는 저녁에 내일 것을 훑고 아침에 한 번 더 봅니다.
+       두 시각은 부모가 정합니다. 갈 것이 없는 날은 알리지 않습니다. */
+    if (due(headsAt(st, "callHeadsMorn", "07:30")) && box.length) {
+      미리알릴집.push({ hh: h.id, code: h.code, kind: "headsup-morn", at: box[0].at, n: box.length,
+        title: "오늘 어른께 갈 말을 확인하세요", body: `오늘 ${box.length}건, 첫 통 ${box[0].at}. 바뀐 게 있으면 지금 고치세요.` });
+    }
+    const box2 = ((st.callOutbox || {})[tomorrow] || []);
+    if (due(headsAt(st, "callHeadsEve", "20:00")) && box2.length) {
+      미리알릴집.push({ hh: h.id, code: h.code, kind: "headsup-eve", at: box2[0].at, n: box2.length,
+        title: "내일 어른께 갈 말을 확인하세요", body: `내일 ${box2.length}건, 첫 통 ${box2[0].at}. 부모님 탭에서 한 번 보세요.` });
     }
 
     for (const it of box) {
@@ -138,12 +152,14 @@ export default async function handler(req, res) {
   const 보냄 = await sb(url, service, `voice_sent?select=household_id,item_id&day=eq.${day}`);
   const 이미 = new Set((Array.isArray(보냄) ? 보냄 : []).map((r) => `${r.household_id}|${r.item_id}`));
   const 할것 = 보낼것.filter((x) => !이미.has(`${x.hh}|${x.it.id}`));
+  /* 확인 알림도 하루 한 번씩만. 5분마다 도는데 창이 12분이라 안 적어두면 두 번 울립니다 */
+  const 알릴것 = 미리알릴집.filter((g) => !이미.has(`${g.hh}|${g.kind}`));
 
   if (dry) {
     return res.status(200).json({
       지금: `${day} ${nowKST().hhmm} (한국)`, 집: rows.length,
       나갈것: 할것.map((x) => ({ 집: x.code, 시각: x.it.at, 길: x.it.sms ? "문자" : "전화", 말: x.it.text })),
-      미리알릴집: 미리알릴집.map((g) => g.code),
+      미리알릴집: 알릴것.map((g) => `${g.code} ${g.kind}`),
     });
   }
 
@@ -152,22 +168,21 @@ export default async function handler(req, res) {
   const pub = String(process.env.VAPID_PUBLIC_KEY || "").trim();
   const priv = String(process.env.VAPID_PRIVATE_KEY || "").trim();
   const mail = String(process.env.VAPID_SUBJECT || "mailto:hello@example.com").trim();
-  if (미리알릴집.length && pub && priv) {
+  if (알릴것.length && pub && priv) {
     webpush.setVapidDetails(mail, pub, priv);
-    for (const g of 미리알릴집) {
+    for (const g of 알릴것) {
       const subs = await sb(url, service, `push_subs?select=endpoint,p256dh,auth&household_id=eq.${g.hh}`);
       for (const sbx of Array.isArray(subs) ? subs : []) {
         try {
           await webpush.sendNotification(
             { endpoint: sbx.endpoint, keys: { p256dh: sbx.p256dh, auth: sbx.auth } },
-            JSON.stringify({
-              title: "곧 어른께 나갑니다",
-              body: `${g.at}에 시작해서 오늘 ${g.n}건이에요. 바뀐 게 있으면 지금 고치세요.`,
-            })
+            JSON.stringify({ title: g.title, body: g.body })
           );
-          알림.push(g.code);
+          알림.push(`${g.code} ${g.kind}`);
         } catch { /* 구독이 죽었을 수 있습니다. 전화는 그대로 나가야 하니 넘어갑니다 */ }
       }
+      /* 보냈다고 적어둡니다 — 같은 날 같은 알림은 다시 안 갑니다 */
+      await sb(url, service, "voice_sent", "POST", [{ household_id: g.hh, day, item_id: g.kind, at: nowKST().hhmm, sms: false, ok: true }]);
     }
   }
 
