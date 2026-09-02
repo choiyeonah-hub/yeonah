@@ -2275,7 +2275,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0902-er";
+const BUILD = "0902-es";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -7332,6 +7332,19 @@ function PlanEditor() {
               {오늘만인가(rowEdit)
                 ? <>{날짜말(dayOfAdd(rowEdit))}만 {((st.elders || [])[0] || {}).label || "어른"}께 갑니다 — 매주 되풀이되지 않습니다</>
                 : <>{DOW_KR[Number(dow)]}요일마다 {((st.elders || [])[0] || {}).label || "어른"}께 갑니다</>}
+            </div>
+
+            {/* "카레 데워주기"가 약으로 잘못 담긴 걸 부모가 여기서 직접 고칠 길이 없었습니다.
+                말로 다시 담으면 지금 프롬프트로는 일정이 되지만, 이미 담긴 줄은 그대로 약인 채
+                남아 있었습니다. 빼고 다시 넣지 않아도 여기서 바로 갈래를 바꿉니다. */}
+            <div style={{ fontSize: 12.5, color: C.ink2, marginTop: 16 }}>갈래</div>
+            <div className="flex gap-1.5" style={{ marginTop: 8 }}>
+              {[["sked", "일정"], ["med", "약"], ["bag", "준비물"]].map(([k, lab]) => (
+                <button key={k} className="press" onClick={() => patchRow(r.id, { kind: k })}
+                  style={{ flex: 1, padding: "9px 0", borderRadius: 999, fontSize: 13, fontWeight: r.kind === k ? 600 : 400,
+                           border: `1px solid ${r.kind === k ? C.moss : C.line}`,
+                           background: r.kind === k ? C.mossSoft : "transparent", color: r.kind === k ? C.moss : C.ink2 }}>{lab}</button>
+              ))}
             </div>
 
             {시각있 && <>
