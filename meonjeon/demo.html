@@ -2275,7 +2275,7 @@ function buildRecommendations(st) {
 const PROMPT_VERSION = "v7.2";
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0902-ep";
+const BUILD = "0902-eq";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -5288,7 +5288,7 @@ ${CALL_SPLIT(st, todayStr())}
                       하루 종일 맡겨요 — 등하원만 빼기
                     </button>
                     <p style={{ fontSize: 11.5, color: C.ink3, lineHeight: 1.7, marginBottom: 9 }}>
-                      맡기시는 날이 섞여 있으면 <b style={{ color: C.ink2 }}>그대로</b>를 누르세요 —
+                      맡기시는 날이 섞여 있으면 그대로를 누르세요 —
                       <b style={{ color: C.ink2 }}>안 나가는 쪽이 더 위험합니다.</b> 잘못 끄면 그날 하원을 아무도 안 갑니다.
                     </p>
                     <div className="flex gap-2">
@@ -5808,7 +5808,7 @@ ${CALL_SPLIT(st, todayStr())}
               그러면 전화로 대신 말해주기로 한 뜻이 없어집니다.
               병명을 적는 칸은 안 만들었지만 말로는 들어옵니다. 안 적어도 된다는 것만 알립니다. */}
           <div style={{ fontSize: 11.5, color: C.ink3, marginTop: 9, lineHeight: 1.7 }}>
-            <b style={{ color: C.ink2 }}>어른께 갈 것과 내가 챙길 것을 앱이 갈라 담습니다.</b> 섞어 말씀하셔도 돼요.
+            어른께 갈 것과 내가 챙길 것을 앱이 갈라 담습니다. 섞어 말씀하셔도 돼요.
             병원·하원처럼 놓치면 안 되는 것은 <b style={{ color: C.ink2 }}>{leadWord(st)}</b> 따로 걸어요.
           </div>
 
@@ -5883,7 +5883,7 @@ ${CALL_SPLIT(st, todayStr())}
             그게 그대로 어른께 갈 말이 됩니다.<br />
             {/* 종이를 찍으면 그림자와 각도 때문에 글자가 뭉갭니다.
                 화면 캡처는 글자가 그대로라 훨씬 잘 읽힙니다. */}
-            <b style={{ color: C.ink2 }}>화면 캡처가 사진보다 잘 읽힙니다.</b> 종이를 찍으면 그림자와 각도 때문에 글자가 뭉개져요.
+            화면 캡처가 사진보다 잘 읽힙니다. 종이를 찍으면 그림자와 각도 때문에 글자가 뭉개져요.
             키즈노트·문자는 캡처하시고, 종이만 있을 때는 평평하게 펴서 위에서 찍어주세요.
           </div>
           {st.plan !== "paid" && leftOf(st, "talk") <= 5 && (
