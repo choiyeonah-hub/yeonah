@@ -135,6 +135,7 @@ create table if not exists public.push_subs (
   user_id      uuid not null references auth.users(id) on delete cascade,
   hour         int  not null default 8,     -- 그 집이 고른 시각 (0~23, 그 지역 시간)
   tz_offset    int  not null default 540,   -- 한국은 UTC+9 = 540분
+  kind         text not null default 'parent',  -- 'parent' 부모 폰 / 'elder' 어른 폰
   updated_at   timestamptz not null default now()
 );
 
@@ -209,3 +210,11 @@ where not sms
 group by day order by day desc;
 
 revoke all on public.voice_check from anon, authenticated;
+
+-- ════════════════════════════════════════════════════
+-- 어른 폰 알림 (0902-fi)
+-- 이미 push_subs 표가 있는 집은 이 부분만 따로 붙여넣고 Run
+-- ════════════════════════════════════════════════════
+-- 어른 폰이 조부모님 탭에서 "이 폰으로 알림 받기"를 누르면 kind='elder'로 적힙니다.
+-- 서버는 어른께 가는 통을 이 폰에만 보내고, 15분 안에 안 열어보면 전화로 넘깁니다.
+alter table public.push_subs add column if not exists kind text not null default 'parent';

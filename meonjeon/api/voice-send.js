@@ -98,6 +98,9 @@ export default async function handler(req, res) {
   const rows = await sb(url, service, "households?select=id,code,state");
   const 보낼것 = [];
   const 미리알릴집 = [];   /* 부모에게 "확인하세요" — 전날 저녁(내일 것)과 아침(오늘 것) */
+  const 앱알림 = [];       /* 어른 폰으로 갈 통 */
+  /* 앱이 elderSeen 을 그 폰의 "오늘 자정(ms)"으로 적습니다. 한국 폰이니 KST 자정입니다 */
+  const dayKey = String(Date.parse(day + "T00:00:00+09:00"));
   const tomorrow = new Date(Date.parse(day) + 86400000).toISOString().slice(0, 10);
   /* 앱과 같은 규칙: 빈 문자열이면 끔, 값이 없으면 기본, 예전 callHeadsUp=false 면 끔 */
   const headsAt = (st, k, def) => {
@@ -114,9 +117,10 @@ export default async function handler(req, res) {
     const elder = (st.elders || [])[0] || {};
     const to = String(elder.phone || "").replace(/[^0-9]/g, "");
     if (!to) continue;
-    if (elder.how === "app") continue;          /* 앱으로 받으시는 집은 전화가 안 나갑니다 */
 
     const box = ((st.callOutbox || {})[day] || []);
+    /* 어른 폰이 열어본 통. 앱이 조부모님 탭을 열 때 적습니다 */
+    const 열어봄 = ((st.elderSeen || {})[dayKey] || {});
 
     /* ── 나가기 전에 부모에게 한 번 ────────────────────
        전날 미리보기에서 이미 보셨지만, 아침에 사정이 바뀝니다.
@@ -138,11 +142,22 @@ export default async function handler(req, res) {
     for (const it of box) {
       const at = toMin(it.at);
       if (at == null) continue;
-      if (at > min || at < min - WINDOW) continue;      /* 아직 이르거나, 너무 지났거나 */
       if (!String(it.text || "").trim()) continue;
-      /* 앱 알림으로 고른 것은 전화도 문자도 아닙니다.
-         부모 푸시와 같은 길로 가야 해서 여기서는 건너뜁니다. */
-      if (it.app) continue;
+      /* ── 앱 통: 어른 폰에 알림 → 15분 안에 안 열어보시면 전화 ──
+         카톡은 광고 사이에 묻히지만 어른 폰의 앱 알림은 혼자 뜹니다. 값도 안 듭니다.
+         대신 아이폰 홈 화면 앱의 알림은 가끔 조용히 죽습니다. 그래서 열어봤다는 기록이
+         없으면 전화로 넘깁니다 — 앱이 미리 구워둔 voice 문장으로, 서버는 만들지 않습니다.
+         "지금" 통(회의 중에 방금 넣은 것)은 5분만 기다립니다. */
+      if (it.app) {
+        if (at <= min && at > min - WINDOW) 앱알림.push({ hh: h.id, code: h.code, to, it });
+        const FB = it.now ? 5 : 15;
+        if (at + FB <= min && at + FB > min - WINDOW && !열어봄[it.id]) {
+          보낼것.push({ hh: h.id, code: h.code, to, fb: true,
+                      it: { ...it, id: `${it.id}-fb`, sms: false, text: it.voice || it.text } });
+        }
+        continue;
+      }
+      if (at > min || at < min - WINDOW) continue;      /* 아직 이르거나, 너무 지났거나 */
       보낼것.push({ hh: h.id, code: h.code, to, it });
     }
   }
@@ -151,14 +166,29 @@ export default async function handler(req, res) {
      설령 두 번 시도해도 두 번째 적기가 무시됩니다(ignore-duplicates). */
   const 보냄 = await sb(url, service, `voice_sent?select=household_id,item_id&day=eq.${day}`);
   const 이미 = new Set((Array.isArray(보냄) ? 보냄 : []).map((r) => `${r.household_id}|${r.item_id}`));
+
+  /* 어른 폰 구독. 어른 폰이 하나도 없는 집은 알림을 보낼 곳이 없으니 기다리지 않고 바로 전화입니다 */
+  const 어른폰 = {};
+  for (const g of 앱알림.filter((g) => !이미.has(`${g.hh}|${g.it.id}`))) {
+    if (!(g.hh in 어른폰)) {
+      const subs = await sb(url, service, `push_subs?select=*&household_id=eq.${g.hh}`);
+      어른폰[g.hh] = (Array.isArray(subs) ? subs : []).filter((x) => x.kind === "elder");
+    }
+    if (!어른폰[g.hh].length) {
+      보낼것.push({ hh: g.hh, code: g.code, to: g.to, fb: true,
+                  it: { ...g.it, id: `${g.it.id}-fb`, sms: false, text: g.it.voice || g.it.text } });
+    }
+  }
   const 할것 = 보낼것.filter((x) => !이미.has(`${x.hh}|${x.it.id}`));
+  const 어른알림 = 앱알림.filter((g) => !이미.has(`${g.hh}|${g.it.id}`) && (어른폰[g.hh] || []).length);
   /* 확인 알림도 하루 한 번씩만. 5분마다 도는데 창이 12분이라 안 적어두면 두 번 울립니다 */
   const 알릴것 = 미리알릴집.filter((g) => !이미.has(`${g.hh}|${g.kind}`));
 
   if (dry) {
     return res.status(200).json({
       지금: `${day} ${nowKST().hhmm} (한국)`, 집: rows.length,
-      나갈것: 할것.map((x) => ({ 집: x.code, 시각: x.it.at, 길: x.it.sms ? "문자" : "전화", 말: x.it.text })),
+      나갈것: 할것.map((x) => ({ 집: x.code, 시각: x.it.at, 길: x.it.sms ? "문자" : x.fb ? "전화(앱 못 봄)" : "전화", 말: x.it.text })),
+      어른폰알림: 어른알림.map((g) => ({ 집: g.code, 시각: g.it.at, 말: g.it.text })),
       미리알릴집: 알릴것.map((g) => `${g.code} ${g.kind}`),
     });
   }
@@ -171,8 +201,9 @@ export default async function handler(req, res) {
   if (알릴것.length && pub && priv) {
     webpush.setVapidDetails(mail, pub, priv);
     for (const g of 알릴것) {
-      const subs = await sb(url, service, `push_subs?select=endpoint,p256dh,auth&household_id=eq.${g.hh}`);
-      for (const sbx of Array.isArray(subs) ? subs : []) {
+      const subs = await sb(url, service, `push_subs?select=*&household_id=eq.${g.hh}`);
+      /* 부모 알림은 어른 폰에는 안 갑니다 — "내일 어른께 갈 말을 확인하세요"가 어른께 뜨면 이상합니다 */
+      for (const sbx of (Array.isArray(subs) ? subs : []).filter((x) => x.kind !== "elder")) {
         try {
           await webpush.sendNotification(
             { endpoint: sbx.endpoint, keys: { p256dh: sbx.p256dh, auth: sbx.auth } },
@@ -183,6 +214,27 @@ export default async function handler(req, res) {
       }
       /* 보냈다고 적어둡니다 — 같은 날 같은 알림은 다시 안 갑니다 */
       await sb(url, service, "voice_sent", "POST", [{ household_id: g.hh, day, item_id: g.kind, at: nowKST().hhmm, sms: false, ok: true }]);
+    }
+  }
+
+  /* 어른 폰 알림. 통마다 꼬리표를 달아 12:10 것과 15:30 것이 따로 남게 합니다 */
+  const 어른결과 = [];
+  if (어른알림.length && pub && priv) {
+    webpush.setVapidDetails(mail, pub, priv);
+    for (const g of 어른알림) {
+      let ok = false;
+      for (const sbx of 어른폰[g.hh]) {
+        try {
+          await webpush.sendNotification(
+            { endpoint: sbx.endpoint, keys: { p256dh: sbx.p256dh, auth: sbx.auth } },
+            JSON.stringify({ title: `${g.it.at} 알려드립니다`, body: g.it.text, tag: `elder-${day}-${g.it.id}`, url: "/?tab=call" })
+          );
+          ok = true;
+        } catch { /* 구독이 죽었을 수 있습니다. 15분 뒤 전화로 넘어가니 넘어갑니다 */ }
+      }
+      /* 문자 값으로 칩니다(0원). 전화 통계(voice_check)에 섞이지 않게 sms 로 적습니다 */
+      await sb(url, service, "voice_sent", "POST", [{ household_id: g.hh, day, item_id: g.it.id, at: g.it.at, sms: true, ok, err: ok ? "app" : "app-fail" }]);
+      어른결과.push({ 집: g.code, 시각: g.it.at, ok });
     }
   }
 
@@ -201,9 +253,9 @@ export default async function handler(req, res) {
     await sb(url, service, "voice_sent", "POST", [{
       household_id: x.hh, day, item_id: x.it.id, at: x.it.at, sms: !!x.it.sms, ok, err: err || null,
     }]);
-    결과.push({ 집: x.code, 시각: x.it.at, 길: x.it.sms ? "문자" : "전화", ok, err: err || undefined });
+    결과.push({ 집: x.code, 시각: x.it.at, 길: x.it.sms ? "문자" : x.fb ? "전화(앱 못 봄)" : "전화", ok, err: err || undefined });
   }
 
-  console.log("voice-send", JSON.stringify({ day, min, n: 결과.length, 미리알림: 알림.length, 결과 }));
-  return res.status(200).json({ 지금: `${day} ${nowKST().hhmm}`, 보냄: 결과.length, 미리알림: 알림, 결과 });
+  console.log("voice-send", JSON.stringify({ day, min, n: 결과.length, 어른폰: 어른결과.length, 미리알림: 알림.length, 결과 }));
+  return res.status(200).json({ 지금: `${day} ${nowKST().hhmm}`, 보냄: 결과.length, 어른폰알림: 어른결과, 미리알림: 알림, 결과 });
 }

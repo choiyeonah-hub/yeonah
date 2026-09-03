@@ -30,6 +30,8 @@ export default async function handler(req, res) {
   if (who.error) return res.status(401).json({ error: who.error });
 
   const { sub, householdId, hour, off } = req.body || {};
+  /* 어른 폰이면 "elder". 서버는 어른께 가는 알림을 이 폰에만, 부모 알림은 나머지 폰에만 보냅니다 */
+  const kind = String((req.body || {}).kind || "") === "elder" ? "elder" : "parent";
   if (!householdId || !who.households.includes(householdId)) {
     return res.status(403).json({ error: "이 가구의 알림은 설정할 수 없어요" });
   }
@@ -53,7 +55,7 @@ export default async function handler(req, res) {
     headers: { ...H, Prefer: "resolution=merge-duplicates,return=minimal" },
     body: JSON.stringify({
       endpoint: sub.endpoint, p256dh: sub.keys.p256dh, auth: sub.keys.auth,
-      household_id: householdId, user_id: who.userId, hour: h,
+      household_id: householdId, user_id: who.userId, hour: h, kind,
       /* 서버는 UTC로 돌기 때문에 몇 시간 차이인지 같이 받아둡니다 */
       tz_offset: Number(req.body.tzOffset) || 0,
       updated_at: new Date().toISOString(),
@@ -62,6 +64,7 @@ export default async function handler(req, res) {
   if (!r.ok) {
     const t = await r.text().catch(() => "");
     console.error("push_subs upsert failed", r.status, t.slice(0, 200));
+    if (/kind/.test(t)) return res.status(500).json({ error: "서버 표(push_subs)에 kind 칸이 없어요. supabase-schema.sql 아래쪽 '어른 폰' 부분을 SQL Editor에서 한 번 실행해 주세요." });
     return res.status(500).json({ error: "알림 등록에 실패했어요. 잠시 뒤 다시 해주세요" });
   }
   return res.status(200).json({ ok: true, hour: h });

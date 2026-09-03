@@ -13,9 +13,11 @@ self.addEventListener("push", (event) => {
       body: data.body,
       icon: "/icon-192.png",
       badge: "/icon-192.png",
-      tag: "meonjeon-daily",     /* 같은 태그면 덮어씁니다 — 알림이 쌓이지 않게 */
-      renotify: false,
-      data: { url: "/" },
+      /* 같은 태그면 덮어씁니다 — 부모 알림은 하루 하나면 됩니다.
+         어른께 가는 통은 통마다 꼬리표가 달라서 12:10 것과 15:30 것이 따로 남습니다. */
+      tag: data.tag || "meonjeon-daily",
+      renotify: !!data.tag,
+      data: { url: data.url || "/" },
     })
   );
 });
@@ -23,12 +25,13 @@ self.addEventListener("push", (event) => {
 /* 알림을 누르면 이미 열려 있는 창으로 갑니다. 없으면 새로 엽니다 */
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || "/";
   event.waitUntil((async () => {
     const all = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
     for (const c of all) {
       if (c.url.includes(self.location.origin)) return c.focus();
     }
-    return self.clients.openWindow("/");
+    return self.clients.openWindow(url);
   })());
 });
 

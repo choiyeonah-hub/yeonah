@@ -459,6 +459,10 @@ const DEFAULT_STATE = {
   callPlan: {},      /* "1"~"5" (월~금) → [{ id, time, what, kid, kind, way, lead }] */
   callToday: {},     /* dateKey → { add: [...], skip: [id...], off: true }  그날만 다른 것 */
   callLog: {},       /* dateKey → { at, ok }  받으셨는지. 어른이 안 하셔도 남습니다 */
+  /* 어른 폰이 앱 알림을 열어본 기록. dateKey → { 통id: 열어본 시각 }.
+     어른 폰(조부모님 탭에서 "이 폰으로 알림 받기"를 누른 폰)만 적습니다.
+     서버는 이걸 보고, 15분 안에 안 열었으면 전화로 넘깁니다. */
+  elderSeen: {},
   callChecked: {},   /* 옛 판에서 넘어온 값만 남습니다 */
   callOff: 0,        /* 안내 카드를 닫은 시각 */
   notify: { on: false, hour: 8 },
@@ -962,6 +966,9 @@ function CALL_SPLIT(st, today) {
 
 /* 오늘과 내일 나갈 말을 미리 구워둡니다.
    서버(api/voice-send)가 이걸 읽어서 그대로 보냅니다. */
+/* 통 id. 시각과 차례로만 만듭니다 — 내용을 넣으면 고칠 때마다 새 통이 되어 두 번 나갑니다.
+   어른 폰이 "열어봤다"고 적을 때도 같은 id 를 써야 해서 한 곳에 둡니다. */
+const outboxId = (b, i) => `${b.at}-${b.app ? "a" : b.sms ? "s" : "c"}-${i}`;
 function bakeOutbox(st) {
   const box = {};
   [0, 1].forEach((n) => {
@@ -977,9 +984,12 @@ function bakeOutbox(st) {
          "안 보낸 통"이 되고, 09:00에 한 번 더 나갑니다.
          시각과 차례로만 만듭니다 — 고치면 아직 안 나간 통에만 반영되고,
          이미 나간 통은 그대로 둡니다. 나간 말을 되돌릴 수는 없으니까요. */
-      id: `${b.at}-${b.app ? "a" : b.sms ? "s" : "c"}-${i}`,
-      at: b.at, sms: !!b.sms, app: !!b.app,
+      id: outboxId(b, i),
+      at: b.at, sms: !!b.sms, app: !!b.app, now: !!b.now,
       text: (b.sms || b.app) ? smsText(st, when, b.rows) : callScript(st, when, b.rows),
+      /* 앱 알림을 15분 안에 안 열어보시면 서버가 전화로 넘깁니다. 그때 읽을 말도 미리 구워둡니다 —
+         서버가 문장을 만들면 부모가 본 것과 달라지니까요 */
+      ...(b.app ? { voice: callScript(st, when, b.rows) } : {}),
     }));
   });
   return box;
@@ -1231,7 +1241,7 @@ function toFragments(text) {
 /* ── AI 호출 ──────────────────────────────────── */
 /* 새로 올릴 때마다 바꿉니다. 설정 맨 아래에 보이고,
    "새로고침이 됐나"를 폰에서 눈으로 확인하는 유일한 방법입니다 */
-const BUILD = "0902-fh";
+const BUILD = "0902-fi";
 /* ── AI 사용량 상한 ──────────────────────────────
    무료로 쓰시는 동안 비용이 예산을 넘지 않게 하는 장치입니다.
    막는 게 목적이 아니라, 얼마가 나갈지 계산이 되게 하는 게 목적이에요.
@@ -1641,6 +1651,68 @@ function urlB64ToUint8(b64) {
   return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
 }
 
+/* 네이버·카카오·인스타 앱 안의 브라우저는 파일을 캘린더로 못 넘기고,
+   홈 화면 추가도 안 되고, 알림도 못 켭니다. 쓰시는 분은 그걸 모릅니다.
+   앱이 알아서 알려줘야 합니다. */
+const inApp = (() => {
+  const u = String((typeof navigator !== "undefined" && navigator.userAgent) || "");
+  if (/NAVER|Whale.*inapp/i.test(u)) return "네이버 앱";
+  if (/KAKAOTALK/i.test(u)) return "카카오톡";
+  if (/Instagram/i.test(u)) return "인스타그램";
+  if (/FBAN|FBAV/i.test(u)) return "페이스북";
+  if (/DaumApps/i.test(u)) return "다음 앱";
+  return null;
+})();
+const isIOS = () => /iPad|iPhone|iPod/.test(String((typeof navigator !== "undefined" && navigator.userAgent) || ""));
+
+/* kind: "parent"(기본) 또는 "elder" — 어른 폰이면 서버가 그 폰에만 어른 알림을 보냅니다 */
+async function turnOnPush(hour, kind) {
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+    return { error: "이 브라우저는 알림을 지원하지 않아요" };
+  }
+  if (inApp) return { error: `${inApp} 안에서는 알림을 못 켭니다. 위 안내대로 브라우저로 열어주세요` };
+  if (isIOS() && !standalone()) return { error: "ios-home" };
+  if (!window.__VAPID) return { error: "서버에 알림 키가 아직 없어요 (VAPID_PUBLIC_KEY)" };
+  if (!window.__HH) return { error: "가구 정보를 아직 못 읽었어요. 새로고침해 주세요" };
+
+  const perm = await Notification.requestPermission();
+  if (perm !== "granted") return { error: "알림 권한이 꺼져 있어요. 브라우저 설정에서 허용해 주세요" };
+
+  const reg = await navigator.serviceWorker.register("/sw.js");
+  await navigator.serviceWorker.ready;
+  let sub = await reg.pushManager.getSubscription();
+  if (!sub) {
+    sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlB64ToUint8(window.__VAPID),
+    });
+  }
+  const r = await fetch("/api/push-subscribe", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+    body: JSON.stringify({
+      sub: sub.toJSON(), householdId: window.__HH, hour, kind: kind || "parent",
+      /* 서버는 UTC로 돕니다. 한국이면 -540이 넘어가니 뒤집어서 보냅니다 */
+      tzOffset: -new Date().getTimezoneOffset(),
+    }),
+  });
+  if (!r.ok) { const j = await r.json().catch(() => ({})); return { error: j.error || "알림 등록에 실패했어요" }; }
+  return { ok: true };
+}
+
+async function turnOffPush() {
+  try {
+    const reg = await navigator.serviceWorker.getRegistration();
+    const sub = reg && (await reg.pushManager.getSubscription());
+    if (sub) await sub.unsubscribe();
+  } catch {}
+  await fetch("/api/push-subscribe", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+    body: JSON.stringify({ off: true, householdId: window.__HH }),
+  }).catch(() => {});
+}
+
 /* ── 체험판에 없는 화면들 ────────────────────────────
    베타 지표·환경 점검·푸시 알림·인앱 브라우저 안내는 서버가 있어야 돕니다.
    빈 것으로라도 반드시 만들어둬야 합니다 — 없으면 화면이 통째로 안 그려집니다. */
@@ -1706,7 +1778,16 @@ function NewBuildBar({ build }) {
 function App() {
   const [st, setSt] = useState(DEFAULT_STATE);
   const [ready, setReady] = useState(false);
-  const [tab, setTab] = useState("plan");
+  /* 어른 폰(알림 받기를 누른 폰)이거나 알림을 눌러 들어왔으면 조부모님 탭부터.
+     어른께 일정 탭이 먼저 뜨면 "이게 뭐냐"가 됩니다. */
+  const [tab, setTab] = useState(() => {
+    try {
+      const q = new URLSearchParams(window.location.search).get("tab");
+      if (["plan", "speak", "script", "call"].includes(q)) return q;
+      if (isElderDevice()) return "call";
+    } catch {}
+    return "plan";
+  });
   const [me, setMe] = useState(window.__ME || "m1");
   const [toast, setToast] = useState(null);
   const newBuild = useNewBuild();
@@ -3680,8 +3761,76 @@ function PlanEditor() {
    앱 알림으로 받기로 하신 집에서는 어른이 직접 여기를 여십니다.
    그래서 누를 것을 두지 않았고, 글씨를 키웠습니다.
    부모가 고칠 것은 전부 부모님 탭에 있습니다. */
+/* 이 폰이 어른 폰인지. 조부모님 탭에서 "이 폰으로 알림 받기"를 누르면 이 폰에 표시가 남습니다.
+   부모 폰이 조부모님 탭을 열어본 것을 "어른이 보셨다"로 치면 안 되니, 이 표시가 있는 폰만 기록합니다. */
+const ELDER_DEV = "sjht-elder";
+const isElderDevice = () => { try { return localStorage.getItem(ELDER_DEV) === "1"; } catch { return false; } };
+const nowHM = () => { const n = new Date(); return `${String(n.getHours()).padStart(2, "0")}:${String(n.getMinutes()).padStart(2, "0")}`; };
+
+/* 어른 폰에서 알림을 켜는 카드. 카톡은 광고 사이에 묻히지만 어른 폰의 앱 알림은 혼자 뜹니다.
+   값도 안 듭니다. 대신 안 열어보시면 15분 뒤 전화가 가므로 놓칠 일은 없습니다. */
+function ElderPushCard() {
+  const { st, setSt, say } = use();
+  const lab = ((st.elders || [])[0] || {}).label || "어른";
+  const [here, setHere] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [howto, setHowto] = useState(false);
+  const check = async () => {
+    try {
+      if (!("serviceWorker" in navigator) || !("PushManager" in window)) return setHere(false);
+      const reg = await navigator.serviceWorker.getRegistration();
+      const sub = reg && (await reg.pushManager.getSubscription());
+      setHere(!!sub && isElderDevice());
+    } catch { setHere(false); }
+  };
+  useEffect(() => { check(); }, []);
+  const on = async () => {
+    setBusy(true);
+    const r = await turnOnPush(8, "elder").catch((e) => ({ error: String((e && e.message) || e) }));
+    setBusy(false);
+    if (r.error === "ios-home") { setHowto(true); return; }
+    if (r.error) return say(r.error);
+    try { localStorage.setItem(ELDER_DEV, "1"); } catch {}
+    /* 어른 폰이 알림을 켰으면 그 집은 앱으로 받습니다. 부모가 설정에서 따로 안 바꿔도 되게 */
+    setSt((sv) => {
+      const l = (sv.elders || []).slice();
+      if (!l.length) return sv;
+      l[0] = { ...l[0], how: "app", appOk: true, appAt: Date.now() };
+      return { ...sv, elders: l };
+    });
+    setHere(true);
+    say("이 폰으로 알림이 옵니다");
+  };
+  if (here === true) {
+    return (
+      <Card style={{ marginTop: 20, borderColor: C.sea }}>
+        <div style={{ padding: "14px 18px", fontSize: 15, color: C.ink2, lineHeight: 1.7 }}>
+          ✓ <b style={{ color: C.ink }}>이 폰으로 알림이 옵니다.</b> 못 보시면 15분 뒤에 전화가 갑니다.
+        </div>
+      </Card>
+    );
+  }
+  return (
+    <Card style={{ marginTop: 20, borderColor: C.sea }}>
+      <div style={{ padding: "18px 18px 20px" }}>
+        <div style={{ fontSize: 19, fontWeight: 600, lineHeight: 1.4 }}>{lab} 폰이면 여기를 눌러주세요</div>
+        <p style={{ fontSize: 15, color: C.ink2, marginTop: 8, lineHeight: 1.75 }}>
+          알림이 이 폰에 옵니다. 값이 들지 않아요. 못 보시면 15분 뒤에 전화로 갑니다.
+        </p>
+        {howto && (
+          <div style={{ marginTop: 12, background: C.sunSoft, borderRadius: 12, padding: "12px 14px", fontSize: 14.5, color: C.ink2, lineHeight: 1.8 }}>
+            아이폰은 먼저 <b style={{ color: C.ink }}>아래 공유 단추 → 홈 화면에 추가</b>를 하시고,
+            홈 화면의 그 아이콘으로 들어와서 다시 눌러주세요. 애플이 그래야만 알림을 허용합니다.
+          </div>
+        )}
+        <Btn onClick={on} disabled={busy} style={{ marginTop: 14, padding: "15px 0", fontSize: 17 }}>이 폰으로 알림 받기</Btn>
+      </div>
+    </Card>
+  );
+}
+
 function ElderScreen() {
-  const { st, setTab } = use();
+  const { st, setSt, setTab } = use();
   const lab = ((st.elders || [])[0] || {}).label || "어른";
   /* 다음 전화 날(아침 통이 지나면 내일)을 보여주고 있었습니다. 앱으로 보시는 어른께는
      "오늘 뭐 하나"가 필요합니다 — 내일 것이 크게 떠 있으면 오늘 것을 오늘로 아십니다. */
@@ -3704,6 +3853,28 @@ function ElderScreen() {
   const 이름 = (kid) => ((st.children || []).find((c) => c.id === kid) || {}).name || "";
   const 하나 = (st.children || []).length <= 1;
 
+  /* 어른 폰이 이 화면을 열면 "그 시각이 지난 앱 통"은 열어본 것으로 적습니다.
+     서버는 이 기록이 없는 통만 15분 뒤 전화로 넘깁니다. 알림을 눌러 들어와도, 그냥 열어도 같습니다. */
+  useEffect(() => {
+    if (!isElderDevice()) return;
+    const mark = () => {
+      const now = nowHM();
+      const ids = callBatches(st, day).map((b, i) => [outboxId(b, i), b])
+        .filter(([, b]) => b.app && String(b.at) <= now).map(([id]) => id);
+      if (!ids.length) return;
+      setSt((sv) => {
+        const seen = { ...((sv.elderSeen || {})[day] || {}) };
+        let changed = false;
+        ids.forEach((id) => { if (!seen[id]) { seen[id] = Date.now(); changed = true; } });
+        return changed ? { ...sv, elderSeen: { ...(sv.elderSeen || {}), [day]: seen } } : sv;
+      });
+    };
+    mark();
+    const onVis = () => { if (document.visibilityState === "visible") mark(); };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, [st.callPlan, st.callToday, st.elders]);
+
   return (
     /* 아이콘의 수화기 색이 민트입니다. 전화가 나가는 화면이라 여기를 그 색으로 둡니다 */
     <div style={{ "--ac": C.sea, paddingBottom: 30 }}>
@@ -3718,6 +3889,9 @@ function ElderScreen() {
           {lab}께 <b style={{ color: C.ink }}>{할일.length}가지</b>를 알려드립니다.
         </p>
       </div>
+
+      {/* 어른 폰이면 알림 받기 — 카톡보다 잘 보이고 값이 안 듭니다 */}
+      <ElderPushCard />
 
       {off ? (
         <Card style={{ marginTop: 20, borderColor: C.persim }}>
@@ -4145,12 +4319,13 @@ function Settings() {
                       아직 앱으로는 안 나갑니다 — 그동안은 전화·문자로 갑니다
                     </div>
                     <div style={{ fontSize: 12, color: C.ink2, lineHeight: 1.9 }}>
-                      어른이 하셔야 하는 것입니다. 한 번만 하시면 됩니다.<br />
+                      어른 폰에서 한 번만 하시면 됩니다. 어른 폰을 잡고 같이 해드리세요.<br />
                       ① 화면 맨 위 <b>가족 초대 링크 복사</b>를 눌러 어른께 보내기<br />
-                      ② 어른이 그 링크를 열고 <b>본인 메일로 로그인</b><br />
-                      ③ 아이폰이면 <b>공유 → 홈 화면에 추가</b>
+                      ② 어른 폰에서 그 링크를 열고 <b>본인 메일로 로그인</b><br />
+                      ③ 아이폰이면 <b>공유 → 홈 화면에 추가</b>하고 그 아이콘으로 열기
                       <span style={{ opacity: .8 }}> (애플이 그래야만 알림을 허용합니다)</span><br />
-                      ④ 그 아이콘으로 들어와 <b>알림 켜기</b>
+                      ④ <b>조부모님 탭</b> 맨 위 <b>"이 폰으로 알림 받기"</b> 누르기 — 켜지면 여기가 저절로 바뀝니다<br />
+                      알림을 15분 안에 안 열어보시면 <b>전화로 넘어갑니다.</b> 놓칠 일은 없어요.
                     </div>
                   </>
                 )}
