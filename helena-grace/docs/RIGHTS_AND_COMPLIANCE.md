@@ -31,9 +31,11 @@ Not legal advice. Items marked ☐ need a qualified professional before public l
 
 ## Privacy
 
-- MVP stores all user data in IndexedDB on the device. No server, analytics, ads, tracking SDKs, or third-party font requests.
+- MVP stores all user data in IndexedDB on the device. No server, analytics, ads, tracking SDKs, AI analysis, or third-party font requests.
+- While a reflection is being typed, a write-ahead copy of that one entry is also kept in `localStorage` (same device, same origin) so words typed just before a reload aren't lost. It is cleared once IndexedDB has the text, and by "Delete all my data".
+- Long-form reflections can contain religious beliefs and health/family details — treat as sensitive. The UI never claims encryption.
 - Service worker caches the app shell only (HTML/JS/CSS/icons), never user content.
-- Intentions are private by default and excluded from share images.
+- Intentions are private by default. Widgets and the share image use **only** the gratitude note the user explicitly picked as their Grace Note — never reflection text or intentions.
 - Users can export (JSON/CSV) and delete everything.
 - ☐ Before collecting emails: privacy policy (CAN-SPAM, CCPA/CPRA if applicable, GDPR if EU traffic), double opt-in, unsubscribe, processor DPA.
 - ☐ Before accounts/sync: Supabase RLS, encryption at rest, data-deletion flow, breach plan. Religious belief data can be "sensitive" under CPRA/GDPR — treat as such.

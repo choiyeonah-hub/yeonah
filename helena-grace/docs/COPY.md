@@ -11,34 +11,34 @@ Source of truth for landing copy: `src/content/copy.ts`. App microcopy lives in 
 - Secondary CTA: Get Early Access → `#early-access`
 - Secondary headline: Faith belongs in the little moments, too.
 - Intro: Your calendar, prayers, and reflections can live in one beautiful, peaceful space.
-- Features: Plan with purpose / Pray at your own pace / Notice the good / Make it yours (text as specified).
-- How it works: Begin with one small intention. · Plan the moments that matter. · Return, reflect, and grow gently.
-- Pricing: Start simply. Stay for what serves you. — Free: Essential planning, prayer tracking, and gratitude journaling — always free. — Plus: More ways to organize, personalize, and preserve your faith journey. Premium features are in development. + "Price not set. Nothing can be purchased, and we'll never put prayer itself behind a paywall."
+- Features (V2): Plan with purpose / **Write without limits** / Pray at your own pace / Notice the good ("in your own words. No checkboxes to fill, no pressure to keep up.") / Make it yours.
+- How it works — heading "A gentle rhythm for every day." (from the user's landing draft): Plan your day with intention. · Pause for prayer when you need it. · Write freely, and return to your words when you are ready.
+- Pricing: Start simply. Stay for what serves you. — Free: Everyday planning, private prayer intentions, the Rosary tracker, and spacious faith journaling — always free. — Plus: More ways to organize, personalize, and preserve your faith journey. Premium features are in development. + "Price not set. Nothing can be purchased, and we'll never put prayer itself behind a paywall."
 - Email capture: Get a note when Helena Grace is ready. / Consent: I agree to receive occasional product updates. Unsubscribe anytime. / Button: Join the Early Access List (**disabled**) / Status: "The list isn't open yet in this preview. Nothing you type here is sent or saved."
 - Success (unused until a real save is confirmed): Thank you. A little light is on its way.
 - Trust note: Independently created. Not affiliated with or endorsed by any diocese or official Catholic organization.
 - Footer: Helena Grace · A little light, every day. · Privacy · Terms · Brand · Contact (address coming before launch)
-- FAQ: the four specified Q&As + "Where is my data stored?" + "Can I put Helena Grace widgets on my phone's home screen?"
+- FAQ: the five V2 Q&As (incl. "Can I write longer reflections?") + "Where is my data stored?" + "Can I put Helena Grace widgets on my phone's home screen?"
 
 ## App microcopy (selected)
 
 | Place | Copy |
 |---|---|
-| Today header | {date} · Good morning / Good afternoon / Good evening / Peace be with you tonight, {name}. · **Your quiet moment** |
-| Morning card | A small beginning — "One line for this morning — a prayer, a hope, a word to carry." |
-| Rhythm progress | "{n} of {total} gently kept today" (no streaks, no "missed") |
-| Intentions empty | Who or what would you like to hold in prayer today? |
-| Grace empty | What's one small good thing from today? |
-| Plans empty | Nothing scheduled. Room to breathe. |
-| Liturgical | Liturgical notes · Coming later. We'll show feasts and seasons only once a verified, properly licensed calendar source is in place. |
-| Rosary | A moment with Mary · Take your time · "Paused. Your place is saved." · "All five decades prayed" |
-| Rosary rights note | Prayer texts aren't included yet while we complete a rights review. Pray from memory or your own prayer book — Helena Grace keeps your place and your intention. |
-| Journal save | Saved. Thank you for noticing. · Draft kept on this device · Restored your unsaved draft. |
-| Answered | You marked this answered. · "Only you decide when a prayer feels answered." |
-| Weekly | My gentle week — "This week held {n} rhythm moments, {n} finished plans, and {n} days with written graces." · "Where did you notice grace this week?" |
-| Reminders | Reminders aren't sent yet … They'll never use guilt or streak warnings. |
-| Sync | Sync status: Not available in demo |
-| Widgets | These are previews. A web app can't place real widgets on your iPhone or Android home screen … |
-| 404 | This page wandered off — Let's bring you back somewhere peaceful. |
+| Today header | {date} · Good morning / afternoon / evening / Peace be with you tonight, {name}. · **A little light for today** |
+| Today primary | Today's plans · Prayer intentions · Continue writing ("last saved 9:14 PM") / A place to write |
+| Today secondary (collapsible) | Return to the Rosary · A note of gratitude · Gentle routines ("Tap a card to note it — no scores, no streaks") |
+| Empty states | Nothing scheduled. Room to breathe. · Who or what would you like to hold in prayer today? · Your reflections can be as long or as short as you wish. |
+| Journal | A place for your prayers and reflections. / Stay a while. Write as much as you need. · New reflection · Continue writing · Read past entries |
+| Prompts (hint only) | Where did you notice grace today? · What would you like to bring to prayer? · What is weighing on your heart? |
+| Autosave | Start writing — it saves on this device as you go. · Saving… · Saved locally · {time} · Couldn't save. Your words are still here — download a copy to be safe. |
+| Storage notice | Everything here is saved only in this browser on this device and is not encrypted. Clearing browser data or losing the device can erase it — export a copy now and then. |
+| Gratitude | Notice the good — In your own words — one moment or many. Nothing to fill in, nothing to keep up with. |
+| Intentions | Prayer intention · "Anything more you'd like to hold (optional)" · Mark as answered · "Only you decide when a prayer feels answered." |
+| Routines | Noted for today · "Off by default … no scores, completion rates or streaks." |
+| Planner | Write a reflection · Reflect · Open day · My gentle week: "This week held {n} finished plans, {n} reflections and {n} notes of gratitude." |
+| Liturgical | Liturgical notes · Coming later. |
+| Rosary | A moment with Mary · Take your time · Paused. Your place is saved. |
+| Widgets | These are previews … · Grace Note: "Choose a gratitude note to show here." |
+| Sync / plan | Sync status: Not available in demo · Helena Plus: Not available in demo |
 
-Words to avoid: streak, missed, failed, behind, "don't break the chain", "you should".
+Words to avoid: streak (except "no streaks"), missed, failed, behind, score, "don't break the chain", "you should", "encrypted" (not true yet).

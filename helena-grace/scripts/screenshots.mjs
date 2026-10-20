@@ -5,7 +5,7 @@ import { chromium } from "playwright-core";
 
 const BASE = process.env.BASE_URL || "http://localhost:4173";
 const WIDTHS = [375, 390, 430, 768, 1440];
-const PAGES = ["/", "/app/today", "/app/planner", "/app/rosary", "/app/journal", "/app/journal?tab=month", "/app/you", "/app/you/widgets", "/brand"];
+const PAGES = ["/", "/app/today", "/app/planner", "/app/rosary", "/app/journal", "/app/journal/sample-j1", "/app/journal/sample-j1?mode=read", "/app/journal?tab=gratitude", "/app/you", "/app/you/widgets", "/brand"];
 
 mkdirSync("screenshots", { recursive: true });
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || "/opt/pw-browsers/chromium-1194/chrome-linux/chrome" });
@@ -20,6 +20,7 @@ await page.setViewportSize({ width: 390, height: 844 });
 await page.goto(`${BASE}/app/today`);
 await page.getByRole("button", { name: "Continue" }).click();
 await page.getByRole("button", { name: "Continue" }).click();
+await page.getByRole("button", { name: "Morning prayer" }).click(); // opt in to one routine so routine UI is captured too
 await page.getByLabel(/sample entries/).check();
 await page.getByRole("button", { name: "Begin" }).click();
 await page.getByText(/step 3 of 3/i).waitFor({ state: "detached" }); // wait until onboarding has saved

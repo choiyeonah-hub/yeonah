@@ -128,36 +128,6 @@ export function ErrorNote({ message }: { message: string }) {
   );
 }
 
-/** Half-sun of petals that fill as items are completed. Always paired with a text count. */
-export function SunPetals({ done, total, size = 72 }: { done: number; total: number; size?: number }) {
-  const n = Math.max(total, 1);
-  const petals = Array.from({ length: n }, (_, i) => {
-    const a = Math.PI + (Math.PI * (i + 0.5)) / n;
-    const x = 36 + 26 * Math.cos(a);
-    const y = 38 + 26 * Math.sin(a);
-    const filled = i < done;
-    return (
-      <ellipse
-        key={i}
-        cx={x}
-        cy={y}
-        rx="4"
-        ry="7"
-        transform={`rotate(${(a * 180) / Math.PI + 90} ${x} ${y})`}
-        fill={filled ? "var(--hg-gold)" : "none"}
-        stroke="var(--hg-gold)"
-        strokeWidth="1.4"
-      />
-    );
-  });
-  return (
-    <svg width={size} height={size * 0.6} viewBox="0 0 72 44" aria-hidden="true">
-      {petals}
-      <path d="M22 40a14 14 0 0 1 28 0" fill={total > 0 && done >= total ? "var(--hg-gold)" : "var(--hg-tint)"} stroke="var(--hg-gold)" strokeWidth="1.4" />
-    </svg>
-  );
-}
-
 export function Dialog({ open, onClose, title, children }: { open: boolean; onClose: () => void; title: string; children: ReactNode }) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
@@ -212,13 +182,5 @@ export function Chip({ pressed, onClick, children, label }: { pressed: boolean; 
     >
       {children}
     </button>
-  );
-}
-
-export function Status({ message }: { message: string }) {
-  return (
-    <p role="status" aria-live="polite" className="min-h-5 text-sm text-success">
-      {message}
-    </p>
   );
 }

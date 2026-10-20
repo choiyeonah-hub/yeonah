@@ -57,6 +57,8 @@
   --font-serif: "Cormorant Garamond", "Iowan Old Style", Georgia, "Noto Serif KR", serif;
   --font-sans: "Inter Variable", "Inter", system-ui, -apple-system, "Segoe UI", "Noto Sans KR", sans-serif;
   --radius-card: 20px;
+  /* Duration for explicit transition utilities only (150–250ms; 0 with reduced motion). */
+  --default-transition-duration: var(--hg-motion);
 }
 
 html {
@@ -73,9 +75,18 @@ body {
   line-height: 1.55;
 }
 
-h1,
-h2,
-h3,
+/* In the base layer so utility classes (e.g. font-sans on a heading) can override it. */
+@layer base {
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-serif);
+    font-weight: 600;
+    letter-spacing: 0.005em;
+    line-height: 1.15;
+  }
+}
+
 .font-display {
   font-family: var(--font-serif);
   font-weight: 600;
@@ -87,10 +98,6 @@ h3,
   outline: 2px solid var(--hg-ink);
   outline-offset: 2px;
   border-radius: 8px;
-}
-
-* {
-  transition-duration: var(--hg-motion);
 }
 
 @media (prefers-reduced-motion: reduce) {

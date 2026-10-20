@@ -1,33 +1,30 @@
-# Sitemap & UX flows
+# Sitemap & UX flows (V2 — long-form journaling)
 
 ## Routes
 
-| Route | Screen | Notes |
+| Route | Screen | One clear job |
 |---|---|---|
-| `/` | Brand landing | Hero, features, "A look inside" (4 illustrative phone screens), how it works, themes, honest plan comparison, early access (disabled), FAQ, privacy, footer with non-affiliation note |
-| `/privacy`, `/terms` | Plain-language notes | Preview text, pending legal review |
-| `/brand` | Logo system sheet | Wordmark, symbol, app icon, mono, usage, tokens, type |
-| `/app/today` | Today | Morning note, daily rhythm (petals + count), intentions, today's grace, Rosary resume, today's plans, "Liturgical notes · Coming later" |
-| `/app/planner` | Planner | Today / Week / Month tabs, prev/next/today, category filters + rhythms toggle, day detail (plans, rhythms, day note), My gentle week (week view) |
-| `/app/rosary` | Rosary | Choose mysteries (weekday suggestion, user decides) + intention → counter with decades, beads, +1, Back, Pause/Resume, Complete, End; history |
-| `/app/journal` | Journal | `?tab=page|intentions|month|search` and `?date=yyyy-mm-dd` (deep-linkable) |
-| `/app/you` | You / Settings | Privacy & sync status, preferences, theme, reminders (stored only), backup/restore/sample/delete, subscription status, notices |
-| `/app/you/widgets` | Widgets & Themes | Widget previews, PNG share card, theme gallery |
-| `*` | Not found | Links back to Today / Home |
+| `/` | Brand landing | Hero (writing scene), 5 features, "A look inside", how it works, themes, honest plans, early access (disabled), FAQ, privacy, footer |
+| `/privacy`, `/terms`, `/brand` | Notes / logo sheet | — |
+| `/app/today` | Today | **Primary:** Today's plans · Prayer intentions · Continue writing. **Collapsible:** Return to the Rosary · A note of gratitude · Gentle routines (only if turned on). "Liturgical notes · Coming later" |
+| `/app/planner` | Planner | Today / Week / Month. Week = **List** (one card per day, large targets, "Reflect" + "Add" per day) or **Calendar** (strip + day detail). Category show/hide chips and colour picker. Day detail: plans, **Write a reflection** → journal for that date, day note. My gentle week |
+| `/app/rosary` | Rosary | Choose mysteries + intention → counter, Pause/Resume, Complete, history |
+| `/app/journal` | Journal home | "A place for your prayers and reflections." New reflection · Continue writing · Read past entries. Tabs: **Reflections** (by date, newest first, Monthly light calendar, CSV/JSON export) · **Intentions** (headline + long note, Answered prayers) · **Gratitude** (free text, any number, choose Grace Note) · **Search** |
+| `/app/journal/new[?date=]` → `/app/journal/:id` | Writing studio | Title, date, tags, prompts (hint only), auto-growing editor (≥24rem), Write/Read, Focus mode, autosave status, delete |
+| `/app/you` | Settings | Privacy & storage limits, preferences, **Gentle routines on/off**, theme, reminders (stored only), backup/restore/sample/delete, plan status, notices |
+| `/app/you/widgets` | Widgets & Themes | Morning Light, Little Rosary, **Grace Note** (only the chosen gratitude note), Feast & Season (locked); PNG share card |
 
-Navigation: mobile bottom bar (5 tabs, ≥56px tall, safe-area aware); ≥768px a left sidebar. Every feature is ≤2 taps from a tab. "Skip to content" link on every layout.
+Navigation: mobile bottom bar (5 tabs) / desktop sidebar. Focus mode is a full-screen layer above the tab bar (Esc or "Exit focus").
 
 ## Flows
 
-1. **First visit** → `/app/today` → onboarding dialog (3 steps: name · timezone/week start/quiet time · starter rhythms + optional sample data). "Skip for now" at every step, Esc closes = skip.
-2. **Daily use** → Today: write a morning line (saved on blur/Save) → tick rhythms → add an intention → "Write three graces" → Journal page.
-3. **Plan** → Planner → New plan (validated dialog) → appears in day/week/month → tick done (per occurrence for repeats) → edit / mark cancelled / delete (confirm).
-4. **Rosary** → choose mysteries + intention → +1 bead … → Pause (state saved) → leave → Today shows "Return to the Rosary" → Resume → Complete → history.
-5. **Journal** → three graces + reflection + mood + tags; typing autosaves a *draft* (restored on return), Save commits. Navigate days, Monthly light calendar, Search (local only), CSV export.
-6. **Data** → You → Download backup (JSON) / Restore (validated, replaces) / Add or Remove sample data (only `isSample` records) / type DELETE to wipe → onboarding restarts.
+1. **Evening reflection (scenario A)** — Today "Continue writing" or Journal "New reflection" → type → status "Saving…" → "Saved locally · 9:14 PM". The URL becomes `/app/journal/<id>` after the first save. Reload, closing the tab, or switching tabs restores everything (IndexedDB + synchronous write-ahead copy). Read mode shows it as a printed page.
+2. **Plans + prayer (scenario B)** — add a personal plan and a Mass in Planner → both appear in the week list and in Today. Add an intention (with a long note) and a gratitude note. Widgets show only the Grace Note the user picks; reflections and intentions never appear there.
+3. **Routines optional (scenario C)** — off by default. Turn on in onboarding (pick any) or You → Gentle routines. Tap a large card → "Noted for today". Tap again to undo.
+4. **Data (scenario D)** — You → Download backup (JSON) / Restore / Remove sample data / type DELETE. Journal tabs export CSV (and JSON for reflections).
 
 ## States
 
-- Loading: `role="status"` text. Error: storage-unavailable message (e.g. private mode).
-- Empty: arch icon + gentle copy + one action.
-- Form errors: inline text linked by `aria-describedby`, `aria-invalid`.
+- Loading `role="status"`. Storage error: explains private mode / blocked storage.
+- Autosave: idle ("Start writing…"), Saving…, Saved locally · time, Couldn't save (+ Download copy).
+- Empty states give one gentle action. Missing entry id → "We couldn't find this reflection" plus a note that entries live on one device.

@@ -1,60 +1,63 @@
-# QA
+# QA (V2)
 
 ## Commands
 
 ```bash
 cd helena-grace
 npm install
-npm run dev          # http://localhost:5173
-npm run typecheck    # tsc -b
-npm run test         # vitest: 36 tests
-npm run build        # tsc -b && vite build → dist/
-npx vite preview --port 4173 &   # serve the build
-npm run shots        # screenshots/ at 375/390/430/768/1440 + overflow & console-error report
-npm run icons        # regenerate brand SVG + PWA PNG icons
+npm run dev            # http://localhost:5173
+npm run typecheck
+npm run test           # vitest: 61 tests
+npm run build
+npx vite preview --port 4173 &
+npm run qa:journal     # real Chromium, iPhone 13 profile: long-form + reload + export/import (11 checks)
+npm run shots          # 11 routes × 375/390/430/768/1440 → screenshots/, overflow + console-error report
+npm run icons
 ```
 
-`shots` and `icons` use the Chromium at `/opt/pw-browsers/...`. Elsewhere, set `CHROMIUM_PATH=/path/to/chrome`.
+`qa:journal`, `shots` and `icons` use `/opt/pw-browsers/...` Chromium. Elsewhere, set `CHROMIUM_PATH`.
 
-## Verified (automated, in this build)
+## Verified in this build
 
-| Area | How | Result |
+| Area | Evidence | Result |
 |---|---|---|
-| Types | `tsc -b` (strict, noUnused*) | 0 errors |
-| Build | `vite build` | OK (JS 452 kB / 140 kB gzip) |
-| Timezone day keys, DST, month/week math | `src/lib/date.test.ts` | pass |
-| Rosary counter (advance/back/finish bounds) | `src/lib/rosary.test.ts` | pass |
-| Validation | `src/lib/validation.test.ts` | pass |
-| IndexedDB CRUD, routine toggle, repeat events, sample-only removal, backup round-trip, bad-file rejection, CSV formula guard | `src/lib/storage/storage.test.ts` (fake-indexeddb) | pass |
-| Landing CTA/affiliation/disabled waitlist; onboarding skip; Today rhythm persists; Rosary begin→count→pause→resume persisted; Planner validation + create; Journal save + search | `src/test/screens.test.tsx` (real routes) | pass |
-| Token contrast AA (text pairs) | `src/test/contrast.test.ts` | pass |
-| No horizontal overflow / no console errors on 9 routes × 5 widths | `npm run shots` | pass |
-| Offline: app shell loads with network off after first visit | Playwright, `context.setOffline(true)` | pass |
-| Keyboard: month grid arrows, planner view tabs arrows | Playwright | pass |
+| Types / build | `tsc -b`, `vite build` | 0 errors / OK |
+| Timezone day keys, DST | `date.test.ts` | pass |
+| Rosary counter | `rosary.test.ts` | pass |
+| Long reflection stored verbatim; several per day; any number of gratitude notes | `storage.test.ts` | pass |
+| Backup round-trip with 3,000+ chars, emoji, line breaks; CSV keeps the full body; formula guard | `storage.test.ts` | pass |
+| v1 → v2 IndexedDB migration (old 3-line journal → reflection + gratitude) | `storage.test.ts` | pass |
+| Write-ahead recovery (never older over newer; wiped by Delete all) | `journalWal.test.ts` | pass |
+| Scenario A: paste 3,000+ chars, autosave, URL → id, reopen restores title/body/tags; flush on leave; no maxlength; prompts don't overwrite; Read mode; list by date; search | `screens.test.tsx` | pass |
+| Scenario B: personal + Mass on Today and Planner; journal body and private intention absent from widgets | `screens.test.tsx` | pass |
+| Scenario C: routines off → no routine UI, 0 checkboxes on Today; on → tap card persists; no counts/streaks | `screens.test.tsx` | pass |
+| Zero meal-planning UI (11 routes) | `screens.test.tsx` | pass |
+| Real browser (390px touch): editor ≥12 lines, no overflow, reload restores, **reload within 600 ms keeps the last words**, unsaved new entry restored, focus mode covers the tab bar and focuses the text, JSON export → wipe → import identical | `qa:journal` | 11/11 pass |
+| No overflow or console errors at 5 widths × 11 routes | `shots` | pass |
+| Contrast AA for text tokens | `contrast.test.ts` | pass |
 
-## Not verified yet (manual work still to do)
+### Bugs found and fixed during V2 QA
+- Words typed <600 ms before a reload were lost (0/5 kept). Fixed with a synchronous localStorage write-ahead copy that is recovered on start (now 5/5, plus automated checks).
+- A global `* { transition-duration }` rule made every style change animate, so focus mode appeared semi-transparent over the tab bar. Removed; motion now goes through Tailwind's `--default-transition-duration` only.
+- The global heading font rule overrode utility classes. Moved into `@layer base`.
 
-- ☐ Real screen readers: VoiceOver on iOS/macOS, TalkBack, NVDA. Only ARIA structure has been checked.
-- ☐ Real devices: iOS Safari "Add to Home Screen", Android Chrome install prompt, safe-area insets.
-- ☐ 200% zoom and Windows high-contrast mode.
-- ☐ JSON restore from a file picker on mobile Safari.
-- ☐ PNG share card download on iOS Safari (canvas `toBlob` and download behaviour vary).
-- ☐ Lighthouse PWA/performance score. Not run.
-- ☐ Content review by a Catholic reader (tone, mystery titles).
-- ☐ Bundle splitting (one 452 kB chunk). Acceptable for an MVP, not optimised.
+## Not verified (still to do)
 
-## Taking screenshots manually
+- ☐ Real iPhone/Android: on-screen keyboard over the editor, dictation (voice input), safe areas, "Add to Home Screen". Chromium device emulation has no software keyboard.
+- ☐ Screen readers (VoiceOver, TalkBack, NVDA).
+- ☐ iOS Safari storage eviction (Safari can clear site data after about 7 days without a visit).
+- ☐ Very large journals (e.g. 1,000+ entries). Search and list are in-memory and not profiled.
+- ☐ Lighthouse; bundle splitting.
+- ☐ Content review by a Catholic reader.
 
-1. `npm run build && npx vite preview`
-2. Chrome DevTools → device toolbar → 375 / 390 / 430 / 768 / 1440 → ⋮ → "Capture full size screenshot".
-3. Or run `npm run shots`, which onboards with sample data first.
+## Manual capture
+
+`npm run build && npx vite preview`, then Chrome DevTools device toolbar → 375/390/430/768/1440 → "Capture full size screenshot". Or run `npm run shots`, which onboards with sample data and one routine.
 
 ## Deployment checklist
 
-- [ ] Trademark/domain check done (see RIGHTS_AND_COMPLIANCE).
-- [ ] Vercel/Netlify project **root directory = `helena-grace`**, build `npm run build`, output `dist`. SPA rewrites are in `vercel.json`.
-- [ ] HTTPS (needed for the service worker).
-- [ ] Bump `CACHE` in `public/sw.js` when shell files change (hashed assets update on their own).
-- [ ] Replace the footer contact placeholder.
-- [ ] Privacy/Terms reviewed. Waitlist stays disabled until an email processor and consent records exist.
-- [ ] `npm run test && npm run build && npm run shots` all green.
+- [ ] Trademark/domain checks.
+- [ ] Host root = `helena-grace`, build `npm run build`, output `dist`, SPA rewrites in `vercel.json`, HTTPS.
+- [ ] Bump `CACHE` in `public/sw.js` when shell files change.
+- [ ] Contact address, reviewed Privacy/Terms.
+- [ ] `npm run test && npm run build && npm run qa:journal && npm run shots` all green.

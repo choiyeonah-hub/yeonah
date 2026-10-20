@@ -2,7 +2,7 @@
 export type LocalDate = string;
 
 export type RoutineCategory = "prayer" | "mass" | "scripture" | "gratitude" | "personal";
-export type EventCategory = "personal" | "prayer" | "mass" | "gratitude" | "intentions";
+export type EventCategory = "personal" | "prayer" | "mass" | "intentions" | "reflection";
 export type Mystery = "joyful" | "sorrowful" | "glorious" | "luminous";
 export type WeekStart = 0 | 1; // 0 = Sunday, 1 = Monday
 
@@ -49,12 +49,13 @@ export type StickerId = "none" | "sun" | "flower" | "star" | "ribbon" | "bead";
 
 export interface Intention extends Base {
   text: string;
+  /** Optional long note — no length limit. */
+  note?: string;
   isPrivate: boolean;
   createdAt: string;
   archivedAt?: string;
   /** Set only when the user chooses to mark it answered. The app never judges this. */
-  answeredAt?: string;
-  answeredNote?: string;
+  resolvedAt?: string;
   tags?: string[];
 }
 
@@ -72,16 +73,32 @@ export interface RosarySession extends Base {
   localDate: LocalDate;
 }
 
+/** Long-form reflection. Several per day are allowed; the body has no length limit. */
 export interface JournalEntry extends Base {
   localDate: LocalDate;
-  gratitude: [string, string, string];
-  reflection?: string;
-  mood?: Mood;
-  tags?: string[];
+  title?: string;
+  body: string;
+  tags: string[];
+  createdAt: string;
   updatedAt: string;
 }
 
-export type Mood = "peaceful" | "grateful" | "tired" | "hopeful" | "heavy";
+/** A free-form note of gratitude. Any number per day, none required. */
+export interface GratitudeEntry extends Base {
+  localDate: LocalDate;
+  text: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type SaveStatus = "idle" | "saving" | "saved" | "error";
+
+/** Autosave state of the entry being written (editor state; "Continue writing" uses the latest updatedAt). */
+export interface DraftState {
+  entryId: string;
+  lastSavedAt?: string;
+  saveStatus: SaveStatus;
+}
 
 export interface DayNote extends Base {
   /** id === localDate */
@@ -106,10 +123,19 @@ export interface ThemePreference {
   timezone: string;
 }
 
+export interface CategoryPref {
+  color: string;
+  visible: boolean;
+}
+
 export interface Settings extends ThemePreference {
   onboarded: boolean;
+  /** Routines are opt-in; when off, no routine UI appears anywhere. */
+  routinesEnabled: boolean;
+  categoryPrefs?: Partial<Record<EventCategory, CategoryPref>>;
+  /** Gratitude entry the user chose to show in the Grace Note widget/share card. */
+  graceNoteId?: string;
   displayName?: string;
   /** Preferred reminder time, stored only. Reminders are not delivered in this MVP. */
   reminderTime?: string;
-  prayerGoal?: string;
 }

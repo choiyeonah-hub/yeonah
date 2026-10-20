@@ -12,26 +12,27 @@ import { THEMES } from "./themes";
 import { gratitudeCardSvg, svgToPngBlob } from "./shareCard";
 
 export function WidgetsPage() {
-  const { today } = useApp();
+  const { today, settings } = useApp();
   const events = useStore("events");
   const rosary = useStore("rosary");
-  const journal = useStore("journal");
+  const gratitude = useStore("gratitude");
   const [status, setStatus] = useState("");
 
   const next = eventsOn(dataOf(events), today).filter((e) => !e.cancelled).slice(0, 2);
   const monthRosaries = dataOf(rosary).filter((s) => s.completedAt && s.localDate.slice(0, 7) === today.slice(0, 7)).length;
   const active = activeSession(dataOf(rosary));
-  const latest = [...dataOf(journal)].sort((a, b) => b.localDate.localeCompare(a.localDate)).find((j) => j.gratitude.some((g) => g.trim()));
-  const grace = latest?.gratitude.find((g) => g.trim());
+  // Only a gratitude note the user explicitly chose — never journal text.
+  const note = dataOf(gratitude).find((g) => g.id === settings.graceNoteId);
+  const grace = note?.text;
 
   const download = async () => {
-    if (!grace || !latest) return;
+    if (!grace || !note) return;
     try {
-      const blob = await svgToPngBlob(gratitudeCardSvg(grace, formatLong(latest.localDate)), 1080, 1350);
+      const blob = await svgToPngBlob(gratitudeCardSvg(grace, formatLong(note.localDate)), 1080, 1350);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `helena-grace-gratitude-${latest.localDate}.png`;
+      a.download = `helena-grace-grace-note-${note.localDate}.png`;
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
       setStatus("Image saved to your downloads. Nothing was uploaded.");
@@ -75,8 +76,8 @@ export function WidgetsPage() {
           </div>
         </WidgetFrame>
 
-        <WidgetFrame name="Gratitude Card" size="Medium">
-          {grace ? <p className="font-display text-xl leading-snug">“{grace}”</p> : <p className="text-muted">Your latest grace will appear here.</p>}
+        <WidgetFrame name="Grace Note" size="Medium">
+          {grace ? <p className="line-clamp-4 font-display text-xl leading-snug">“{grace}”</p> : <p className="text-muted">Choose a gratitude note to show here.</p>}
         </WidgetFrame>
 
         <WidgetFrame name="Feast & Season" size="Medium" locked>
@@ -86,16 +87,23 @@ export function WidgetsPage() {
 
       <Card aria-labelledby="share-title">
         <CardTitle id="share-title" eyebrow="Share image">
-          Gratitude card
+          Grace Note card
         </CardTitle>
-        <p className="mb-3 text-[0.95rem] text-muted">Creates a 1080×1350 image of your latest grace on this device. Intentions are never included.</p>
-        {grace && (
-          <div className="mb-3 overflow-hidden rounded-2xl border border-line" style={{ maxWidth: 270 }} dangerouslySetInnerHTML={{ __html: gratitudeCardSvg(grace, formatLong(latest!.localDate)) }} />
+        <p className="mb-3 text-[0.95rem] text-muted">
+          Creates a 1080×1350 image on this device from the one gratitude note you chose. Reflections and intentions are never included, and nothing is uploaded.
+        </p>
+        {grace && note && (
+          // SVG is built by gratitudeCardSvg, which escapes the user's text.
+          <div className="mb-3 overflow-hidden rounded-2xl border border-line" style={{ maxWidth: 270 }} dangerouslySetInnerHTML={{ __html: gratitudeCardSvg(grace, formatLong(note.localDate)) }} />
         )}
-        <Button onClick={download} disabled={!grace}>
-          <Download size={17} aria-hidden="true" /> Download image
-        </Button>
-        {!grace && <p className="mt-2 text-sm text-muted">Write a grace in Journal first.</p>}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button onClick={download} disabled={!grace}>
+            <Download size={17} aria-hidden="true" /> Download image
+          </Button>
+          <Link to="/app/journal?tab=gratitude" className="inline-flex min-h-11 items-center px-2 text-sm text-gold-ink underline-offset-4 hover:underline">
+            {grace ? "Choose a different note" : "Choose a Grace Note in Journal → Gratitude"}
+          </Link>
+        </div>
         <p role="status" className="mt-2 text-sm text-success">
           {status}
         </p>

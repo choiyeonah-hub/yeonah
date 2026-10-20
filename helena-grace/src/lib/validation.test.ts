@@ -1,4 +1,4 @@
-import { parseTags, validateEvent, validateIntention, validateJournal, validateRoutine } from "./validation";
+import { parseTags, validateEvent, validateGratitude, validateIntention, validateRoutine } from "./validation";
 
 describe("validation", () => {
   it("requires a routine name and days for weekly routines", () => {
@@ -12,9 +12,9 @@ describe("validation", () => {
     expect(validateEvent({ ...ok, end: "08:00" }).end).toBeTruthy();
     expect(validateEvent({ ...ok, date: "2026-02-30" }).date).toBeTruthy();
   });
-  it("needs some journal content", () => {
-    expect(validateJournal({ gratitude: ["", "", ""], reflection: "" }).gratitude).toBeTruthy();
-    expect(validateJournal({ gratitude: ["sun", "", ""], reflection: "" })).toEqual({});
+  it("gratitude needs words but has no length limit", () => {
+    expect(validateGratitude("  ").text).toBeTruthy();
+    expect(validateGratitude("x".repeat(20_000))).toEqual({});
   });
   it("validates intentions and tags", () => {
     expect(validateIntention("").text).toBeTruthy();

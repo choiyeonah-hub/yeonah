@@ -1,8 +1,9 @@
-import type { Intention, JournalEntry } from "../../data/types";
+import type { GratitudeEntry, Intention, JournalEntry } from "../../data/types";
 import { DATA_STORES, type DataStore, getDB, notifyChange } from "./db";
+import { discardWal } from "./journalWal";
 
 export const BACKUP_APP = "helena-grace";
-export const BACKUP_VERSION = 1;
+export const BACKUP_VERSION = 2;
 
 export interface Backup {
   app: typeof BACKUP_APP;
@@ -66,6 +67,7 @@ export async function deleteAllData(): Promise<void> {
   const tx = db.transaction([...stores], "readwrite");
   for (const s of stores) await tx.objectStore(s).clear();
   await tx.done;
+  discardWal();
   notifyChange();
 }
 
@@ -99,16 +101,22 @@ export function toCsv(header: string[], rows: unknown[][]): string {
   return [header, ...rows].map((r) => r.map(csvCell).join(",")).join("\r\n");
 }
 
+/** Full text is kept: line breaks stay inside quoted cells (RFC 4180). */
 export function journalCsv(entries: JournalEntry[]): string {
   const rows = [...entries]
-    .sort((a, b) => a.localDate.localeCompare(b.localDate))
-    .map((e) => [e.localDate, e.gratitude[0], e.gratitude[1], e.gratitude[2], e.reflection ?? "", e.mood ?? "", (e.tags ?? []).join("; ")]);
-  return toCsv(["date", "grace_1", "grace_2", "grace_3", "reflection", "mood", "tags"], rows);
+    .sort((a, b) => a.localDate.localeCompare(b.localDate) || a.createdAt.localeCompare(b.createdAt))
+    .map((e) => [e.localDate, e.title ?? "", e.body, e.tags.join("; "), e.createdAt, e.updatedAt]);
+  return toCsv(["date", "title", "body", "tags", "created_at", "updated_at"], rows);
+}
+
+export function gratitudeCsv(items: GratitudeEntry[]): string {
+  const rows = [...items].sort((a, b) => a.localDate.localeCompare(b.localDate)).map((g) => [g.localDate, g.text, g.createdAt]);
+  return toCsv(["date", "gratitude", "created_at"], rows);
 }
 
 export function intentionsCsv(items: Intention[]): string {
-  const rows = items.map((i) => [i.createdAt, i.text, i.isPrivate ? "yes" : "no", i.answeredAt ?? "", i.answeredNote ?? "", i.archivedAt ?? ""]);
-  return toCsv(["created_at", "intention", "private", "answered_at", "answered_note", "archived_at"], rows);
+  const rows = items.map((i) => [i.createdAt, i.text, i.note ?? "", i.isPrivate ? "yes" : "no", i.resolvedAt ?? "", i.archivedAt ?? ""]);
+  return toCsv(["created_at", "intention", "note", "private", "answered_at", "archived_at"], rows);
 }
 
 export function downloadText(filename: string, text: string, mime: string): void {

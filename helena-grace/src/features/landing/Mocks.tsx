@@ -23,25 +23,29 @@ export function TodayMock() {
         <SunMark size={22} />
         <span className="text-muted">Tuesday, May 12</span>
       </div>
-      <p className="mt-1 text-muted">Good morning, Clare.</p>
-      <p className="font-display text-[22px] leading-tight">Your quiet moment</p>
+      <p className="mt-1 text-muted">Good evening, Clare.</p>
+      <p className="font-display text-[22px] leading-tight">A little light for today</p>
       <div className={`${mini} mt-3`}>
-        <p className="text-[9px] uppercase tracking-widest text-gold-ink">Rhythm</p>
-        <p className="font-display text-[15px]">My daily rhythm</p>
-        {["Morning offering", "Scripture", "Three graces"].map((t, i) => (
-          <p key={t} className="mt-1.5 flex items-center gap-2">
-            <span className={`h-3.5 w-3.5 rounded-full border border-gold ${i < 2 ? "bg-gold" : ""}`} />
-            {t}
+        <p className="font-display text-[15px]">Today's plans</p>
+        {[
+          ["8:30 AM", "Coffee with Anna"],
+          ["6:00 PM", "Evening Mass"],
+          ["7:00 PM", "Call Mom"],
+        ].map(([t, n]) => (
+          <p key={n} className="mt-1 flex gap-2">
+            <span className="w-11 text-muted">{t}</span>
+            {n}
           </p>
         ))}
       </div>
       <div className={`${mini} mt-2`}>
-        <p className="font-display text-[15px]">Today's grace</p>
-        <p className="mt-1 font-display text-[14px] italic">“Morning light on the kitchen table”</p>
+        <p className="font-display text-[15px]">Prayer intentions</p>
+        <p className="mt-1 rounded-lg bg-tint px-2 py-1">For my grandmother's recovery</p>
       </div>
       <div className={`${mini} mt-2`}>
-        <p className="font-display text-[15px]">Return to the Rosary</p>
-        <p className="text-muted">Joyful · decade 3 of 5</p>
+        <p className="text-[9px] uppercase tracking-widest text-gold-ink">Continue writing</p>
+        <p className="font-display text-[15px]">A slower evening</p>
+        <p className="text-muted">last saved 9:14 PM</p>
       </div>
     </Phone>
   );
@@ -111,19 +115,16 @@ export function RosaryMock() {
 export function JournalMock() {
   return (
     <Phone label="Journal">
-      <p className="font-display text-[22px]">Three graces today</p>
-      {["A kind message from a friend", "Sunlight through the blinds", "Finishing the report early"].map((g, i) => (
-        <p key={g} className={`${mini} mt-2 flex gap-2`}>
-          <span className="font-display text-gold-ink">{i + 1}</span>
-          {g}
+      <p className="text-[9px] uppercase tracking-widest text-gold-ink">Monday, May 11</p>
+      <p className="mt-1 border-b border-line pb-1.5 font-display text-[20px] leading-tight">A slower evening</p>
+      <div className="mt-2.5 space-y-2 text-[11.5px] leading-[1.65]">
+        <p>The afternoon felt rushed. Three meetings back to back, and I noticed how quickly I stopped breathing deeply.</p>
+        <p>But the evening was different. I walked home the long way, past the church, and sat on the steps for a few minutes. Nothing dramatic happened. It was just quiet, and that was enough.</p>
+        <p>
+          I want to remember that I don't have to earn rest<span className="ml-px inline-block h-3 w-px translate-y-0.5 bg-ink" />
         </p>
-      ))}
-      <p className="mt-4 font-display text-[16px]">My monthly light</p>
-      <div className="mt-1 grid grid-cols-7 gap-1">
-        {Array.from({ length: 28 }, (_, i) => (
-          <span key={i} className={`h-5 rounded-md ${[1, 2, 4, 5, 8, 9, 10, 12, 15, 16, 19, 22, 23].includes(i) ? "bg-gold/80" : "bg-line/70"}`} />
-        ))}
       </div>
+      <p className="mt-3 text-[10px] text-muted">Saved locally · 9:14 PM · 128 words</p>
     </Phone>
   );
 }

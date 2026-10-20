@@ -5,8 +5,6 @@ export type Errors<K extends string = string> = Partial<Record<K, string>>;
 export const LIMITS = {
   title: 120,
   intention: 500,
-  gratitude: 280,
-  reflection: 5000,
   note: 2000,
   tag: 30,
   tags: 8,
@@ -41,16 +39,14 @@ export function validateEvent(v: { title: string; date: string; start: string; e
 export function validateIntention(text: string): Errors<"text"> {
   const t = text.trim();
   if (!t) return { text: "Write a few words for your intention." };
+  // The short headline stays short; longer thoughts go in the note.
   if (t.length > LIMITS.intention) return { text: `Please keep it under ${LIMITS.intention} characters.` };
   return {};
 }
 
-export function validateJournal(v: { gratitude: string[]; reflection: string }): Errors<"gratitude" | "reflection"> {
-  const e: Errors<"gratitude" | "reflection"> = {};
-  if (v.gratitude.every((g) => !g.trim()) && !v.reflection.trim()) e.gratitude = "Write at least one small grace or a reflection.";
-  if (v.gratitude.some((g) => g.length > LIMITS.gratitude)) e.gratitude = `Each line can be up to ${LIMITS.gratitude} characters.`;
-  if (v.reflection.length > LIMITS.reflection) e.reflection = `Reflections can be up to ${LIMITS.reflection} characters.`;
-  return e;
+/** Long-form fields (reflections, gratitude, intention notes) have no length limit by design. */
+export function validateGratitude(text: string): Errors<"text"> {
+  return text.trim() ? {} : { text: "Write a few words about something good." };
 }
 
 /** "a, b ,  c" → ["a","b","c"], deduplicated and length-limited. */

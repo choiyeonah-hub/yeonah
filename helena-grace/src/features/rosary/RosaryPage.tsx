@@ -58,7 +58,7 @@ function StartRosary() {
   const suggested = suggestedMystery(weekday(today));
   const [mystery, setMystery] = useState<Mystery>(suggested);
   const [intentionId, setIntentionId] = useState("");
-  const open = dataOf(intentions).filter((i) => !i.archivedAt && !i.answeredAt);
+  const open = dataOf(intentions).filter((i) => !i.archivedAt && !i.resolvedAt);
 
   return (
     <Card aria-labelledby="start-title">

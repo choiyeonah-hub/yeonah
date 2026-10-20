@@ -10,7 +10,7 @@ import type { RoutineCategory, WeekStart } from "../../data/types";
 const STARTERS: { name: string; category: RoutineCategory }[] = [
   { name: "Morning prayer", category: "prayer" },
   { name: "Read Scripture", category: "scripture" },
-  { name: "Three graces", category: "gratitude" },
+  { name: "A moment of gratitude", category: "gratitude" },
   { name: "Rosary", category: "prayer" },
   { name: "Evening examen", category: "prayer" },
 ];
@@ -22,7 +22,7 @@ export function Onboarding() {
   const [tz, setTz] = useState(settings.timezone);
   const [weekStartsOn, setWeekStartsOn] = useState<WeekStart>(settings.weekStartsOn);
   const [reminderTime, setReminderTime] = useState(settings.reminderTime ?? "07:30");
-  const [picked, setPicked] = useState<string[]>(["Morning prayer", "Three graces"]);
+  const [picked, setPicked] = useState<string[]>([]);
   const [withSample, setWithSample] = useState(false);
   const [busy, setBusy] = useState(false);
   const tzError = isValidTimezone(tz) ? undefined : "Use a timezone like America/New_York.";
@@ -34,14 +34,14 @@ export function Onboarding() {
         await saveRoutine({ name: s.name, category: s.category, recurrence: "daily", daysOfWeek: [] });
       }
       if (withSample) await addSampleData(today);
-      await updateSettings({ onboarded: true, displayName: name.trim() || undefined, timezone: tz, weekStartsOn, reminderTime });
+      await updateSettings({ onboarded: true, routinesEnabled: picked.length > 0, displayName: name.trim() || undefined, timezone: tz, weekStartsOn, reminderTime });
     } else {
       await updateSettings({ onboarded: true });
     }
   };
 
   return (
-    <Dialog open onClose={() => finish(true)} title={["Welcome", "Your days", "A small beginning"][step]}>
+    <Dialog open onClose={() => finish(true)} title={["Welcome", "Your days", "Optional routines"][step]}>
       <p className="mb-4 text-sm text-muted" aria-live="polite">
         Step {step + 1} of 3
       </p>
@@ -83,7 +83,9 @@ export function Onboarding() {
       {step === 2 && (
         <div className="flex flex-col gap-4">
           <fieldset>
-            <legend className="mb-2 text-sm text-muted">Pick a few rhythms to start with. You can change them anytime.</legend>
+            <legend className="mb-2 text-sm text-muted">
+              If it helps, pick a few gentle routines to note with a tap. They're entirely optional — no scores or streaks — and you can skip this and turn them on later in You.
+            </legend>
             <div className="flex flex-wrap gap-2">
               {STARTERS.map((s) => (
                 <Chip key={s.name} pressed={picked.includes(s.name)} onClick={() => setPicked((p) => (p.includes(s.name) ? p.filter((x) => x !== s.name) : [...p, s.name]))}>

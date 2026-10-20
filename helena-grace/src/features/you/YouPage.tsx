@@ -1,7 +1,8 @@
 import { useRef, useState } from "react";
 import { Link } from "react-router";
-import { ArrowRight, Bell, Database, Download, Palette, Shield, Upload } from "lucide-react";
-import { useApp } from "../../lib/hooks";
+import { ArrowRight, Bell, Database, Download, Palette, Shield, Sun, Upload } from "lucide-react";
+import { dataOf, useApp, useStore } from "../../lib/hooks";
+import { RoutineManager } from "../today/RoutineManager";
 import { Button, Card, CardTitle, Chip, Field } from "../../components/ui";
 import { PageHeader } from "../../components/layout/AppShell";
 import { isValidTimezone, systemTimezone } from "../../lib/date";
@@ -16,6 +17,8 @@ export function YouPage() {
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
   const [confirmWipe, setConfirmWipe] = useState("");
+  const [managing, setManaging] = useState(false);
+  const routines = useStore("routines");
   const [notifState, setNotifState] = useState(typeof Notification === "undefined" ? "unsupported" : Notification.permission);
   const fileRef = useRef<HTMLInputElement>(null);
   const tzError = isValidTimezone(tz) ? undefined : "That timezone isn't recognized. Try e.g. America/Chicago.";
@@ -57,9 +60,9 @@ export function YouPage() {
           </span>
         </CardTitle>
         <ul className="list-disc space-y-1 pl-5 text-[0.95rem] text-muted">
-          <li>Your plans, journal and intentions are saved in this browser's storage (IndexedDB). Nothing is uploaded, and there's no account.</li>
+          <li>Your plans, reflections, gratitude and intentions are saved in this browser's storage (IndexedDB). Nothing is uploaded, analysed or shared, and there's no account.</li>
           <li>Sync between devices is not available yet. Clearing browser data, or using a private window, can erase your entries — download a backup regularly.</li>
-          <li>Browser storage isn't encrypted. Anyone using this device and browser profile could open your entries.</li>
+          <li>Browser storage isn't encrypted. Anyone using this device and browser profile could open your entries. If the browser's data is cleared or the device is lost, entries can't be recovered unless you kept a backup.</li>
         </ul>
         <p className="mt-3 text-sm">
           Sync status: <strong>Not available in demo</strong>
@@ -100,6 +103,25 @@ export function YouPage() {
             Reduce motion (your device setting is also respected)
           </label>
         </div>
+      </Card>
+
+      <Card aria-labelledby="routines-title">
+        <CardTitle id="routines-title" eyebrow="Optional">
+          <span className="inline-flex items-center gap-2">
+            <Sun size={20} aria-hidden="true" /> Gentle routines
+          </span>
+        </CardTitle>
+        <p className="mb-3 text-[0.95rem] text-muted">Off by default. When on, Today and Planner show your routines as large cards you can tap to note. There are no scores, completion rates or streaks.</p>
+        <label className="flex min-h-11 items-center gap-3">
+          <input type="checkbox" role="switch" className="h-5 w-5 accent-[var(--hg-ink)]" checked={settings.routinesEnabled} onChange={(e) => updateSettings({ routinesEnabled: e.target.checked })} />
+          Show gentle routines
+        </label>
+        {settings.routinesEnabled && (
+          <Button variant="secondary" className="mt-2" onClick={() => setManaging(true)}>
+            Edit routines
+          </Button>
+        )}
+        {managing && <RoutineManager open onClose={() => setManaging(false)} routines={dataOf(routines)} />}
       </Card>
 
       <Card aria-labelledby="theme-title">
@@ -164,7 +186,7 @@ export function YouPage() {
             </Button>
             <input ref={fileRef} type="file" accept="application/json,.json" className="sr-only" aria-label="Choose a backup file" onChange={(e) => e.target.files?.[0] && onImport(e.target.files[0])} />
           </div>
-          <p className="text-sm text-muted">Restoring replaces the entries currently on this device with the backup's contents. CSV exports are in Journal.</p>
+          <p className="text-sm text-muted">The backup keeps every word, line break and emoji. Restoring replaces the entries currently on this device with the backup's contents. CSV exports are in Journal.</p>
           <div className="flex flex-wrap gap-2 border-t border-line pt-3">
             <Button variant="secondary" onClick={() => addSampleData(today).then(() => say("Sample entries added. They're labeled “Sample”."))}>
               Add sample data

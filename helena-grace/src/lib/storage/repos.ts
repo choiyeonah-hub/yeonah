@@ -1,5 +1,6 @@
 import type {
   DayNote,
+  GratitudeEntry,
   Intention,
   JournalEntry,
   LocalDate,
@@ -15,7 +16,7 @@ import { getAll, getDB, getOne, newId, notifyChange, nowIso, put, remove } from 
 
 // ---------- settings ----------
 export function defaultSettings(): Settings {
-  return { themeId: "luminous", reducedMotion: false, weekStartsOn: 0, timezone: systemTimezone(), onboarded: false };
+  return { themeId: "luminous", reducedMotion: false, weekStartsOn: 0, timezone: systemTimezone(), onboarded: false, routinesEnabled: false };
 }
 
 export async function loadSettings(): Promise<Settings> {
@@ -132,10 +133,23 @@ export async function updateRosary(s: RosarySession, patch: Partial<RosarySessio
   return next;
 }
 
-// ---------- journal / notes ----------
-export async function saveJournal(e: Omit<JournalEntry, "id" | "updatedAt">): Promise<JournalEntry> {
-  const value: JournalEntry = { ...e, id: e.localDate, updatedAt: nowIso() };
+// ---------- journal / gratitude / notes ----------
+/** Saves a reflection as-is: no trimming or length limit, so whitespace and line breaks survive. */
+export async function saveJournalEntry(e: Omit<JournalEntry, "updatedAt" | "createdAt"> & { createdAt?: string }): Promise<JournalEntry> {
+  const now = nowIso();
+  const value: JournalEntry = { ...e, createdAt: e.createdAt ?? now, updatedAt: now };
   await put("journal", value);
+  return value;
+}
+
+export function latestEntry(entries: JournalEntry[]): JournalEntry | undefined {
+  return [...entries].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
+}
+
+export async function saveGratitude(g: Omit<GratitudeEntry, "id" | "createdAt" | "updatedAt"> & Partial<Pick<GratitudeEntry, "id" | "createdAt">>): Promise<GratitudeEntry> {
+  const now = nowIso();
+  const value: GratitudeEntry = { ...g, id: g.id ?? newId(), createdAt: g.createdAt ?? now, updatedAt: now };
+  await put("gratitude", value);
   return value;
 }
 
@@ -149,19 +163,6 @@ export async function saveWeekReview(weekStart: LocalDate, text: string): Promis
   if (!text.trim()) return remove("weekReviews", weekStart);
   const value: WeekReview = { id: weekStart, weekStart, text, updatedAt: nowIso() };
   await put("weekReviews", value);
-}
-
-// ---------- drafts ----------
-export async function saveDraft(id: string, value: unknown): Promise<void> {
-  await (await getDB()).put("drafts", { id, value, updatedAt: nowIso() });
-}
-
-export async function loadDraft<T>(id: string): Promise<T | undefined> {
-  return (await getDB()).get("drafts", id).then((d) => d?.value as T | undefined);
-}
-
-export async function clearDraft(id: string): Promise<void> {
-  await (await getDB()).delete("drafts", id);
 }
 
 export { getAll, remove, put };

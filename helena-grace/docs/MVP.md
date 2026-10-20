@@ -1,49 +1,68 @@
-# MVP scope, cost, risk, validation
+# MVP scope, cost, risk, validation (V2)
 
-## Feature table
+## Priority: long-form writing first
 
-| Priority | Feature | Status in this build |
+V2 makes the **Journal** the core of the product. It's a writing studio with no short boxes, no length limits and no checkbox grids, and its autosave must survive reloads. The Planner and Rosary support it. Routines are optional.
+
+**Out of scope, permanently for this product:** meal planning, recipes, groceries/shopping lists, nutrition, diet tracking. An automated test checks every route for this vocabulary (`src/test/screens.test.tsx` → "zero meal-planning UI").
+
+## P0 feature table
+
+| P0 item | Status | Proof |
 |---|---|---|
-| P0 | Responsive landing + 5-tab app | Done |
-| P0 | Design tokens, logo SVG, favicon, PWA icons | Done (original SVG; trademark not cleared) |
-| P0 | Onboarding + basic settings | Done |
-| P0 | Routine CRUD + completion + by-date view | Done (daily / weekdays; archive, restore, delete) |
-| P0 | Planner event CRUD, week view (+ day, month) | Done (repeat daily/weekly, cancel, tags, stickers, filters, day note, weekly reflection) |
-| P0 | Rosary progress / pause / resume / complete | Done (no prayer texts — rights review) |
-| P0 | Gratitude ×3 + intentions record/edit/search | Done (drafts, mood, tags, answered-by-user, archive) |
-| P0 | Local storage, export/import, delete | Done (IndexedDB, JSON backup/restore, CSV, sample removal, full wipe) |
-| P0 | EN microcopy, accessibility, mobile test | Done for automated checks; **no manual screen-reader/device pass yet** (see QA) |
-| P0 | 2 base themes, web widget previews | Done (+ PNG share card) |
-| P0 | README, run/build/test | Done |
-| P1 | Auth + sync (Supabase Auth/RLS), remote backup, consent-based email reminders, richer calendar, monthly review, print export, real purchases | Not started |
-| P2 | Native widgets, audio Rosary, KO and other languages, reviewed seasonal content, NFC goods | Not started |
+| Responsive landing + 5 tabs | Done | screens test, `npm run shots` (5 widths × 11 routes, no overflow) |
+| Design system, logo SVG, favicon, icons | Done (trademark not cleared) | `/brand`, `npm run icons` |
+| Onboarding + settings | Done | screens test |
+| Long-form Journal: title, free body, date, tags, multiple per day, focus mode, autosave, read/edit/search past entries | Done | unit + screens tests, `npm run qa:journal` |
+| Gratitude (no 3-line rule, any count) + intentions with long notes: record/edit/search | Done | storage + screens tests |
+| Planner CRUD, week view, daily life + faith in one calendar | Done (list/calendar week, category colour/visibility, "Write a reflection" per day) | screens test (scenario B) |
+| Optional routines, large tap cards, by-date view (no forced checkboxes) | Done (off by default) | screens test (scenario C) |
+| Rosary progress / pause / resume / complete | Done (no prayer texts) | screens test |
+| Local storage, export/import, delete, long-text recovery | Done (v1→v2 migration, write-ahead recovery) | storage tests, `qa:journal` |
+| EN microcopy, accessibility, mobile test | Automated checks only | see QA "not verified" |
+| 2 themes + web widget previews | Done (Grace Note uses only a note the user chose) | screens test |
+| README, run/build/test | Done | — |
 
-## Rough cost (hypotheses, KRW, before any paid acquisition)
+## The six V2 completion criteria
 
-| Item | Estimate | Note |
-|---|---|---|
-| Hosting (static, Vercel/Netlify free tier) | ₩0 | PWA is static |
-| Domain | ₩20–50k/yr | after trademark check |
-| Trademark search (US + KR) by attorney | ₩0.5–1.5M | strongly recommended before spending on brand |
-| Ads for Experiment A | ₩0.8–1.2M | within the ₩3M pilot |
-| Interview incentives (15–20 × ~$10–20) | ₩0.3–0.5M | |
-| Waitlist email tool | ₩0–30k/mo | needs privacy notice update |
+| Criterion | Evidence |
+|---|---|
+| Journal long-form | 3,000+ char text with emoji/line breaks saved verbatim; no `maxlength`; ≥12 lines visible at 390px (`qa:journal`) |
+| Autosave restore | Re-render restore test; flush-on-leave test; real Chromium reload after save, **and within the 600 ms debounce**, for existing and brand-new entries (`qa:journal`) |
+| Daily planner & prayer | Scenario B test: personal + Mass in week list and Today; intention + gratitude; widgets don't leak |
+| Optional routines | Scenario C tests: off → no routine UI, no checkboxes; on → tap card persists; no counts/streaks |
+| Zero meal-planning UI | Vocabulary scan of 11 routes |
+| Data export/import | Unit round-trip + browser download → wipe → file import of the long text |
+
+## P1 / P2
+
+- **P1:** auth + sync (Supabase Auth/RLS), remote encrypted backup, consent-based email reminders, richer calendar, monthly review, print export, purchases.
+- **P2:** native widgets, audio Rosary, KO and other languages, reviewed seasonal content, NFC goods.
+
+## Rough cost (hypotheses, KRW)
+
+| Item | Estimate |
+|---|---|
+| Static hosting | ₩0 (free tier) |
+| Domain | ₩20–50k/yr, after the trademark check |
+| Trademark search (US + KR) | ₩0.5–1.5M |
+| Experiment A ads | ₩0.8–1.2M |
+| Interview incentives | ₩0.3–0.5M |
 
 ## Key risks
 
-1. **Name/trademark**: "Helena Grace" not cleared; could force a rebrand. → search before ads.
-2. **Data loss**: local-only storage can be wiped by the browser. → backup prompt; sync is P1.
-3. **Content rights**: no prayer texts/readings; perceived as less useful by some users. → measure in interviews.
-4. **"Pretty but unused"**: core risk of planner apps. → Experiment C retention gates.
-5. **iOS PWA limits**: no home-screen widgets, limited notifications. → stated in-app; native only after validation.
-6. **Bespoke logotype**: current wordmark is set in an open font; custom lettering needs a designer.
+1. **Data loss.** Storage is local only, and browsers can evict it. Mitigations: write-ahead recovery, export buttons, clear notices. Real fix: sync (P1).
+2. **Name/trademark** not cleared.
+3. **Privacy of long confessional text.** No encryption at rest yet. The UI never claims "encrypted".
+4. **"Pretty but unused."** Validate with Experiment C.
+5. **iOS PWA limits:** no widgets, limited notifications.
+6. **Content rights:** no prayer texts or readings.
 
-## Validation (pilot ≤ ₩3M, no real payments/inventory/licensing purchases)
+## Validation (pilot ≤ ₩3M, hypotheses)
 
-- **A** — 3 landing visual variants, small US ads + community posts (follow each community's rules). Metric: CTR, demo opens.
-- **B** — 15–20 interviews: current planner habits, tools, recurring pain.
-- **C** — 30 free beta users × 14 days. Metrics: D7 return, weekly planner use. Requires a privacy-respecting, consent-based way to measure (none is built in; use self-reported check-ins or an opt-in analytics tool added later).
-- **D** — "I'm interested" on premium concepts before building; clearly labelled "no payment". Not built yet.
-- **Go (hypothesis)**: ≥50% of interviewees describe a specific recurring planner problem **and** ≥30% of beta users use a core feature ≥2× in week 2 unprompted.
-- **Stop/pivot**: only "it's pretty" feedback, little repeat use, or "free apps are enough" → stop subscription build, pivot to one-time digital planner/sticker sales.
-- These thresholds are founder hypotheses, not market statistics.
+- **A:** 3 landing variants; small US ads and community posts (following each community's rules).
+- **B:** 15–20 interviews on planner habits, the need for long-form faith writing, frustration with tiny checkboxes, and combining intentions with schedules. Use non-leading questions and record people's own words.
+- **C:** 30 beta users × 14 days. Measure D7 and weekly planner use. Measure only *whether* someone journaled (opt-in). Never collect or read entry text or intentions. No analytics is built yet.
+- **D:** "I'm interested" on premium concepts, clearly marked as no payment. Not built.
+- **Go:** ≥50% of interviewees name a concrete recurring problem, and ≥30% of beta users use a core feature ≥2× in week 2.
+- **Stop/pivot:** "pretty" without repeat use, or "free apps are enough" → stop the subscription build and pivot to one-time digital planners/stickers.

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router";
-import { ArrowRight, CalendarHeart, Feather, HandHeart, Lock, Palette, Sparkles } from "lucide-react";
+import { ArrowRight, CalendarHeart, Feather, HandHeart, Lock, Palette, PenLine, Sparkles } from "lucide-react";
 import { Logo, SunMark } from "../../components/ui/Logo";
 import { Sticker } from "../../components/ui/Sticker";
 import { JournalMock, PlannerMock, RosaryMock, TodayMock } from "./Mocks";
@@ -50,7 +50,7 @@ export function Landing() {
               <p className="mt-4 text-sm text-muted">Free demo · works in your browser · no account needed</p>
             </div>
             <div className="flex justify-center md:justify-end">
-              <TodayMock />
+              <JournalMock />
             </div>
           </div>
         </section>
@@ -62,11 +62,11 @@ export function Landing() {
             <h2 className="text-4xl sm:text-5xl">{LANDING.secondaryHeadline}</h2>
             <p className="mt-4 text-lg text-muted">{LANDING.sectionIntro}</p>
           </div>
-          <ul className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <ul className="mt-12 grid grid-flow-dense gap-4 sm:grid-cols-2 lg:grid-cols-6">
             {LANDING.features.map((f, i) => {
-              const Icon = [CalendarHeart, HandHeart, Feather, Palette][i];
+              const Icon = [CalendarHeart, PenLine, HandHeart, Feather, Palette][i];
               return (
-                <li key={f.title} className="rounded-[24px] border border-line bg-surface p-6">
+                <li key={f.title} className={`rounded-[24px] border border-line bg-surface p-6 lg:col-span-2 ${i === 1 ? "sm:col-span-2 lg:col-span-4" : ""}`}>
                   <span className="mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-tint text-gold-ink">
                     <Icon size={20} aria-hidden="true" />
                   </span>
@@ -96,7 +96,8 @@ export function Landing() {
 
         {/* How it works */}
         <section id="how" className="mx-auto max-w-4xl px-4 py-16 sm:px-6">
-          <h2 className="text-center text-4xl">How it works</h2>
+          <p className="text-center text-xs uppercase tracking-[0.2em] text-gold-ink">How it works</p>
+          <h2 className="mt-1 text-center text-4xl">{LANDING.howHeading}</h2>
           <ol className="mt-10 grid gap-6 sm:grid-cols-3">
             {LANDING.steps.map((s, i) => (
               <li key={s} className="text-center">
@@ -137,7 +138,7 @@ export function Landing() {
                 <p className="font-display text-4xl">$0</p>
                 <p className="mt-2 text-muted">{LANDING.freeLine}</p>
                 <ul className="mt-4 space-y-1.5 text-[0.95rem]">
-                  {["Today dashboard & daily rhythms", "Planner: day, week, month", "Rosary counter that saves your place", "Prayer intentions & three graces", "2 themes", "Export & delete your data anytime"].map((x) => (
+                  {["Spacious faith journal with autosave", "Planner: day, week, month", "Private prayer intentions with notes", "Rosary counter that saves your place", "Gratitude in your own words", "2 themes · export & delete anytime"].map((x) => (
                     <li key={x} className="flex gap-2">
                       <Sparkles size={16} className="mt-1 shrink-0 text-gold-ink" aria-hidden="true" /> {x}
                     </li>

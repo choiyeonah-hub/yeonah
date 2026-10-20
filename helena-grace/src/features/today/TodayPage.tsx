@@ -1,15 +1,17 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router";
-import { ArrowRight, Lock, Settings2 } from "lucide-react";
+import { ArrowRight, ChevronDown, Lock, PenLine, Plus, Settings2 } from "lucide-react";
 import { dataOf, useApp, useStore } from "../../lib/hooks";
-import { Card, CardTitle, EmptyState, ErrorNote, Loading, SunPetals, Button } from "../../components/ui";
+import { Button, Card, CardTitle, ErrorNote, Loading } from "../../components/ui";
 import { SunMark } from "../../components/ui/Logo";
-import { formatLong, formatTime, greeting, localHour } from "../../lib/date";
-import { activeSession, eventsOn, eventTime, isEventDone, saveDayNote } from "../../lib/storage/repos";
+import { formatLong, formatShort, formatTime, greeting, localHour } from "../../lib/date";
+import { activeSession, eventsOn, eventTime, isEventDone, latestEntry, saveGratitude } from "../../lib/storage/repos";
 import { MYSTERIES, totalCounted } from "../../lib/rosary";
-import { RhythmList, dueRoutines } from "./RhythmList";
+import { RhythmList } from "./RhythmList";
 import { RoutineManager } from "./RoutineManager";
-import { IntentionForm } from "../journal/IntentionForm";
+import { entryLabel, excerpt } from "../journal/JournalPage";
+
+const linkCls = "inline-flex min-h-11 items-center gap-1 font-medium text-gold-ink hover:underline underline-offset-4";
 
 export function TodayPage() {
   const { settings, today } = useApp();
@@ -17,22 +19,22 @@ export function TodayPage() {
   const completions = useStore("completions");
   const intentions = useStore("intentions");
   const journal = useStore("journal");
+  const gratitude = useStore("gratitude");
   const rosary = useStore("rosary");
-  const notes = useStore("dayNotes");
   const events = useStore("events");
   const [managing, setManaging] = useState(false);
 
-  const loadErr = [routines, completions, intentions, journal, rosary, notes, events].find((s) => s.status === "error");
+  const loadErr = [routines, completions, intentions, journal, gratitude, rosary, events].find((s) => s.status === "error");
   if (loadErr?.status === "error") return <ErrorNote message={loadErr.error} />;
-  if (routines.status === "loading" || completions.status === "loading") return <Loading />;
+  if (journal.status === "loading" || events.status === "loading") return <Loading />;
 
-  const due = dueRoutines(dataOf(routines), today);
-  const doneCount = dataOf(completions).filter((c) => c.localDate === today && due.some((r) => r.id === c.routineId)).length;
-  const openIntentions = dataOf(intentions).filter((i) => !i.archivedAt && !i.answeredAt);
-  const entry = dataOf(journal).find((j) => j.localDate === today);
-  const session = activeSession(dataOf(rosary));
-  const note = dataOf(notes).find((n) => n.localDate === today);
   const todays = eventsOn(dataOf(events), today).filter((e) => !e.cancelled);
+  const openIntentions = dataOf(intentions)
+    .filter((i) => !i.archivedAt && !i.resolvedAt)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const latest = latestEntry(dataOf(journal));
+  const session = activeSession(dataOf(rosary));
+  const lastGrace = [...dataOf(gratitude)].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
 
   return (
     <div className="flex flex-col gap-4">
@@ -44,159 +46,165 @@ export function TodayPage() {
             {greeting(localHour(settings.timezone))}
             {settings.displayName ? `, ${settings.displayName}` : ""}.
           </p>
-          <h1 className="mt-1 text-[2.2rem] sm:text-[2.6rem]">Your quiet moment</h1>
+          <h1 className="mt-1 text-[2.2rem] sm:text-[2.6rem]">A little light for today</h1>
         </div>
       </header>
 
-      <Card aria-labelledby="begin-title">
-        <CardTitle id="begin-title" eyebrow="Morning">
-          A small beginning
+      <Card aria-labelledby="plans-title">
+        <CardTitle id="plans-title" eyebrow="Planner" action={<Link to="/app/planner" className={linkCls}>Open</Link>}>
+          Today's plans
         </CardTitle>
-        <MorningNote key={today} date={today} initial={note?.text ?? ""} />
-      </Card>
-
-      <Card aria-labelledby="rhythm-title">
-        <CardTitle
-          id="rhythm-title"
-          eyebrow="Rhythm"
-          action={
-            <Button variant="ghost" className="px-3" onClick={() => setManaging(true)}>
-              <Settings2 size={17} aria-hidden="true" /> Edit
-            </Button>
-          }
-        >
-          My daily rhythm
-        </CardTitle>
-        {due.length > 0 && (
-          <div className="mb-3 flex items-center gap-3">
-            <SunPetals done={doneCount} total={due.length} />
-            <p className="text-sm text-muted">
-              {doneCount} of {due.length} gently kept today
-            </p>
-          </div>
-        )}
-        {dataOf(routines).filter((r) => !r.archivedAt).length === 0 ? (
-          <EmptyState title="Begin with one small rhythm" body="Morning prayer, a Scripture passage, three graces — whatever fits this season." action={<Button variant="secondary" onClick={() => setManaging(true)}>Add a rhythm</Button>} />
-        ) : (
-          <RhythmList routines={dataOf(routines)} completions={dataOf(completions)} date={today} />
-        )}
-      </Card>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card aria-labelledby="intent-title">
-          <CardTitle id="intent-title" eyebrow="Prayer" action={<Link to="/app/journal?tab=intentions" className="inline-flex min-h-11 items-center text-sm text-gold-ink underline-offset-4 hover:underline">All</Link>}>
-            Today's intentions
-          </CardTitle>
-          {openIntentions.length === 0 ? (
-            <p className="mb-3 text-sm text-muted">Who or what would you like to hold in prayer today?</p>
-          ) : (
-            <ul className="mb-3 flex flex-col gap-1.5">
-              {openIntentions.slice(0, 3).map((i) => (
-                <li key={i.id} className="flex items-start gap-2 rounded-2xl bg-tint px-3 py-2">
-                  {i.isPrivate && <Lock size={14} className="mt-1.5 shrink-0 text-muted" aria-label="Private" />}
-                  <span className="min-w-0 break-words">{i.text}</span>
-                </li>
-              ))}
-              {openIntentions.length > 3 && <li className="text-sm text-muted">+{openIntentions.length - 3} more in Journal</li>}
-            </ul>
-          )}
-          <IntentionForm compact />
-        </Card>
-
-        <Card aria-labelledby="grace-title">
-          <CardTitle id="grace-title" eyebrow="Gratitude">
-            Today's grace
-          </CardTitle>
-          {entry?.gratitude.find((g) => g.trim()) ? (
-            <blockquote className="font-display text-2xl leading-snug text-ink">“{entry.gratitude.find((g) => g.trim())}”</blockquote>
-          ) : (
-            <p className="text-muted">What's one small good thing from today?</p>
-          )}
-          <Link to="/app/journal" className="mt-4 inline-flex min-h-11 items-center gap-1 text-sm font-medium text-gold-ink hover:underline">
-            {entry ? "Open today's page" : "Write three graces"} <ArrowRight size={16} aria-hidden="true" />
-          </Link>
-        </Card>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card aria-labelledby="rosary-title">
-          <CardTitle id="rosary-title" eyebrow="Rosary">
-            {session ? "Return to the Rosary" : "A moment with Mary"}
-          </CardTitle>
-          {session ? (
-            <p className="mb-3 text-muted">
-              {MYSTERIES[session.mystery].label} Mysteries · decade {session.decadeIndex + 1} of 5 · {totalCounted(session)} of 50 beads
-              {session.pausedAt ? " · paused" : ""}
-            </p>
-          ) : (
-            <p className="mb-3 text-muted">Take your time. Your place is saved if you pause.</p>
-          )}
-          <Link to="/app/rosary" className="inline-flex min-h-11 items-center gap-2 rounded-full bg-ink px-5 text-white">
-            {session ? "Continue where you left off" : "Begin"} <ArrowRight size={16} aria-hidden="true" />
-          </Link>
-        </Card>
-
-        <Card aria-labelledby="plans-title">
-          <CardTitle id="plans-title" eyebrow="Planner" action={<Link to="/app/planner" className="inline-flex min-h-11 items-center text-sm text-gold-ink hover:underline">Open</Link>}>
-            Today's plans
-          </CardTitle>
-          {todays.length === 0 ? (
+        {todays.length === 0 ? (
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-muted">Nothing scheduled. Room to breathe.</p>
-          ) : (
-            <ul className="flex flex-col gap-1">
-              {todays.slice(0, 4).map((e) => (
-                <li key={e.id} className="flex gap-3 text-[0.95rem]">
-                  <span className="w-20 shrink-0 text-muted">{formatTime(eventTime(e))}</span>
-                  <span className={isEventDone(e, today) ? "text-muted line-through" : ""}>{e.title}</span>
-                </li>
-              ))}
-            </ul>
+            <Link to="/app/planner?new=1" className={linkCls}>
+              <Plus size={16} aria-hidden="true" /> Add a plan
+            </Link>
+          </div>
+        ) : (
+          <ul className="flex flex-col divide-y divide-line">
+            {todays.slice(0, 3).map((e) => (
+              <li key={e.id} className="flex gap-4 py-2 text-[1.02rem]">
+                <span className="w-20 shrink-0 text-muted">{formatTime(eventTime(e))}</span>
+                <span className={isEventDone(e, today) ? "text-muted line-through" : ""}>{e.title}</span>
+              </li>
+            ))}
+            {todays.length > 3 && <li className="pt-2 text-sm text-muted">+{todays.length - 3} more in Planner</li>}
+          </ul>
+        )}
+      </Card>
+
+      <Card aria-labelledby="intent-title">
+        <CardTitle id="intent-title" eyebrow="Prayer" action={<Link to="/app/journal?tab=intentions" className={linkCls}>All</Link>}>
+          Prayer intentions
+        </CardTitle>
+        {openIntentions.length === 0 ? (
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-muted">Who or what would you like to hold in prayer today?</p>
+            <Link to="/app/journal?tab=intentions" className={linkCls}>
+              <Plus size={16} aria-hidden="true" /> Add an intention
+            </Link>
+          </div>
+        ) : (
+          <ul className="flex flex-col gap-1.5">
+            {openIntentions.slice(0, 3).map((i) => (
+              <li key={i.id} className="flex items-start gap-2 rounded-2xl bg-tint px-4 py-2.5">
+                {i.isPrivate && <Lock size={14} className="mt-1.5 shrink-0 text-muted" aria-label="Private" />}
+                <span className="min-w-0 break-words">{i.text}</span>
+              </li>
+            ))}
+            {openIntentions.length > 3 && <li className="text-sm text-muted">+{openIntentions.length - 3} more</li>}
+          </ul>
+        )}
+      </Card>
+
+      <Card aria-labelledby="write-title">
+        <CardTitle id="write-title" eyebrow="Journal">
+          {latest ? "Continue writing" : "A place to write"}
+        </CardTitle>
+        {latest ? (
+          <>
+            <p className="font-display text-2xl leading-snug">{entryLabel(latest)}</p>
+            {latest.title && <p className="mt-1 text-muted">{excerpt(latest.body, 140)}</p>}
+            <p className="mt-2 text-sm text-muted">
+              {formatShort(latest.localDate)} · last saved {new Date(latest.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+            </p>
+          </>
+        ) : (
+          <p className="text-muted">Your reflections can be as long or as short as you wish.</p>
+        )}
+        <div className="mt-4 flex flex-wrap gap-2">
+          {latest && (
+            <Link to={`/app/journal/${latest.id}`} className="inline-flex min-h-11 items-center gap-2 rounded-full bg-ink px-5 text-white">
+              Continue <ArrowRight size={16} aria-hidden="true" />
+            </Link>
           )}
-        </Card>
-      </div>
+          <Link to="/app/journal/new" className={`inline-flex min-h-11 items-center gap-2 rounded-full px-5 ${latest ? "border border-gold/70" : "bg-ink text-white"}`}>
+            <PenLine size={16} aria-hidden="true" /> New reflection
+          </Link>
+        </div>
+      </Card>
+
+      <More title="Return to the Rosary" summary={session ? `${MYSTERIES[session.mystery].label} · decade ${session.decadeIndex + 1} of 5` : "A moment with Mary"}>
+        {session ? (
+          <p className="mb-3 text-muted">
+            {MYSTERIES[session.mystery].label} Mysteries · {totalCounted(session)} of 50 beads{session.pausedAt ? " · paused" : ""}
+          </p>
+        ) : (
+          <p className="mb-3 text-muted">Take your time. Your place is saved if you pause.</p>
+        )}
+        <Link to="/app/rosary" className="inline-flex min-h-11 items-center gap-2 rounded-full bg-ink px-5 text-white">
+          {session ? "Continue where you left off" : "Begin"} <ArrowRight size={16} aria-hidden="true" />
+        </Link>
+      </More>
+
+      <More title="A note of gratitude" summary={lastGrace ? excerpt(lastGrace.text, 48) : "In your own words"}>
+        {lastGrace && <p className="mb-3 font-display text-xl leading-snug">“{excerpt(lastGrace.text, 200)}”</p>}
+        <QuickGratitude date={today} />
+      </More>
+
+      {settings.routinesEnabled && (
+        <More title="Gentle routines" summary="Tap a card to note it — no scores, no streaks">
+          <div className="mb-3 flex justify-end">
+            <Button variant="ghost" className="px-3" onClick={() => setManaging(true)}>
+              <Settings2 size={17} aria-hidden="true" /> Edit routines
+            </Button>
+          </div>
+          <RhythmList routines={dataOf(routines)} completions={dataOf(completions)} date={today} />
+        </More>
+      )}
 
       <p className="rounded-2xl border border-dashed border-line px-4 py-3 text-sm text-muted">
         <span className="font-medium text-ink">Liturgical notes · Coming later.</span> We'll show feasts and seasons only once a verified, properly licensed calendar source is in place.
       </p>
 
-      <RoutineManager open={managing} onClose={() => setManaging(false)} routines={dataOf(routines)} />
+      {managing && <RoutineManager open onClose={() => setManaging(false)} routines={dataOf(routines)} />}
     </div>
   );
 }
 
-function MorningNote({ date, initial }: { date: string; initial: string }) {
-  const [text, setText] = useState(initial);
-  const [status, setStatus] = useState("");
-  useEffect(() => setText(initial), [initial]);
-  const save = async () => {
-    if (text === initial) return;
-    await saveDayNote(date, text);
-    setStatus("Saved");
-    setTimeout(() => setStatus(""), 1600);
-  };
+/** Secondary, collapsible section so the three primary cards stay in focus. */
+function More({ title, summary, children }: { title: string; summary: string; children: React.ReactNode }) {
   return (
-    <div>
-      <label htmlFor="morning-note" className="mb-1.5 block text-muted">
-        One line for this morning — a prayer, a hope, a word to carry.
+    <details className="group rounded-[20px] border border-line bg-surface">
+      <summary className="flex min-h-16 cursor-pointer list-none items-center justify-between gap-3 px-5 py-3">
+        <span className="min-w-0">
+          <span className="block font-display text-xl">{title}</span>
+          <span className="block truncate text-sm text-muted">{summary}</span>
+        </span>
+        <ChevronDown size={20} aria-hidden="true" className="shrink-0 text-muted transition-transform group-open:rotate-180" />
+      </summary>
+      <div className="px-5 pb-5">{children}</div>
+    </details>
+  );
+}
+
+function QuickGratitude({ date }: { date: string }) {
+  const [text, setText] = useState("");
+  const [status, setStatus] = useState("");
+  return (
+    <form
+      onSubmit={async (e) => {
+        e.preventDefault();
+        if (!text.trim()) return setStatus("Write a few words first.");
+        await saveGratitude({ text, localDate: date });
+        setText("");
+        setStatus("Saved to Journal → Gratitude.");
+      }}
+      className="flex flex-col gap-2"
+    >
+      <label htmlFor="quick-grace" className="text-sm font-medium">
+        Something good from today (optional)
       </label>
-      <textarea
-        id="morning-note"
-        rows={2}
-        value={text}
-        maxLength={2000}
-        onChange={(e) => setText(e.target.value)}
-        onBlur={save}
-        className="w-full resize-y rounded-2xl border border-line bg-surface px-4 py-2.5 text-base focus:border-ink focus:outline-none"
-        placeholder="Lord, help me to…"
-      />
-      <div className="mt-1 flex items-center justify-between">
-        <p role="status" aria-live="polite" className="text-sm text-success">
+      <textarea id="quick-grace" rows={2} value={text} onChange={(e) => setText(e.target.value)} className="w-full rounded-2xl border border-line bg-surface px-4 py-2.5 leading-relaxed focus:border-ink focus:outline-none" />
+      <div className="flex items-center justify-between gap-2">
+        <p role="status" className="text-sm text-success">
           {status}
         </p>
-        <Button variant="ghost" className="px-3" onClick={save}>
+        <Button type="submit" variant="secondary">
           Save
         </Button>
       </div>
-    </div>
+    </form>
   );
 }

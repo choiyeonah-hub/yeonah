@@ -14,6 +14,8 @@ Tone: warm, graceful, modern, thoughtful, a little playful. Never childish, prea
 
 Selected: **A as the system, B and C as controlled accents** (85% minimal / 15% kitsch + Korean detail).
 
+**Writing surfaces (V2):** decoration ≤5%. The Journal editor, read mode, and focus mode use no stickers, arches, or gold ornaments inside the writing area — only a hairline under the title. Body 18px / line-height 1.75 (write), Cormorant 21.6px / 1.7 (read).
+
 ## Logo system (implemented as original SVG)
 
 - **Wordmark** — "HELENA GRACE" in Cormorant Garamond 500, uppercase, 0.22em tracking. (`src/components/ui/Logo.tsx` → `Wordmark`)
@@ -49,9 +51,9 @@ Defined once as CSS variables in `src/styles/index.css`, mapped to Tailwind via 
 
 ## Illustration & icon rules
 
-- Only original SVG/CSS (arches, sun, rays, petals, stickers) and Lucide icons (ISC). No stock religious imagery, no saints' portraits, no photographs, no copied marks, no downloaded reference images.
+- Only original SVG/CSS (arches, sun, rays, stickers) and Lucide icons (ISC). No stock religious imagery, no saints' portraits, no photographs, no copied marks, no downloaded reference images.
 - No heavy gradients/glow/3D, no purple SaaS look.
-- Completion is shown as filled sun petals **plus** a text count — never colour alone, never negative language.
+- Optional routines are large tap cards with a sun icon and the words "Noted for today" — no counts, percentages, scores or streaks, never colour alone.
 
 ## Image-generation briefs (for an external image tool)
 
@@ -68,3 +70,11 @@ Use these only to explore direction; final assets must be redrawn as clean vecto
 
 **App icon — main**
 > Create a single original app icon symbol for Helena Grace: minimalist luminous golden sun with 8 delicate rays, an understated cross shape subtly integrated in the center using negative space, soft ivory solid background, harmonious symmetry, ultra-simple vector mark optimized for visibility at 48px. No text, no hands, no portraits, no photorealism, no gradients, no bevel, no watermark, no religious organization's official insignia.
+
+**Brand identity — user brief (2026-10-20)**
+> Design an original premium Catholic lifestyle brand identity for "Helena Grace". Create a refined minimalist golden sun emblem with delicate rays, a subtle cross integrated into the center, and the graceful silhouette of a chapel arch. Elegant editorial serif typography, soft ivory background, muted champagne gold, understated warmth. Blend modern European sacred architecture with the quiet sophistication of Korean minimalist design. Luxurious yet approachable, peaceful, feminine, timeless. Flat vector-ready design, no 3D, no gradients, no mockups, no watermark. Exact brand name: HELENA GRACE.
+
+**App icon — user brief (2026-10-20)**
+> Create a single original minimalist mobile app icon for a Catholic daily planner named Helena Grace. A symmetrical small golden sun with eight fine rays and a tiny cross suggested through negative space. Warm ivory background, clean vector geometry, high contrast at small sizes, sophisticated and serene. No text, no human figures, no 3D effects, no gradients, no watermark.
+
+The shipped SVG mark (`SunMark`, `public/icons/*`) already follows both briefs: 8 rays, negative-space cross, chapel arch on the symbol, ivory square icon without text.
