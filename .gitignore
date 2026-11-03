@@ -11,3 +11,10 @@ prisma/dev.db-journal
 .DS_Store
 npm-debug.log*
 next-env.d.ts
+# element-lock
+element-lock/android/.gradle/
+element-lock/android/**/build/
+element-lock/android/local.properties
+element-lock/ios/*.xcodeproj/
+element-lock/ios/ElementLockCore/.build/
+element-lock/ios/ElementLockCore/.swiftpm/
