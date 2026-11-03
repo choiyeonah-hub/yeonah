@@ -1,5 +1,6 @@
 import ElementLockCore
 import SwiftUI
+import UIKit
 
 private enum Feedback: Equatable { case none, wrong, correct(firstTry: Bool) }
 
