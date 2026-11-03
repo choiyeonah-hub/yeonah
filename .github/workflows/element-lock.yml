@@ -57,23 +57,23 @@ jobs:
         run: |
           set -o pipefail
           ./gradlew :app:assembleDebug 2>&1 | tee gradle-assemble.log
-      - name: Lint
-        working-directory: ${{ env.EL }}/android
-        run: |
-          set -o pipefail
-          ./gradlew :app:lintDebug 2>&1 | tee gradle-lint.log
-      - name: Failure summary
-        if: failure()
-        working-directory: ${{ env.EL }}/android
-        run: |
-          for f in gradle-*.log; do echo "===== $f"; grep -E "^e: |^w: .*(error|Error)|What went wrong|^> |Error:|error:|FAILED" -A2 "$f" | grep -vE "^\s+at " | head -80; done
-          find . -name "lint-results-*.txt" -exec cat {} \; 2>/dev/null | head -150
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: element-lock-debug-apk
           path: ${{ env.EL }}/android/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
+      - name: Lint
+        working-directory: ${{ env.EL }}/android
+        run: |
+          set -o pipefail
+          ./gradlew :app:lintDebug > gradle-lint.log 2>&1 || { grep -hE ": Error: " app/build/reports/lint-results-debug.txt gradle-lint.log | sort -u | head -60; grep -A5 "What went wrong" gradle-lint.log; exit 1; }
+          grep -cE ": Warning: " app/build/reports/lint-results-debug.txt || true
+      - name: Failure summary
+        if: failure()
+        working-directory: ${{ env.EL }}/android
+        run: |
+          for f in gradle-*.log; do echo "===== $f"; grep -E "^e: |^w: .*(error|Error)|What went wrong|^> |Error:|error:|FAILED" -A2 "$f" | grep -vE "^\s+at " | head -80; done
       - name: Upload reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -172,11 +172,12 @@ jobs:
         working-directory: ${{ env.EL }}/ios
         run: |
           ! xcodebuild -project ElementLock.xcodeproj -target ShieldAction -sdk iphoneos -showBuildSettings | grep -q EL_SDK_OPEN_PARENT_APP
-      - name: Build app + all extensions for iOS Simulator (no signing)
+      # Old Xcode images ship without a matching simulator runtime, so compile for devices (unsigned).
+      - name: Compile app + all extensions for iOS devices (unsigned)
         working-directory: ${{ env.EL }}/ios
         run: |
           set -o pipefail
-          xcodebuild -project ElementLock.xcodeproj -scheme ElementLock -sdk iphonesimulator \
-            -destination 'generic/platform=iOS Simulator' -derivedDataPath build/sim CODE_SIGNING_ALLOWED=NO build \
+          xcodebuild -project ElementLock.xcodeproj -scheme ElementLock -sdk iphoneos \
+            -destination 'generic/platform=iOS' -derivedDataPath build/device CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build \
             | tee build-legacy.log | grep -E "error:|BUILD" || true
           grep -q "BUILD SUCCEEDED" build-legacy.log
