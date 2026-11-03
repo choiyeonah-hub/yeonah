@@ -1,0 +1,11 @@
+# Used when element-lock/ becomes its own repository (the parent repo's .gitignore covers it today).
+android/**/.gradle/
+android/**/.kotlin/
+android/**/build/
+android/local.properties
+ios/*.xcodeproj/
+ios/build/
+ios/ElementLockCore/.build/
+ios/ElementLockCore/.swiftpm/
+*.log
+.DS_Store
