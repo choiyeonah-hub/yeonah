@@ -12,7 +12,8 @@ prisma/dev.db-journal
 npm-debug.log*
 next-env.d.ts
 # element-lock
-element-lock/android/.gradle/
+element-lock/android/**/.gradle/
+element-lock/android/**/.kotlin/
 element-lock/android/**/build/
 element-lock/android/local.properties
 element-lock/ios/*.xcodeproj/
