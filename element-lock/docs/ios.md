@@ -2,8 +2,12 @@
 
 ## 요구 사항
 
-- macOS + **Xcode 26.5 이상**(iOS 26.5 SDK). 차단 화면 버튼으로 앱을 여는 `ShieldActionResponse.openParentalControlsApp`이
-  iOS 26.5 SDK부터 있습니다. 이전 SDK에서는 이 줄이 컴파일되지 않습니다(비공식 raw value 우회는 쓰지 않음).
+- macOS + **Xcode 26 이상**. 기능 차이는 SDK 버전에 따라 납니다.
+  - iOS 26.5 SDK(Xcode 26.5+)로 빌드: iOS 26.5 이상 기기에서 차단 화면 버튼이 `ShieldActionResponse.openParentalControlsApp`으로
+    원소잠금을 바로 엽니다. 이 응답은 iOS 26.5 SDK부터 있는 API입니다.
+  - 그보다 오래된 SDK로 빌드하거나 iOS 26.5 미만 기기: 차단 화면 버튼 → 로컬 알림 → 알림을 누르면 원소잠금이 열리는 대체 동작.
+    빌드 설정 `EL_SDK_OPEN_PARENT_APP`가 SDK 26.5 이상일 때만 켜지며(`project.yml`), 비공식 raw value 우회는 쓰지 않습니다.
+  - CI(GitHub Actions)는 두 경우를 모두 빌드합니다: Xcode 26.6/SDK 26.5(플래그 켜짐), Xcode 26.4.x/SDK 26.4(플래그 꺼짐).
 - 배포 대상: iOS 16.0+ (개인용 `AuthorizationCenter.requestAuthorization(for: .individual)`이 16부터).
 - 실제 iPhone(시뮬레이터에서는 Screen Time 차단을 검증할 수 없음).
 - Apple Developer Program 계정, [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`).
