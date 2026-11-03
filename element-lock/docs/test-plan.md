@@ -16,12 +16,24 @@
 | Android 앱 소스 컴파일 가능성(타입 검사) | `tools/typecheck-without-sdk` | **통과** (실제 Android 빌드 아님) |
 | iOS 문구 키 누락 | `ios/tools/check_strings.py` | **실행, 누락 없음** |
 
-Kotlin 합계: 30개 테스트, 실패 0 (`cd android && ./gradlew :core:test`).
+Kotlin 합계: 31개 테스트, 실패 0 (`cd android && ./gradlew :core:test`).
 검증 신뢰도 확인: 중복 정답 방지 코드를 일부러 지우면 `wrongThenRightIsAssistedAndRepeatTapIsIgnored`가 실패하는 것을 확인했고,
 타입 검사도 일부러 넣은 오류를 잡는 것을 확인했습니다.
 
 **실행하지 못한 것**: Swift XCTest(`swift test`, macOS 필요), Android `:app` Gradle 빌드·lint·계측 테스트(Android SDK 필요),
 iOS 빌드(Xcode 필요). 이들은 통과했다고 볼 수 없습니다.
+
+## 1-1. GitHub Actions 결과 (실행 41635355534, 커밋 3c79bae)
+
+| 작업 | 결과 |
+|---|---|
+| 데이터·문구 검사 | 통과 |
+| Android: `:core:test`(31개), `:app:assembleDebug`, `:app:lintDebug` | 통과 (lint 오류 0, 경고 17) |
+| iOS: `swift test`(17개), 시뮬레이터 빌드, 기기용 서명 없는 컴파일, 확장 3개 포함 확인 — Xcode 26.6 / SDK 26.5 | 통과 |
+| iOS 대체 동작 빌드 — Xcode 26.4.x / SDK 26.4, `EL_SDK_OPEN_PARENT_APP` 꺼짐 확인 | 통과 |
+
+CI 첫 실행에서 실제로 잡아 고친 문제: kotlin-android와 AGP의 클래스로더 분리(BaseVariant), Compose 화면에서 `StateFlow.value`
+직접 읽기 3곳(값이 바뀌어도 화면이 갱신되지 않을 수 있던 버그).
 
 ## 2. 실기기 전용 체크리스트 (아직 아무것도 수행하지 않음)
 
