@@ -160,9 +160,15 @@ jobs:
       - uses: actions/checkout@v4
       - name: Locate app folder
         run: if [ -d element-lock ]; then echo "EL=element-lock" >> "$GITHUB_ENV"; else echo "EL=." >> "$GITHUB_ENV"; fi
-      - name: Select oldest installed Xcode 26
+      - name: Select newest Xcode whose iOS SDK is older than 26.5
+        # Very old Xcode images on this runner ship without their iOS platform/simulator runtime,
+        # so we take the newest one below 26.5 (currently Xcode 26.4.x with simulator runtime 26.4).
         run: |
-          XC=$(ls -d /Applications/Xcode_26*.app | sort -V | head -1)
+          for x in $(ls -d /Applications/Xcode_26*.app | sort -rV); do
+            v=$(DEVELOPER_DIR="$x/Contents/Developer" xcrun --sdk iphoneos --show-sdk-version 2>/dev/null || echo 99)
+            if [ "$(printf '%s\n26.5\n' "$v" | sort -V | head -1)" = "$v" ] && [ "$v" != "26.5" ]; then XC=$x; break; fi
+          done
+          [ -n "$XC" ] || { echo "no Xcode with SDK < 26.5 on this image"; exit 1; }
           echo "Using $XC"; sudo xcode-select -s "$XC/Contents/Developer"; xcodebuild -version
           xcrun --sdk iphoneos --show-sdk-version
       - name: Generate Xcode project
@@ -172,12 +178,11 @@ jobs:
         working-directory: ${{ env.EL }}/ios
         run: |
           ! xcodebuild -project ElementLock.xcodeproj -target ShieldAction -sdk iphoneos -showBuildSettings | grep -q EL_SDK_OPEN_PARENT_APP
-      # Old Xcode images ship without a matching simulator runtime, so compile for devices (unsigned).
-      - name: Compile app + all extensions for iOS devices (unsigned)
+      - name: Build app + all extensions for iOS Simulator (no signing)
         working-directory: ${{ env.EL }}/ios
         run: |
           set -o pipefail
-          xcodebuild -project ElementLock.xcodeproj -scheme ElementLock -sdk iphoneos \
-            -destination 'generic/platform=iOS' -derivedDataPath build/device CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build \
+          xcodebuild -project ElementLock.xcodeproj -scheme ElementLock -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' -derivedDataPath build/sim CODE_SIGNING_ALLOWED=NO build \
             | tee build-legacy.log | grep -E "error:|BUILD" || true
           grep -q "BUILD SUCCEEDED" build-legacy.log

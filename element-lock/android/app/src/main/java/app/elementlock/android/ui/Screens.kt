@@ -148,12 +148,13 @@ private fun Page(title: String, content: @Composable () -> Unit) {
 
 @Composable
 fun StatusCard(c: AppController, status: LockStatus, now: Long, onUnlock: () -> Unit, onFix: () -> Unit) {
-    val s = c.store.state.value
+    val s by c.store.state.collectAsState()
+    val blocked by c.store.blockedPackages.collectAsState()
     val minutes = s.settings.allowance.minutes
     val (title, detail) = when (status) {
         LockStatus.PERMISSION_MISSING -> stringResource(R.string.status_permission_missing) to stringResource(R.string.status_permission_missing_detail)
         LockStatus.INACTIVE -> stringResource(R.string.status_inactive) to stringResource(
-            if (c.store.blockedPackages.value.isEmpty()) R.string.status_inactive_no_apps else R.string.status_inactive_paused)
+            if (blocked.isEmpty()) R.string.status_inactive_no_apps else R.string.status_inactive_paused)
         LockStatus.ACTIVE -> stringResource(R.string.status_active) to stringResource(R.string.status_active_detail, minutes)
         LockStatus.QUIZ_IN_PROGRESS -> stringResource(R.string.status_quiz) to stringResource(R.string.status_quiz_detail)
         LockStatus.ALLOWING -> {

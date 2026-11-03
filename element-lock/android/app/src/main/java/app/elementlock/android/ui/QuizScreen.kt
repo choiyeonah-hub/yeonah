@@ -30,6 +30,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -79,6 +80,7 @@ fun QuizScreen(c: AppController, purpose: QuizPurpose, onClose: () -> Unit) {
     val reduceMotion = remember {
         Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
     }
+    val learning by c.store.state.collectAsState()
     var round by remember { mutableIntStateOf(0) }
     val attempt: QuizAttempt? = remember(round) { c.makeAttempt(purpose) }
     var feedback by remember(round) { mutableStateOf<Feedback>(Feedback.None) }
@@ -125,7 +127,7 @@ fun QuizScreen(c: AppController, purpose: QuizPurpose, onClose: () -> Unit) {
         }
         val q = attempt.question
         val target = c.catalog[q.target]
-        val scope = c.store.state.value.settings.scope
+        val scope = learning.settings.scope
         Text(
             when (q.mode) {
                 QuizMode.PLACE_ON_TABLE -> stringResource(R.string.quiz_place_prompt, target.nameKo, target.symbol)
@@ -167,7 +169,7 @@ fun QuizScreen(c: AppController, purpose: QuizPurpose, onClose: () -> Unit) {
                         style = Tokens.headline.copy(color = Tokens.mint), modifier = Modifier.scale(pop.value),
                     )
                     Text(stringResource(R.string.quiz_fact, target.nameKo, target.symbol, positionText(target)), style = Tokens.caption)
-                    if (purpose == QuizPurpose.UNLOCK) GrantResult(grant, c, onClose)
+                    if (purpose == QuizPurpose.UNLOCK) GrantResult(grant, learning.settings.allowance.minutes, onClose)
                     else PrimaryButton(stringResource(R.string.quiz_next)) { round++ }
                 }
             }
@@ -176,10 +178,10 @@ fun QuizScreen(c: AppController, purpose: QuizPurpose, onClose: () -> Unit) {
 }
 
 @Composable
-private fun GrantResult(grant: GrantDecision?, c: AppController, onClose: () -> Unit) {
+private fun GrantResult(grant: GrantDecision?, minutes: Int, onClose: () -> Unit) {
     when (grant) {
         is GrantDecision.Granted -> {
-            Text(stringResource(R.string.unlock_granted, c.store.state.value.settings.allowance.minutes), style = Tokens.headline)
+            Text(stringResource(R.string.unlock_granted, minutes), style = Tokens.headline)
             Text(stringResource(R.string.unlock_reopen_app), style = Tokens.caption)
             PrimaryButton(stringResource(R.string.common_done), onClick = onClose)
         }
