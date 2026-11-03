@@ -1,0 +1,131 @@
+# Element Lock (원소잠금) CI — independent of the 하브루타 web app in this repository.
+# Works both here (app under element-lock/) and after moving element-lock/ to its own repository
+# (app at the root): the first step of every job detects the folder.
+# Public repository: standard GitHub-hosted runners (including macOS) cost nothing.
+name: Element Lock
+
+on:
+  push:
+    paths: ["element-lock/**", ".github/workflows/element-lock.yml", "android/**", "ios/**", "shared-data/**"]
+  pull_request:
+    paths: ["element-lock/**", ".github/workflows/element-lock.yml"]
+  workflow_dispatch:
+
+concurrency:
+  group: element-lock-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  data:
+    name: Data & strings
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Locate app folder
+        run: if [ -d element-lock ]; then echo "EL=element-lock" >> "$GITHUB_ENV"; else echo "EL=." >> "$GITHUB_ENV"; fi
+      - run: python3 "$EL/shared-data/tools/validate_elements.py"
+      - run: python3 "$EL/ios/tools/check_strings.py"
+
+  android:
+    name: Android build & tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Locate app folder
+        run: if [ -d element-lock ]; then echo "EL=element-lock" >> "$GITHUB_ENV"; else echo "EL=." >> "$GITHUB_ENV"; fi
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Android SDK on runner
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          ls "$ANDROID_HOME/platforms" "$ANDROID_HOME/build-tools" || true
+      - name: Learning-logic tests (:core)
+        working-directory: ${{ env.EL }}/android
+        run: ./gradlew :core:test --stacktrace
+      - name: Build debug APK and run lint
+        working-directory: ${{ env.EL }}/android
+        run: ./gradlew :app:assembleDebug :app:lintDebug --stacktrace
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: element-lock-debug-apk
+          path: ${{ env.EL }}/android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-reports
+          path: |
+            ${{ env.EL }}/android/core/build/reports
+            ${{ env.EL }}/android/app/build/reports
+          if-no-files-found: ignore
+
+  ios:
+    name: iOS compile (simulator + unsigned device) & tests
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Locate app folder
+        run: if [ -d element-lock ]; then echo "EL=element-lock" >> "$GITHUB_ENV"; else echo "EL=." >> "$GITHUB_ENV"; fi
+      - name: Installed Xcode versions and SDKs
+        run: |
+          sw_vers
+          ls -d /Applications/Xcode*.app || true
+          for x in /Applications/Xcode*.app; do echo "== $x"; DEVELOPER_DIR="$x/Contents/Developer" xcodebuild -version 2>/dev/null | tr '\n' ' '; echo; DEVELOPER_DIR="$x/Contents/Developer" xcrun --sdk iphoneos --show-sdk-version 2>/dev/null; done
+      - name: Select newest Xcode
+        run: |
+          XC=$(ls -d /Applications/Xcode_*.app 2>/dev/null | grep -v -i beta | sort -V | tail -1)
+          [ -n "$XC" ] || XC=/Applications/Xcode.app
+          echo "Using $XC"
+          sudo xcode-select -s "$XC/Contents/Developer"
+          xcodebuild -version
+          SDK=$(xcrun --sdk iphoneos --show-sdk-version)
+          echo "IOS_SDK=$SDK" >> "$GITHUB_ENV"
+          swift --version
+      - name: Learning-logic tests (swift test)
+        working-directory: ${{ env.EL }}/ios/ElementLockCore
+        run: swift test
+      - name: Generate Xcode project
+        working-directory: ${{ env.EL }}/ios
+        run: |
+          brew install xcodegen
+          xcodegen generate
+      - name: Build app + all extensions for iOS Simulator (no signing)
+        working-directory: ${{ env.EL }}/ios
+        run: |
+          set -o pipefail
+          xcodebuild -project ElementLock.xcodeproj -scheme ElementLock -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build/sim CODE_SIGNING_ALLOWED=NO build | tee build-sim.log | grep -E "error:|warning: .*deprecated|BUILD" || true
+          grep -q "BUILD SUCCEEDED" build-sim.log
+      - name: Compile app + all extensions for iOS devices (unsigned, not installable)
+        working-directory: ${{ env.EL }}/ios
+        run: |
+          set -o pipefail
+          xcodebuild -project ElementLock.xcodeproj -scheme ElementLock -configuration Release \
+            -sdk iphoneos -destination 'generic/platform=iOS' \
+            -derivedDataPath build/device CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build | tee build-device.log | grep -E "error:|BUILD" || true
+          grep -q "BUILD SUCCEEDED" build-device.log
+      - name: Check that all three extensions are embedded
+        working-directory: ${{ env.EL }}/ios
+        run: |
+          APP=$(find build/sim -name "ElementLock.app" -type d | head -1)
+          ls "$APP/PlugIns"
+          for e in ShieldConfiguration ShieldAction DeviceActivityMonitor; do test -d "$APP/PlugIns/$e.appex" || { echo "missing $e"; exit 1; }; done
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build-logs
+          path: ${{ env.EL }}/ios/build-*.log
+          if-no-files-found: ignore

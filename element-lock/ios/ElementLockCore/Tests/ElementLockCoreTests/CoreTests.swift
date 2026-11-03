@@ -43,9 +43,24 @@ final class ElementDataTests: XCTestCase {
     func testCatalog() {
         XCTAssertEqual(catalog.elements.map(\.number), Array(1...118))
         XCTAssertEqual(catalog[11].symbol, "Na")
-        XCTAssertEqual(catalog[11].displayNameKo, "소듐(나트륨)")
+        XCTAssertEqual(catalog[11].nameKo, "나트륨")
+        XCTAssertEqual(catalog[19].nameKo, "칼륨")
+        XCTAssertEqual(catalog[11].aliasesKo, ["소듐"])
         XCTAssertNil(catalog[57].group)
         XCTAssertEqual(catalog[57].displayRow, 9)
+    }
+}
+
+final class SearchTests: XCTestCase {
+    func search(_ q: String) -> [Int] { catalog.elements.filter { $0.matches(q) }.map(\.number) }
+
+    func testFindsByOtherNames() {
+        XCTAssertEqual(search("소듐"), [11])
+        XCTAssertEqual(search("포타슘"), [19])
+        XCTAssertEqual(search(" na "), [11])
+        XCTAssertEqual(search("11"), [11])
+        XCTAssertEqual(search("sodium"), [11])
+        XCTAssertEqual(search(""), [])
     }
 }
 
@@ -81,7 +96,7 @@ final class QuizTests: XCTestCase {
                 XCTAssertEqual(Set(q.options).count, 4)
                 XCTAssertEqual(q.options.filter { $0 == target }.count, 1)
                 XCTAssertTrue(q.options.allSatisfy { StudyRanges.basic.contains($0) })
-                XCTAssertEqual(Set(q.options.map { catalog[$0].displayNameKo }).count, 4)
+                XCTAssertEqual(Set(q.options.map { catalog[$0].nameKo }).count, 4)
             }
         }
     }

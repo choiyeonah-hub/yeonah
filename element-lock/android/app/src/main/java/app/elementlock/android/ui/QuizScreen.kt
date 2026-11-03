@@ -128,10 +128,10 @@ fun QuizScreen(c: AppController, purpose: QuizPurpose, onClose: () -> Unit) {
         val scope = c.store.state.value.settings.scope
         Text(
             when (q.mode) {
-                QuizMode.PLACE_ON_TABLE -> stringResource(R.string.quiz_place_prompt, target.displayNameKo, target.symbol)
+                QuizMode.PLACE_ON_TABLE -> stringResource(R.string.quiz_place_prompt, target.nameKo, target.symbol)
                 QuizMode.FILL_BLANK -> stringResource(R.string.quiz_fill_prompt)
                 QuizMode.SYMBOL_TO_NAME -> stringResource(R.string.quiz_symbol_to_name_prompt, target.symbol)
-                QuizMode.NAME_TO_SYMBOL -> stringResource(R.string.quiz_name_to_symbol_prompt, target.displayNameKo)
+                QuizMode.NAME_TO_SYMBOL -> stringResource(R.string.quiz_name_to_symbol_prompt, target.nameKo)
             },
             style = Tokens.headline,
         )
@@ -166,7 +166,7 @@ fun QuizScreen(c: AppController, purpose: QuizPurpose, onClose: () -> Unit) {
                         stringResource(if (f.firstTry) R.string.quiz_correct_first_try else R.string.quiz_correct_retry),
                         style = Tokens.headline.copy(color = Tokens.mint), modifier = Modifier.scale(pop.value),
                     )
-                    Text(stringResource(R.string.quiz_fact, target.displayNameKo, target.symbol, positionText(target)), style = Tokens.caption)
+                    Text(stringResource(R.string.quiz_fact, target.nameKo, target.symbol, positionText(target)), style = Tokens.caption)
                     if (purpose == QuizPurpose.UNLOCK) GrantResult(grant, c, onClose)
                     else PrimaryButton(stringResource(R.string.quiz_next)) { round++ }
                 }
@@ -201,9 +201,9 @@ private fun Choices(c: AppController, options: List<Int>, target: Int, solved: B
             val isWrong = n in wrong
             val isAnswer = solved && n == target
             val text = when (label) {
-                ChoiceLabel.NAME -> e.displayNameKo
+                ChoiceLabel.NAME -> e.nameKo
                 ChoiceLabel.SYMBOL -> e.symbol
-                ChoiceLabel.SYMBOL_AND_NAME -> "${e.symbol}  ${e.displayNameKo}"
+                ChoiceLabel.SYMBOL_AND_NAME -> "${e.symbol}  ${e.nameKo}"
             }
             Card(
                 Modifier.heightIn(min = 52.dp)
@@ -279,7 +279,7 @@ private fun PlaceQuestion(c: AppController, cells: List<Int>, target: Element, s
                             onDragCancel = { drag = Offset.Zero },
                         )
                     }
-                    .semantics { contentDescription = "${target.displayNameKo}, ${target.symbol}" },
+                    .semantics { contentDescription = "${target.nameKo}, ${target.symbol}" },
             )
         }
         Spacer(Modifier.width(1.dp))

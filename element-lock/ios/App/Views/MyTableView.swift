@@ -5,11 +5,13 @@ import SwiftUI
 struct MyTableView: View {
     @EnvironmentObject private var model: AppModel
     @State private var selected: Element?
+    @State private var query = ""
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
+                    searchBox
                     legend
                     ScrollView(.horizontal) {
                         PeriodicGrid(catalog: model.catalog, numbers: model.catalog.elements.map(\.number), cellSize: 36, spacing: 3) { e in
@@ -45,7 +47,29 @@ struct MyTableView: View {
         case .outOfScope: state = L("legend.outOfScope")
         default: state = L("legend.new")
         }
-        return "\(e.displayNameKo), \(e.symbol), \(state)"
+        return "\(e.nameKo), \(e.symbol), \(state)"
+    }
+
+    /// Finds elements by number, symbol, name, other names (소듐 → 나트륨) or English name.
+    private var searchBox: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            TextField(L("search.placeholder"), text: $query)
+                .textFieldStyle(.roundedBorder)
+                .autocorrectionDisabled()
+                .textInputAutocapitalization(.never)
+            if !query.trimmingCharacters(in: .whitespaces).isEmpty {
+                let hits = model.catalog.elements.filter { $0.matches(query) }
+                if hits.isEmpty {
+                    Text(L("search.none")).foregroundStyle(Theme.secondaryText)
+                }
+                ForEach(hits.prefix(10)) { e in
+                    Button { selected = e } label: {
+                        Text(e.aliasesKo.isEmpty ? "\(e.symbol)  \(e.nameKo)" : "\(e.symbol)  \(e.nameKo) · \(e.aliasesKo.joined(separator: ", "))")
+                            .foregroundStyle(.white)
+                    }
+                }
+            }
+        }
     }
 
     private var legend: some View {
@@ -78,7 +102,7 @@ struct MyTableView: View {
                 Text(L("review.none")).foregroundStyle(Theme.secondaryText)
             } else {
                 ForEach(due) { e in
-                    Text("\(e.symbol)  \(e.displayNameKo)").foregroundStyle(.white)
+                    Text("\(e.symbol)  \(e.nameKo)").foregroundStyle(.white)
                 }
             }
         }
@@ -95,9 +119,12 @@ struct ElementDetail: View {
             HStack(spacing: 16) {
                 ElementTile(element: element, style: .plain, size: 72)
                 VStack(alignment: .leading) {
-                    Text(element.displayNameKo).font(.title2.weight(.bold))
+                    Text(element.nameKo).font(.title2.weight(.bold))
                     Text(element.nameEn).foregroundStyle(Theme.secondaryText)
                 }
+            }
+            if !element.aliasesKo.isEmpty {
+                Text(L("detail.aliases", element.aliasesKo.joined(separator: ", "))).foregroundStyle(Theme.secondaryText)
             }
             Text(positionText(element))
             Text(L("category." + element.category)).foregroundStyle(Theme.secondaryText)

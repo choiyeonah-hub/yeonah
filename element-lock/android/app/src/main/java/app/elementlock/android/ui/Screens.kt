@@ -212,6 +212,7 @@ private fun TableScreen(c: AppController) {
     val all = c.catalog.elements.map { it.number }
     val layout = remember { GridLayout(c.catalog, all, 36.dp, 3.dp) }
     var detail by remember { mutableStateOf<Int?>(null) }
+    var query by remember { mutableStateOf("") }
     val labels = mapOf(
         TileStyle.PLAIN to stringResource(R.string.legend_new), TileStyle.LEARNING to stringResource(R.string.legend_learning),
         TileStyle.MASTERED to stringResource(R.string.legend_mastered), TileStyle.OUT_OF_SCOPE to stringResource(R.string.legend_out_of_scope),
@@ -222,6 +223,17 @@ private fun TableScreen(c: AppController) {
         return when { ReviewScheduler.isMastered(r) -> TileStyle.MASTERED; (r?.seenCount ?: 0) > 0 -> TileStyle.LEARNING; else -> TileStyle.PLAIN }
     }
     Page(stringResource(R.string.tab_table)) {
+        // Finds elements by number, symbol, name, other names (소듐 → 나트륨) or English name.
+        OutlinedTextField(query, { query = it }, Modifier.fillMaxWidth(), placeholder = { Text(stringResource(R.string.search_placeholder)) }, singleLine = true)
+        if (query.isNotBlank()) {
+            val hits = c.catalog.elements.filter { it.matches(query) }
+            if (hits.isEmpty()) Text(stringResource(R.string.search_none), style = Tokens.caption)
+            for (e in hits.take(10)) {
+                val other = if (e.aliasesKo.isEmpty()) "" else " · " + e.aliasesKo.joinToString(", ")
+                Text("${e.symbol}  ${e.nameKo}$other", style = Tokens.body,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp).clickable { detail = e.number }.padding(vertical = 10.dp))
+            }
+        }
         Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
             for (st in listOf(TileStyle.PLAIN, TileStyle.LEARNING, TileStyle.MASTERED)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -233,7 +245,7 @@ private fun TableScreen(c: AppController) {
             PeriodicGrid(layout, c.catalog) { e ->
                 val st = style(e.number)
                 ElementTile(e, st, 36.dp, Modifier.clickable { detail = e.number }.semantics {
-                    contentDescription = "${e.displayNameKo}, ${e.symbol}, ${labels.getValue(st)}"
+                    contentDescription = "${e.nameKo}, ${e.symbol}, ${labels.getValue(st)}"
                 })
             }
         }
@@ -241,7 +253,8 @@ private fun TableScreen(c: AppController) {
             val e = c.catalog[n]
             val r = state.records[n]
             Card {
-                Text("${e.symbol}  ${e.displayNameKo}  (${e.nameEn})", style = Tokens.headline)
+                Text("${e.symbol}  ${e.nameKo}  (${e.nameEn})", style = Tokens.headline)
+                if (e.aliasesKo.isNotEmpty()) Text(stringResource(R.string.detail_aliases, e.aliasesKo.joinToString(", ")), style = Tokens.caption)
                 Text("${positionText(e)} · ${categoryText(e.category)}", style = Tokens.caption)
                 Text(stringResource(R.string.detail_first_try_days, r?.firstTryDays?.size ?: 0, ReviewScheduler.MASTERY_DAYS), style = Tokens.body)
                 Text(stringResource(R.string.detail_answers, r?.unlockAnswers ?: 0, r?.practiceAnswers ?: 0), style = Tokens.caption)
@@ -253,7 +266,7 @@ private fun TableScreen(c: AppController) {
             r.dueAtMillis <= now && r.lastOutcome != ReviewOutcome.FIRST_TRY
         }
         if (due.isEmpty()) Text(stringResource(R.string.review_none), style = Tokens.caption)
-        for (n in due) Text("${c.catalog[n].symbol}  ${c.catalog[n].displayNameKo}", style = Tokens.body)
+        for (n in due) Text("${c.catalog[n].symbol}  ${c.catalog[n].nameKo}", style = Tokens.body)
     }
 }
 
@@ -416,7 +429,7 @@ private fun ScopeScreen(c: AppController, onDone: () -> Unit) {
                 val on = e.number in draft
                 ElementTile(e, if (on) TileStyle.LEARNING else TileStyle.OUT_OF_SCOPE, 40.dp,
                     Modifier.clickable { draft = if (on) draft - e.number else draft + e.number }.semantics {
-                        contentDescription = "${e.displayNameKo}, ${e.symbol}"
+                        contentDescription = "${e.nameKo}, ${e.symbol}"
                         stateDescription = if (on) selectedLabel else notSelectedLabel
                     })
             }

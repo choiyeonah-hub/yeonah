@@ -17,9 +17,19 @@ data class Element(
     val displayColumn: Int,
     val category: String,
 ) {
-    /** Official name, with the most common former name in parentheses: "소듐(나트륨)". */
-    val displayNameKo: String
-        get() = if (aliasesKo.isEmpty()) nameKo else "$nameKo(${aliasesKo.first()})"
+    /**
+     * Search by atomic number, symbol, Korean name, other Korean names (e.g. 소듐 → 나트륨) or the start of the English name.
+     * Case and surrounding spaces are ignored. Quizzes always show [nameKo] only.
+     */
+    fun matches(query: String): Boolean {
+        val q = query.trim().lowercase()
+        if (q.isEmpty()) return false
+        q.toIntOrNull()?.let { return it == number }
+        return symbol.lowercase() == q ||
+            nameKo.contains(q) ||
+            aliasesKo.any { it.contains(q) } ||
+            nameEn.lowercase().startsWith(q)
+    }
 }
 
 @Serializable

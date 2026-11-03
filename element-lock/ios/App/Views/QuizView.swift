@@ -96,10 +96,10 @@ struct QuizView: View {
 
     private func prompt(_ q: Question, _ e: Element) -> String {
         switch q.mode {
-        case .placeOnTable: return L("quiz.place.prompt", e.displayNameKo, e.symbol)
+        case .placeOnTable: return L("quiz.place.prompt", e.nameKo, e.symbol)
         case .fillBlank: return L("quiz.fill.prompt")
         case .symbolToName: return L("quiz.symbolToName.prompt", e.symbol)
-        case .nameToSymbol: return L("quiz.nameToSymbol.prompt", e.displayNameKo)
+        case .nameToSymbol: return L("quiz.nameToSymbol.prompt", e.nameKo)
         }
     }
 
@@ -114,9 +114,9 @@ struct QuizView: View {
                 Button { answer(n) } label: {
                     HStack {
                         switch labelBy {
-                        case .name: Text(e.displayNameKo)
+                        case .name: Text(e.nameKo)
                         case .symbol: Text(e.symbol).font(.title2.weight(.bold))
-                        case .symbolAndName: Text("\(e.symbol)  \(e.displayNameKo)")
+                        case .symbolAndName: Text("\(e.symbol)  \(e.nameKo)")
                         }
                         Spacer()
                         if wrong { Image(systemName: "xmark").accessibilityLabel(L("a11y.wrongChoice")) }
@@ -160,7 +160,7 @@ struct QuizView: View {
                     .foregroundStyle(Theme.mint)
                     .scaleEffect(celebrate || reduceMotion ? 1 : 0.6)
                     .opacity(celebrate || reduceMotion ? 1 : 0)
-                Text(L("quiz.fact", target.displayNameKo, target.symbol, positionText(target)))
+                Text(L("quiz.fact", target.nameKo, target.symbol, positionText(target)))
                     .foregroundStyle(Theme.secondaryText)
                 if purpose == .unlock {
                     redeemView(attempt)
@@ -299,7 +299,7 @@ struct PlaceQuestionView: View {
                                 if let n = grid.element(at: p) { onAnswer(n) }
                             }
                     )
-                    .accessibilityLabel(L("a11y.dragTile", catalog[question.target].displayNameKo, catalog[question.target].symbol))
+                    .accessibilityLabel(L("a11y.dragTile", catalog[question.target].nameKo, catalog[question.target].symbol))
                 Spacer()
             }
         }

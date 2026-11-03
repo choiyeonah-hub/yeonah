@@ -4,7 +4,9 @@
 Inputs
   - English name, symbol, period, group, series: the `elements.db` SQLite file shipped in the
     PyPI package `mendeleev` (verified with mendeleev 1.3.0). Pass its path as argv[1].
-  - Korean names: the table below (대한화학회 원소 이름 표기, 2014 개정 기준).
+  - Korean names: the table below (대한화학회 원소 이름 표기, 2014 개정 기준), except Na and K,
+    which use the school-textbook names 나트륨/칼륨 as the primary name (product decision).
+    The other names are kept in aliasesKo for the detail view and search.
 
 Display-layout rule (our decision, not the source's):
   La-Lu (57-71) and Ac-Lr (89-103) are all treated as the f-block series. They get group=None
@@ -19,7 +21,7 @@ import sqlite3
 import sys
 
 KO = """수소 헬륨 리튬 베릴륨 붕소 탄소 질소 산소 플루오린 네온
-소듐 마그네슘 알루미늄 규소 인 황 염소 아르곤 포타슘 칼슘
+나트륨 마그네슘 알루미늄 규소 인 황 염소 아르곤 칼륨 칼슘
 스칸듐 타이타늄 바나듐 크로뮴 망가니즈 철 코발트 니켈 구리 아연
 갈륨 저마늄 비소 셀레늄 브로민 크립톤 루비듐 스트론튬 이트륨 지르코늄
 나이오븀 몰리브데넘 테크네튬 루테늄 로듐 팔라듐 은 카드뮴 인듐 주석
@@ -31,9 +33,9 @@ KO = """수소 헬륨 리튬 베릴륨 붕소 탄소 질소 산소 플루오린 
 멘델레븀 노벨륨 로렌슘 러더포듐 더브늄 시보귬 보륨 하슘 마이트너륨 다름슈타튬
 뢴트게늄 코페르니슘 니호늄 플레로븀 모스코븀 리버모륨 테네신 오가네손""".split()
 
-# Former / textbook names still in common use. Shown next to the official name, never instead of it.
+# Other names in use. Shown in the element detail and matched by search; never in quiz prompts.
 KO_ALIASES = {
-    9: ["불소"], 11: ["나트륨"], 19: ["칼륨"], 22: ["티타늄"], 24: ["크롬"], 25: ["망간"],
+    9: ["불소"], 11: ["소듐"], 19: ["포타슘"], 22: ["티타늄"], 24: ["크롬"], 25: ["망간"],
     32: ["게르마늄"], 35: ["브롬"], 41: ["니오븀"], 42: ["몰리브덴"], 51: ["안티몬"],
     52: ["텔루르"], 53: ["요오드"], 54: ["크세논"], 57: ["란탄"], 73: ["탄탈"],
 }
@@ -67,7 +69,7 @@ def main(db_path):
         "schemaVersion": 1,
         "sources": [
             "Symbols, English names, periods, groups, series: PyPI package mendeleev 1.3.0 (elements.db)",
-            "Korean names: 대한화학회 원소 이름 표기법 (2014 개정)",
+            "Korean names: 대한화학회 원소 이름 표기법 (2014 개정); Na=나트륨, K=칼륨 use textbook names (official 소듐/포타슘 in aliasesKo)",
             "Layout rule: La-Lu, Ac-Lr shown as separate f-block rows with group=null (see build_elements.py)",
         ],
         "verification": "Run shared-data/tools/validate_elements.py. Cross-checked against mendeleev 1.3.0 on 2026-11-03.",

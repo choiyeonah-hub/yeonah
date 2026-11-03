@@ -15,10 +15,16 @@ public struct Element: Codable, Hashable, Identifiable {
 
     public var id: Int { number }
 
-    /// Official name, with the most common former name in parentheses: "소듐(나트륨)".
-    public var displayNameKo: String {
-        guard let alias = aliasesKo.first else { return nameKo }
-        return "\(nameKo)(\(alias))"
+    /// Search by atomic number, symbol, Korean name, other Korean names (e.g. 소듐 → 나트륨) or the start of the English name.
+    /// Case and surrounding spaces are ignored. Quizzes always show `nameKo` only.
+    public func matches(_ query: String) -> Bool {
+        let q = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if q.isEmpty { return false }
+        if let n = Int(q) { return n == number }
+        return symbol.lowercased() == q
+            || nameKo.contains(q)
+            || aliasesKo.contains { $0.contains(q) }
+            || nameEn.lowercased().hasPrefix(q)
     }
 }
 

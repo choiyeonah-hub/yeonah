@@ -21,9 +21,25 @@ class ElementDataTest {
     @Test fun catalogHasAll118() {
         assertEquals((1..118).toList(), catalog.elements.map { it.number })
         assertEquals("Na", catalog[11].symbol)
-        assertEquals("소듐(나트륨)", catalog[11].displayNameKo)
+        assertEquals("나트륨", catalog[11].nameKo)
+        assertEquals("칼륨", catalog[19].nameKo)
+        assertEquals(listOf("소듐"), catalog[11].aliasesKo)
         assertNull(catalog[57].group)
         assertEquals(9, catalog[57].displayRow)
+    }
+}
+
+class SearchTest {
+    private fun search(q: String) = catalog.elements.filter { it.matches(q) }.map { it.number }
+
+    @Test fun findsByOtherNamesSymbolNumberAndEnglish() {
+        assertEquals(listOf(11), search("소듐"))
+        assertEquals(listOf(19), search("포타슘"))
+        assertEquals(listOf(11), search("나트륨"))
+        assertEquals(listOf(11), search(" na "))
+        assertEquals(listOf(11), search("11"))
+        assertEquals(listOf(11), search("sodium"))
+        assertEquals(emptyList(), search(""))
     }
 }
 
@@ -69,7 +85,7 @@ class QuizTest {
                 assertTrue(q.options.all { it in scope })
                 // Visible labels must be unique too, so there is never more than one correct-looking answer.
                 assertEquals(4, q.options.map { catalog[it].symbol }.toSet().size)
-                assertEquals(4, q.options.map { catalog[it].displayNameKo }.toSet().size)
+                assertEquals(4, q.options.map { catalog[it].nameKo }.toSet().size)
             }
         }
     }

@@ -89,7 +89,7 @@ struct ScopeEditorView: View {
                             ElementTile(element: e, style: on ? .learning : .outOfScope, size: 40)
                         }
                         .buttonStyle(.plain)
-                        .accessibilityLabel("\(e.displayNameKo), \(e.symbol)")
+                        .accessibilityLabel("\(e.nameKo), \(e.symbol)")
                         .accessibilityAddTraits(on ? .isSelected : [])
                     }
                 }

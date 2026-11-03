@@ -112,6 +112,9 @@
 "legend.outOfScope" = "범위 밖";
 "review.title" = "지금 복습할 원소";
 "review.none" = "지금 복습할 원소가 없어요.";
+"detail.aliases" = "다른 이름: %@";
+"search.placeholder" = "원소 검색 (예: 소듐, Na, 11)";
+"search.none" = "찾는 원소가 없어요.";
 "detail.firstTryDays" = "한 번에 맞힌 날: %d일 / 익힘 기준 %d일";
 "detail.answers" = "잠금 해제 %d회 · 자유 연습 %d회";
 
