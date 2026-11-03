@@ -1,0 +1,144 @@
+# Generate the Xcode project with XcodeGen:  brew install xcodegen && xcodegen generate
+# Before building on a device, change DEVELOPMENT_TEAM, EL_BUNDLE_ID and EL_APP_GROUP
+# (and AppGroup.identifier in Shared/SharedStore.swift) to values registered to your team.
+name: ElementLock
+options:
+  deploymentTarget:
+    iOS: "16.0"
+  developmentLanguage: ko
+  xcodeVersion: "26.5"
+settings:
+  base:
+    DEVELOPMENT_TEAM: ""
+    EL_BUNDLE_ID: app.elementlock
+    EL_APP_GROUP: group.app.elementlock
+    SWIFT_VERSION: "5.9"
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+    CODE_SIGN_STYLE: Automatic
+    TARGETED_DEVICE_FAMILY: "1,2"
+packages:
+  ElementLockCore:
+    path: ElementLockCore
+
+targets:
+  ElementLock:
+    type: application
+    platform: iOS
+    sources:
+      - App
+      - Shared
+      - path: ../shared-data/elements.json
+        buildPhase: resources
+    dependencies:
+      - package: ElementLockCore
+      - target: ShieldConfiguration
+      - target: ShieldAction
+      - target: DeviceActivityMonitor
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(EL_BUNDLE_ID)
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    entitlements:
+      path: App/ElementLock.entitlements
+      properties:
+        com.apple.developer.family-controls: true
+        com.apple.security.application-groups: [$(EL_APP_GROUP)]
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: 원소잠금
+        CFBundleDevelopmentRegion: ko
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UILaunchScreen:
+          UIColorName: LaunchBackground
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        UISupportedInterfaceOrientations~ipad:
+          [UIInterfaceOrientationPortrait, UIInterfaceOrientationPortraitUpsideDown,
+           UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
+        ITSAppUsesNonExemptEncryption: false
+
+  ShieldConfiguration:
+    type: app-extension
+    platform: iOS
+    sources: [ShieldConfiguration, Shared]
+    dependencies:
+      - package: ElementLockCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(EL_BUNDLE_ID).ShieldConfiguration
+    entitlements:
+      path: ShieldConfiguration/ShieldConfiguration.entitlements
+      properties:
+        com.apple.developer.family-controls: true
+        com.apple.security.application-groups: [$(EL_APP_GROUP)]
+    info:
+      path: ShieldConfiguration/Info.plist
+      properties:
+        CFBundleDisplayName: 원소잠금 차단 화면
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.ManagedSettingsUI.shield-configuration-service
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShieldConfigurationExtension
+
+  ShieldAction:
+    type: app-extension
+    platform: iOS
+    sources: [ShieldAction, Shared]
+    dependencies:
+      - package: ElementLockCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(EL_BUNDLE_ID).ShieldAction
+    entitlements:
+      path: ShieldAction/ShieldAction.entitlements
+      properties:
+        com.apple.developer.family-controls: true
+        com.apple.security.application-groups: [$(EL_APP_GROUP)]
+    info:
+      path: ShieldAction/Info.plist
+      properties:
+        CFBundleDisplayName: 원소잠금 차단 동작
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.ManagedSettings.shield-action-service
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShieldActionExtension
+
+  DeviceActivityMonitor:
+    type: app-extension
+    platform: iOS
+    sources: [DeviceActivityMonitor, Shared]
+    dependencies:
+      - package: ElementLockCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(EL_BUNDLE_ID).DeviceActivityMonitor
+    entitlements:
+      path: DeviceActivityMonitor/DeviceActivityMonitor.entitlements
+      properties:
+        com.apple.developer.family-controls: true
+        com.apple.security.application-groups: [$(EL_APP_GROUP)]
+    info:
+      path: DeviceActivityMonitor/Info.plist
+      properties:
+        CFBundleDisplayName: 원소잠금 재차단 모니터
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.deviceactivity.monitor-extension
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).DeviceActivityMonitorExtension
+
+schemes:
+  ElementLock:
+    build:
+      targets:
+        ElementLock: all
+    run:
+      config: Debug
+    test:
+      config: Debug

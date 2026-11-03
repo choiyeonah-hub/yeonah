@@ -1,0 +1,165 @@
+/* 원소잠금 — 한국어 문구. 키는 코드에서 L("key")로 사용합니다. */
+
+"app.name" = "원소잠금";
+"tab.home" = "홈";
+"tab.table" = "나의 주기율표";
+"tab.settings" = "설정";
+
+"common.close" = "닫기";
+"common.done" = "확인";
+"common.next" = "다음";
+"common.retry" = "다시 시도";
+"common.save" = "저장";
+
+/* Onboarding */
+"onboarding.intro.title" = "폰을 열기 전에\n원소 하나";
+"onboarding.intro.1" = "유튜브·SNS·게임처럼 직접 고른 앱을 원소잠금이 제한해요.";
+"onboarding.intro.2" = "원소잠금에서 주기율표 문제 1개를 맞히면";
+"onboarding.intro.3" = "고른 앱 전체를 %d분 동안 쓸 수 있어요. 시간은 정답을 맞힌 순간부터 흘러요.";
+"onboarding.intro.4" = "시간이 끝나면 다시 제한돼요. 틀린 원소는 더 자주 복습해요.";
+"onboarding.intro.note" = "iPhone 잠금화면이나 Face ID를 대신하지 않아요. 언제든 설정에서 제한을 끌 수 있어요.";
+"onboarding.range.title" = "학습 범위";
+"onboarding.range.body" = "어떤 원소부터 익힐까요? 처음이라면 1~20번을 추천해요.";
+"onboarding.range.later" = "설정에서 원소를 하나씩 골라 범위를 바꿀 수 있어요.";
+"onboarding.permission.title" = "앱 제한 설정";
+"onboarding.permission.body" = "앱을 제한하려면 Apple의 스크린 타임 권한이 필요해요. 원소잠금은 고른 앱에 차단 화면을 띄우는 데에만 이 권한을 쓰고, 사용 기록이나 앱 이름을 기기 밖으로 보내지 않아요.";
+"onboarding.permission.step1" = "1. 스크린 타임 권한 허용";
+"onboarding.permission.step2" = "2. 제한할 앱 고르기";
+"onboarding.permission.request" = "스크린 타임 권한 허용하기";
+"onboarding.permission.pick" = "앱 고르기";
+"onboarding.permission.denied" = "권한이 거부됐어요. 설정 앱 > 스크린 타임에서 다시 허용할 수 있어요. 권한 없이도 자유 학습은 할 수 있어요.";
+"onboarding.permission.notifications" = "이 iOS 버전에서는 차단 화면에서 원소잠금을 바로 열 수 없어요. 차단 화면의 버튼을 누르면 알림이 오고, 알림을 누르면 원소잠금이 열려요. 다음 단계에서 알림을 허용해 주세요.";
+"onboarding.start" = "제한 시작하기";
+"onboarding.learnOnly" = "제한 없이 자유 학습만 하기";
+
+/* Home & status */
+"home.unlock" = "문제 풀고 앱 열기";
+"home.practice" = "자유 연습";
+"home.practice.note" = "자유 연습은 기록에 남지만 앱 사용 시간은 주지 않아요.";
+"home.stat.today" = "오늘 푼 문제";
+"home.stat.mastered" = "익힌 원소";
+"status.permissionMissing" = "권한 필요";
+"status.permissionMissing.detail" = "스크린 타임 권한을 허용해야 앱을 제한할 수 있어요. 자유 학습은 지금도 할 수 있어요.";
+"status.inactive" = "제한 꺼짐";
+"status.inactive.paused" = "제한이 일시정지돼 있어요. 설정에서 다시 켤 수 있어요.";
+"status.inactive.noApps" = "아직 제한할 앱을 고르지 않았어요. 설정에서 앱을 골라 주세요.";
+"status.active" = "제한 중";
+"status.active.detail" = "문제 1개를 맞히면 고른 앱을 %d분 동안 쓸 수 있어요.";
+"status.quiz" = "문제 푸는 중";
+"status.quiz.detail" = "정답을 맞히면 앱 사용 시간이 시작돼요.";
+"status.allowing" = "사용 허용 중";
+"status.allowing.detail" = "약 %d분 남았어요. 시간이 남아 있는 동안에는 문제를 더 풀 필요가 없어요. 종료 시점은 iOS가 처리해 몇십 초 늦을 수 있어요.";
+"status.expired" = "허용 시간 끝";
+"status.expired.detail" = "다시 제한하는 중이에요. 앱이 계속 열리면 원소잠금을 한 번 열어 주세요.";
+"status.error" = "확인이 필요해요";
+"status.error.revoked" = "스크린 타임 권한이 해제돼 앱을 제한할 수 없어요. 설정에서 권한을 다시 허용하거나 제한을 꺼 주세요.";
+"status.error.generic" = "제한 기능이 올바르게 동작하지 않을 수 있어요. 설정 > 진단을 확인해 주세요.";
+
+/* Quiz */
+"quiz.title.unlock" = "잠금 해제 문제";
+"quiz.title.practice" = "자유 연습";
+"quiz.place.prompt" = "%@ %@ 원소를 알맞은 칸에 놓으세요.";
+"quiz.place.instructions" = "타일을 칸으로 끌어 놓거나, 칸을 눌러 답하세요.";
+"quiz.fill.prompt" = "물음표 칸에 들어갈 원소를 고르세요.";
+"quiz.fill.position" = "물음표 칸: %@";
+"quiz.symbolToName.prompt" = "기호 %@의 이름은?";
+"quiz.nameToSymbol.prompt" = "%@의 원소 기호는?";
+"quiz.hint.button" = "힌트 보기";
+"quiz.hint.position" = "%@ · %@";
+"quiz.hint.nameStarts" = "이름이 '%@'(으)로 시작해요.";
+"quiz.hint.symbolStarts" = "기호가 %@(으)로 시작해요.";
+"quiz.wrong" = "아쉬워요. 다시 골라 보세요.";
+"quiz.correct.firstTry" = "정답! 한 번에 맞혔어요.";
+"quiz.correct.retry" = "정답! 다시 도전해서 맞혔어요.";
+"quiz.fact" = "%@(%@)는 %@에 있어요.";
+"quiz.next" = "다음 문제";
+
+"unlock.granted" = "고른 앱을 %d분 동안 쓸 수 있어요.";
+"unlock.granted.until" = "%@ 무렵 다시 제한돼요.";
+"unlock.reopenApp" = "제한됐던 앱을 홈 화면에서 다시 열어 주세요.";
+"unlock.failed" = "다시 제한할 일정을 등록하지 못해 제한을 풀지 않았어요.";
+"unlock.alreadyAllowing" = "이미 사용 허용 중이에요.";
+"unlock.notGranted" = "이 문제로는 사용 시간이 지급되지 않아요.";
+
+"error.schedule.unauthorized" = "스크린 타임 권한이 없어요. 권한을 다시 허용한 뒤 시도해 주세요.";
+"error.schedule.interval" = "iOS가 일정 시간을 받아들이지 않았어요. 잠시 후 다시 시도해 주세요.";
+"error.schedule.tooMany" = "등록된 일정이 너무 많아요. 앱을 다시 실행한 뒤 시도해 주세요.";
+"error.schedule.generic" = "일정 등록 오류: %@";
+"error.appGroup" = "앱 그룹 설정이 없어 차단 확장과 데이터를 공유할 수 없어요. (개발 설정 오류)";
+"error.learningUnreadable.title" = "학습 기록을 읽을 수 없어요";
+"error.learningUnreadable.body" = "저장된 기록이 손상됐어요. 기록은 지우기 전까지 그대로 보관돼요. 초기화하면 새로 시작해요.";
+"error.learningUnreadable.reset" = "기록 초기화";
+
+/* Positions & categories */
+"position.periodGroup" = "%d주기 %d족";
+"position.lanthanide" = "%d주기 · 란타넘족 줄";
+"position.actinide" = "%d주기 · 악티늄족 줄";
+"category.nonmetal" = "비금속";
+"category.noble-gas" = "비활성 기체";
+"category.alkali-metal" = "알칼리 금속";
+"category.alkaline-earth-metal" = "알칼리 토금속";
+"category.metalloid" = "준금속";
+"category.halogen" = "할로젠";
+"category.post-transition-metal" = "전이후 금속";
+"category.transition-metal" = "전이 금속";
+"category.lanthanide" = "란타넘족";
+"category.actinide" = "악티늄족";
+
+/* My table */
+"legend.new" = "처음";
+"legend.learning" = "학습 중";
+"legend.mastered" = "익힘";
+"legend.outOfScope" = "범위 밖";
+"review.title" = "지금 복습할 원소";
+"review.none" = "지금 복습할 원소가 없어요.";
+"detail.firstTryDays" = "한 번에 맞힌 날: %d일 / 익힘 기준 %d일";
+"detail.answers" = "잠금 해제 %d회 · 자유 연습 %d회";
+
+/* Scope */
+"scope.basic" = "기본: 1~20번";
+"scope.extended" = "확장: 1~36번";
+"scope.all" = "전체: 118개";
+"scope.basic.short" = "1~20";
+"scope.extended.short" = "1~36";
+"scope.all.short" = "전체";
+"scope.clear" = "모두 해제";
+"scope.count" = "%d개 선택됨";
+"scope.empty" = "학습할 원소를 1개 이상 골라야 문제를 시작할 수 있어요.";
+
+/* Settings */
+"settings.section.lock" = "앱 제한";
+"settings.lock" = "제한 사용";
+"settings.lock.footer" = "끄면 고른 앱의 제한과 예약된 재제한이 모두 풀려요.";
+"settings.apps" = "제한할 앱 고르기";
+"settings.apps.count" = "앱 %d개 · 카테고리 %d개 · 웹사이트 %d개";
+"settings.section.learning" = "학습";
+"settings.allowance" = "정답 1개당 사용 시간";
+"settings.minutes" = "%d분";
+"settings.scope" = "학습 범위";
+"settings.haptics" = "정답 햅틱";
+"settings.section.help" = "도움말";
+"settings.section.diagnostics" = "진단";
+"settings.diagnostics.empty" = "아직 기록이 없어요.";
+"settings.diagnostics.footer" = "제한·해제·재제한 동작 기록이에요. 앱 이름이나 사용 내용은 남기지 않아요.";
+
+"help.q1" = "차단된 앱에서 바로 문제를 풀 수 없나요?";
+"help.a1" = "iOS 차단 화면에는 Apple이 허용한 문구와 버튼만 넣을 수 있어요. 문제는 원소잠금 앱에서 풀어요. iOS 26.5 이상에서는 차단 화면 버튼으로 원소잠금을 바로 열 수 있고, 그 이전 버전에서는 알림을 누르거나 원소잠금을 직접 열어 주세요.";
+"help.q2" = "정답을 맞힌 뒤 원래 앱이 자동으로 열리나요?";
+"help.a2" = "아니요. iOS는 다른 앱을 대신 열어 주지 않아요. 홈 화면에서 그 앱을 다시 눌러 주세요.";
+"help.q3" = "시간이 끝났는데 앱이 계속 열려요.";
+"help.a3" = "재제한은 iOS의 스크린 타임 일정으로 처리돼 몇십 초 정도 늦을 수 있어요. 계속 열리면 원소잠금을 한 번 열면 바로 다시 제한돼요.";
+"help.q4" = "제한을 완전히 끄려면?";
+"help.a4" = "설정 > 제한 사용을 끄면 돼요. 원소잠금을 삭제하거나 설정 앱에서 스크린 타임 권한을 해제해도 제한이 풀려요.";
+"help.q5" = "언제 ‘익힘’이 되나요?";
+"help.a5" = "서로 다른 3일에 힌트 없이 한 번에 맞히면 익힘(★)으로 표시돼요. 틀리거나 힌트를 본 원소는 10분 뒤부터 다시 나와요.";
+
+/* Accessibility */
+"a11y.symbol" = "원소 기호 %@";
+"a11y.wrongChoice" = "틀린 답";
+"a11y.correctChoice" = "정답";
+"a11y.placeHere" = "두 번 탭하면 이 칸에 놓아요.";
+"a11y.dragTile" = "%@, %@ 타일. 알맞은 칸을 찾아 두 번 탭하세요.";
+"a11y.zoomIn" = "확대";
+"a11y.zoomOut" = "축소";
+"a11y.done" = "완료";
+"a11y.notDone" = "아직 안 함";

@@ -1,0 +1,6 @@
+"shield.title" = "원소잠금";
+"shield.subtitle" = "원소 문제 1개를 맞히면 선택한 앱을 %d분 동안 사용할 수 있어요.";
+"shield.subtitle.legacy" = "원소잠금 앱에서 문제 1개를 맞히면 %d분 동안 사용할 수 있어요. 아래 버튼을 누르면 알림이 오고, 알림을 누르면 원소잠금이 열려요.";
+"shield.primary" = "원소잠금에서 문제 풀기";
+"shield.primary.legacy" = "알림으로 원소잠금 열기";
+"shield.secondary" = "닫기";
