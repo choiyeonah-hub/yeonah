@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 원소잠금 — 한국어 문구 (기본 언어). 다른 언어는 values-xx/strings.xml 로 추가합니다. -->
+<resources>
+    <string name="app_name">원소잠금</string>
+    <string name="tab_home">홈</string>
+    <string name="tab_table">나의 주기율표</string>
+    <string name="tab_settings">설정</string>
+    <string name="common_close">닫기</string>
+    <string name="common_done">확인</string>
+    <string name="common_next">다음</string>
+    <string name="common_save">저장</string>
+
+    <!-- Accessibility service (shown in system Accessibility settings) -->
+    <string name="a11y_service_label">원소잠금 앱 제한</string>
+    <string name="a11y_service_summary">고른 앱이 열릴 때 원소 문제 화면을 띄워요.</string>
+    <string name="a11y_service_description">원소잠금은 이 서비스로 지금 열린 앱의 패키지 이름만 확인해, 사용자가 직접 고른 앱이 열리면 원소 문제 화면을 띄웁니다. 화면 내용, 입력한 글자, 메시지는 읽거나 저장하지 않으며, 어떤 정보도 기기 밖으로 보내지 않습니다. 이 앱은 장애인 지원 앱이 아닙니다. 언제든 이 화면에서 끌 수 있습니다.</string>
+
+    <!-- Prominent disclosure (Google Play AccessibilityService policy) -->
+    <string name="disclosure_title">접근성 권한 사용 안내</string>
+    <string name="disclosure_what">원소잠금은 Android 접근성 서비스 API를 사용해 \'지금 화면에 열린 앱의 패키지 이름\'(예: com.example.video)을 확인합니다.</string>
+    <string name="disclosure_use">이 정보는 사용자가 고른 앱이 열렸는지 판단해 원소 문제 화면을 띄우는 데에만 씁니다.</string>
+    <string name="disclosure_not">화면에 보이는 내용, 입력한 글자, 메시지, 비밀번호는 읽지 않고 저장하지도 않습니다. 앱이 사용자를 대신해 화면을 조작하지 않습니다.</string>
+    <string name="disclosure_share">패키지 이름을 포함한 어떤 정보도 저장·수집하거나 기기 밖으로 보내지 않습니다. 원소잠금에는 인터넷 권한이 없습니다.</string>
+    <string name="disclosure_off">전화, 긴급전화, 설정, 홈 화면은 제한하지 않습니다. 설정 &gt; 접근성에서 언제든 끌 수 있고, 끄면 앱 제한이 멈춥니다.</string>
+    <string name="disclosure_agree">동의하고 접근성 설정 열기</string>
+    <string name="disclosure_decline">동의하지 않음 (자유 학습만 하기)</string>
+
+    <!-- Block screen -->
+    <string name="block_title">원소잠금</string>
+    <string name="block_body">이 앱은 지금 제한 중이에요. 원소 문제 1개를 맞히면 고른 앱을 %1$d분 동안 쓸 수 있어요.</string>
+    <string name="block_phone_note">전화와 긴급전화는 제한되지 않아요.</string>
+    <string name="block_solve">원소 문제 풀기</string>
+    <string name="block_home">홈 화면으로</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_intro_title">폰을 열기 전에 원소 하나</string>
+    <string name="onboarding_intro_1">유튜브·SNS·게임처럼 직접 고른 앱을 원소잠금이 제한해요.</string>
+    <string name="onboarding_intro_2">원소잠금에서 주기율표 문제 1개를 맞히면</string>
+    <string name="onboarding_intro_3">고른 앱 전체를 %1$d분 동안 쓸 수 있어요. 시간은 정답을 맞힌 순간부터 흘러요.</string>
+    <string name="onboarding_intro_4">시간이 끝나면 다시 제한돼요. 틀린 원소는 더 자주 복습해요.</string>
+    <string name="onboarding_intro_note">휴대폰 잠금화면이나 PIN·지문 인증을 대신하지 않아요. 언제든 설정에서 제한을 끌 수 있어요.</string>
+    <string name="onboarding_range_title">학습 범위</string>
+    <string name="onboarding_range_body">어떤 원소부터 익힐까요? 처음이라면 1~20번을 추천해요.</string>
+    <string name="onboarding_range_later">설정에서 원소를 하나씩 골라 범위를 바꿀 수 있어요.</string>
+    <string name="onboarding_permission_title">앱 제한 설정</string>
+    <string name="onboarding_permission_body">고른 앱이 열릴 때 문제 화면을 띄우려면 접근성 권한이 필요해요. 다음 화면에서 무엇을 확인하고 무엇을 하지 않는지 먼저 알려 드릴게요.</string>
+    <string name="onboarding_permission_step1">1. 접근성 권한 켜기</string>
+    <string name="onboarding_permission_step2">2. 제한할 앱 고르기</string>
+    <string name="onboarding_permission_request">접근성 권한 안내 보기</string>
+    <string name="onboarding_permission_pick">앱 고르기</string>
+    <string name="onboarding_battery_note">일부 제조사 기기는 배터리 절약 기능이 접근성 서비스를 멈출 수 있어요. 홈 화면에 \'확인이 필요해요\'가 보이면 배터리 설정에서 원소잠금을 \'제한 없음\'으로 바꿔 주세요.</string>
+    <string name="onboarding_start">제한 시작하기</string>
+    <string name="onboarding_learn_only">제한 없이 자유 학습만 하기</string>
+
+    <!-- Home & status -->
+    <string name="home_unlock">문제 풀고 앱 열기</string>
+    <string name="home_practice">자유 연습</string>
+    <string name="home_practice_note">자유 연습은 기록에 남지만 앱 사용 시간은 주지 않아요.</string>
+    <string name="home_stat_today">오늘 푼 문제</string>
+    <string name="home_stat_mastered">익힌 원소</string>
+    <string name="status_permission_missing">권한 필요</string>
+    <string name="status_permission_missing_detail">접근성 권한을 켜야 앱을 제한할 수 있어요. 자유 학습은 지금도 할 수 있어요.</string>
+    <string name="status_inactive">제한 꺼짐</string>
+    <string name="status_inactive_paused">제한이 일시정지돼 있어요. 설정에서 다시 켤 수 있어요.</string>
+    <string name="status_inactive_no_apps">아직 제한할 앱을 고르지 않았어요. 설정에서 앱을 골라 주세요.</string>
+    <string name="status_active">제한 중</string>
+    <string name="status_active_detail">문제 1개를 맞히면 고른 앱을 %1$d분 동안 쓸 수 있어요.</string>
+    <string name="status_quiz">문제 푸는 중</string>
+    <string name="status_quiz_detail">정답을 맞히면 앱 사용 시간이 시작돼요.</string>
+    <string name="status_allowing">사용 허용 중</string>
+    <string name="status_allowing_detail">약 %1$d분 남았어요. 시간이 남아 있는 동안에는 문제를 더 풀 필요가 없어요.</string>
+    <string name="status_expired">허용 시간 끝</string>
+    <string name="status_expired_detail">다시 제한하는 중이에요.</string>
+    <string name="status_error">확인이 필요해요</string>
+    <string name="status_error_revoked">접근성 권한이 꺼져 앱을 제한할 수 없어요. 권한을 다시 켜거나 설정에서 제한을 꺼 주세요.</string>
+    <string name="status_error_not_running">접근성 권한은 켜져 있지만 서비스가 실행 중이 아니에요. 앱을 강제 종료했거나 배터리 절약 기능이 멈췄을 수 있어요. 접근성 설정에서 원소잠금을 껐다 켜 주세요.</string>
+
+    <!-- Quiz -->
+    <string name="quiz_title_unlock">잠금 해제 문제</string>
+    <string name="quiz_title_practice">자유 연습</string>
+    <string name="quiz_place_prompt">%1$s %2$s 원소를 알맞은 칸에 놓으세요.</string>
+    <string name="quiz_place_instructions">타일을 칸으로 끌어 놓거나, 칸을 눌러 답하세요. −/+ 로 확대해요.</string>
+    <string name="quiz_fill_prompt">물음표 칸에 들어갈 원소를 고르세요.</string>
+    <string name="quiz_fill_position">물음표 칸: %1$s</string>
+    <string name="quiz_symbol_to_name_prompt">기호 %1$s의 이름은?</string>
+    <string name="quiz_name_to_symbol_prompt">%1$s의 원소 기호는?</string>
+    <string name="quiz_hint_button">힌트 보기</string>
+    <string name="quiz_hint_name_starts">이름이 \'%1$s\'(으)로 시작해요.</string>
+    <string name="quiz_hint_symbol_starts">기호가 %1$s(으)로 시작해요.</string>
+    <string name="quiz_wrong">아쉬워요. 다시 골라 보세요.</string>
+    <string name="quiz_correct_first_try">정답! 한 번에 맞혔어요.</string>
+    <string name="quiz_correct_retry">정답! 다시 도전해서 맞혔어요.</string>
+    <string name="quiz_fact">%1$s(%2$s)는 %3$s에 있어요.</string>
+    <string name="quiz_next">다음 문제</string>
+    <string name="unlock_granted">고른 앱을 %1$d분 동안 쓸 수 있어요.</string>
+    <string name="unlock_reopen_app">제한됐던 앱을 홈 화면에서 다시 열어 주세요.</string>
+    <string name="unlock_already_allowing">이미 사용 허용 중이에요.</string>
+    <string name="unlock_not_granted">이 문제로는 사용 시간이 지급되지 않아요.</string>
+
+    <string name="position_period_group">%1$d주기 %2$d족</string>
+    <string name="position_lanthanide">%1$d주기 · 란타넘족 줄</string>
+    <string name="position_actinide">%1$d주기 · 악티늄족 줄</string>
+    <string name="category_nonmetal">비금속</string>
+    <string name="category_noble_gas">비활성 기체</string>
+    <string name="category_alkali_metal">알칼리 금속</string>
+    <string name="category_alkaline_earth_metal">알칼리 토금속</string>
+    <string name="category_metalloid">준금속</string>
+    <string name="category_halogen">할로젠</string>
+    <string name="category_post_transition_metal">전이후 금속</string>
+    <string name="category_transition_metal">전이 금속</string>
+    <string name="category_lanthanide">란타넘족</string>
+    <string name="category_actinide">악티늄족</string>
+
+    <!-- My table -->
+    <string name="legend_new">처음</string>
+    <string name="legend_learning">학습 중</string>
+    <string name="legend_mastered">익힘</string>
+    <string name="legend_out_of_scope">범위 밖</string>
+    <string name="review_title">지금 복습할 원소</string>
+    <string name="review_none">지금 복습할 원소가 없어요.</string>
+    <string name="detail_first_try_days">한 번에 맞힌 날: %1$d일 / 익힘 기준 %2$d일</string>
+    <string name="detail_answers">잠금 해제 %1$d회 · 자유 연습 %2$d회</string>
+
+    <!-- Scope -->
+    <string name="scope_basic">기본: 1~20번</string>
+    <string name="scope_extended">확장: 1~36번</string>
+    <string name="scope_all">전체: 118개</string>
+    <string name="scope_basic_short">1~20</string>
+    <string name="scope_extended_short">1~36</string>
+    <string name="scope_all_short">전체</string>
+    <string name="scope_clear">모두 해제</string>
+    <string name="scope_count">%1$d개 선택됨</string>
+    <string name="scope_empty">학습할 원소를 1개 이상 골라야 문제를 시작할 수 있어요.</string>
+
+    <!-- Settings -->
+    <string name="settings_section_lock">앱 제한</string>
+    <string name="settings_lock">제한 사용</string>
+    <string name="settings_lock_footer">끄면 고른 앱의 제한과 남은 허용 시간이 모두 풀려요.</string>
+    <string name="settings_a11y_on">접근성 권한: 켜짐</string>
+    <string name="settings_a11y_off">접근성 권한: 꺼짐</string>
+    <string name="settings_open_a11y">접근성 설정 열기</string>
+    <string name="settings_apps">제한할 앱 고르기</string>
+    <string name="settings_apps_count">고른 앱 %1$d개</string>
+    <string name="settings_section_learning">학습</string>
+    <string name="settings_allowance">정답 1개당 사용 시간</string>
+    <string name="settings_minutes">%1$d분</string>
+    <string name="settings_scope">학습 범위</string>
+    <string name="settings_scope_with_count">학습 범위 (%1$d개)</string>
+    <string name="settings_haptics">정답 햅틱</string>
+    <string name="settings_section_help">도움말</string>
+    <string name="picker_note">전화, 설정, 홈 화면, 키보드처럼 기기 사용에 꼭 필요한 앱은 목록에 없어요.</string>
+    <string name="picker_search">앱 이름 검색</string>
+    <string name="picker_save">%1$d개 저장</string>
+    <string name="error_learning_recovered">저장된 학습 기록을 읽을 수 없어 새로 시작했어요. 이전 기록은 기기 안에 따로 보관돼 있어요.</string>
+
+    <string name="help_q1">정답을 맞힌 뒤 원래 앱이 자동으로 열리나요?</string>
+    <string name="help_a1">아니요. 제한 화면이 닫히면 홈 화면이나 최근 앱에서 그 앱을 다시 열어 주세요.</string>
+    <string name="help_q2">시간이 끝나면 어떻게 되나요?</string>
+    <string name="help_a2">시간은 정답을 맞힌 순간부터 흘러요. 끝나면 그 앱을 쓰는 중이어도 제한 화면이 다시 떠요. 기기 절전 상태에 따라 몇 초 늦을 수 있어요.</string>
+    <string name="help_q3">제한이 동작하지 않아요.</string>
+    <string name="help_a3">홈의 상태를 확인하세요. 접근성 권한이 꺼졌거나, 앱을 강제 종료했거나, 배터리 절약 기능이 서비스를 멈춘 경우 제한이 동작하지 않아요. 접근성 설정에서 원소잠금을 다시 켜 주세요.</string>
+    <string name="help_q4">제한을 완전히 끄려면?</string>
+    <string name="help_a4">설정 &gt; 제한 사용을 끄거나, 접근성 설정에서 원소잠금을 끄면 돼요. 앱을 삭제해도 제한이 풀려요.</string>
+    <string name="help_q5">언제 \'익힘\'이 되나요?</string>
+    <string name="help_a5">서로 다른 3일에 힌트 없이 한 번에 맞히면 익힘(★)으로 표시돼요. 틀리거나 힌트를 본 원소는 10분 뒤부터 다시 나와요.</string>
+
+    <!-- Accessibility labels -->
+    <string name="a11y_wrong_choice">틀린 답</string>
+    <string name="a11y_correct_choice">정답</string>
+    <string name="a11y_place_here">두 번 탭하면 이 칸에 놓아요.</string>
+    <string name="a11y_selected">선택됨</string>
+    <string name="a11y_not_selected">선택 안 됨</string>
+</resources>
