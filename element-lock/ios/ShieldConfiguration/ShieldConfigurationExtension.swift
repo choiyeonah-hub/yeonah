@@ -16,8 +16,7 @@ final class ShieldConfigurationExtension: ShieldConfigurationDataSource {
 
     private func make() -> ShieldConfiguration {
         let minutes = SharedStore().learning?.settings.allowance.rawValue ?? 15
-        let opensApp: Bool
-        if #available(iOS 26.5, *) { opensApp = true } else { opensApp = false }
+        let opensApp = Capabilities.shieldCanOpenApp
         let subtitle = String(format: NSLocalizedString(opensApp ? "shield.subtitle" : "shield.subtitle.legacy", comment: ""), minutes)
         let primary = NSLocalizedString(opensApp ? "shield.primary" : "shield.primary.legacy", comment: "")
         let navy = UIColor(red: 0.04, green: 0.09, blue: 0.19, alpha: 1)

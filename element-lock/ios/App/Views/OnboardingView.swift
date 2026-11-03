@@ -70,7 +70,7 @@ struct OnboardingView: View {
                 .buttonStyle(SecondaryButtonStyle())
                 .disabled(!model.isAuthorized)
             }
-            if #unavailable(iOS 26.5) {
+            if !Capabilities.shieldCanOpenApp {
                 Text(L("onboarding.permission.notifications")).font(.footnote).foregroundStyle(Theme.secondaryText)
             }
             Button(L("onboarding.start")) { finish(enableLock: true) }
@@ -83,7 +83,7 @@ struct OnboardingView: View {
 
     private func finish(enableLock: Bool) {
         if enableLock {
-            if #unavailable(iOS 26.5) {
+            if !Capabilities.shieldCanOpenApp {
                 // Needed only for the shield's "open 원소잠금" reminder on older iOS. Optional.
                 UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
             }

@@ -6,7 +6,7 @@ options:
   deploymentTarget:
     iOS: "16.0"
   developmentLanguage: ko
-  xcodeVersion: "26.5"
+  xcodeVersion: "26.0"
 settings:
   base:
     DEVELOPMENT_TEAM: ""
@@ -17,6 +17,21 @@ settings:
     CURRENT_PROJECT_VERSION: "1"
     CODE_SIGN_STYLE: Automatic
     TARGETED_DEVICE_FAMILY: "1,2"
+    # ShieldActionResponse.openParentalControlsApp exists only in the iOS 26.5+ SDK (Xcode 26.5+).
+    # With an older SDK the flag is absent and the app falls back to the notification route
+    # (shield button -> local notification -> tap opens 원소잠금) on every iOS version.
+    "SWIFT_ACTIVE_COMPILATION_CONDITIONS[sdk=iphoneos26.5*]": $(inherited) EL_SDK_OPEN_PARENT_APP
+    "SWIFT_ACTIVE_COMPILATION_CONDITIONS[sdk=iphonesimulator26.5*]": $(inherited) EL_SDK_OPEN_PARENT_APP
+    "SWIFT_ACTIVE_COMPILATION_CONDITIONS[sdk=iphoneos26.6*]": $(inherited) EL_SDK_OPEN_PARENT_APP
+    "SWIFT_ACTIVE_COMPILATION_CONDITIONS[sdk=iphonesimulator26.6*]": $(inherited) EL_SDK_OPEN_PARENT_APP
+    "SWIFT_ACTIVE_COMPILATION_CONDITIONS[sdk=iphoneos26.7*]": $(inherited) EL_SDK_OPEN_PARENT_APP
+    "SWIFT_ACTIVE_COMPILATION_CONDITIONS[sdk=iphonesimulator26.7*]": $(inherited) EL_SDK_OPEN_PARENT_APP
+    "SWIFT_ACTIVE_COMPILATION_CONDITIONS[sdk=iphoneos26.8*]": $(inherited) EL_SDK_OPEN_PARENT_APP
+    "SWIFT_ACTIVE_COMPILATION_CONDITIONS[sdk=iphonesimulator26.8*]": $(inherited) EL_SDK_OPEN_PARENT_APP
+    "SWIFT_ACTIVE_COMPILATION_CONDITIONS[sdk=iphoneos26.9*]": $(inherited) EL_SDK_OPEN_PARENT_APP
+    "SWIFT_ACTIVE_COMPILATION_CONDITIONS[sdk=iphonesimulator26.9*]": $(inherited) EL_SDK_OPEN_PARENT_APP
+    "SWIFT_ACTIVE_COMPILATION_CONDITIONS[sdk=iphoneos27*]": $(inherited) EL_SDK_OPEN_PARENT_APP
+    "SWIFT_ACTIVE_COMPILATION_CONDITIONS[sdk=iphonesimulator27*]": $(inherited) EL_SDK_OPEN_PARENT_APP
 packages:
   ElementLockCore:
     path: ElementLockCore
