@@ -49,10 +49,25 @@ jobs:
           ls "$ANDROID_HOME/platforms" "$ANDROID_HOME/build-tools" || true
       - name: Learning-logic tests (:core)
         working-directory: ${{ env.EL }}/android
-        run: ./gradlew :core:test --stacktrace
-      - name: Build debug APK and run lint
+        run: |
+          set -o pipefail
+          ./gradlew :core:test 2>&1 | tee gradle-core.log
+      - name: Build debug APK
         working-directory: ${{ env.EL }}/android
-        run: ./gradlew :app:assembleDebug :app:lintDebug --stacktrace
+        run: |
+          set -o pipefail
+          ./gradlew :app:assembleDebug 2>&1 | tee gradle-assemble.log
+      - name: Lint
+        working-directory: ${{ env.EL }}/android
+        run: |
+          set -o pipefail
+          ./gradlew :app:lintDebug 2>&1 | tee gradle-lint.log
+      - name: Failure summary
+        if: failure()
+        working-directory: ${{ env.EL }}/android
+        run: |
+          for f in gradle-*.log; do echo "===== $f"; grep -E "^e: |^w: .*(error|Error)|What went wrong|^> |Error:|error:|FAILED" -A2 "$f" | grep -vE "^\s+at " | head -80; done
+          find . -name "lint-results-*.txt" -exec cat {} \; 2>/dev/null | head -150
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
@@ -67,6 +82,7 @@ jobs:
           path: |
             ${{ env.EL }}/android/core/build/reports
             ${{ env.EL }}/android/app/build/reports
+            ${{ env.EL }}/android/gradle-*.log
           if-no-files-found: ignore
 
   ios:

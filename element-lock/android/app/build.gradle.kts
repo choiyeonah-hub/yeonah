@@ -33,6 +33,11 @@ android {
 
     buildFeatures { compose = true }
 
+    lint {
+        textReport = true
+        checkReleaseBuilds = false
+    }
+
     // Ship the same element data file the iOS app and the tests use.
     sourceSets["main"].assets.srcDir(rootProject.file("../shared-data").also { require(it.isDirectory) })
     androidResources { ignoreAssetsPattern = "!tools:!*.md" }
