@@ -195,9 +195,10 @@ window.SJ = window.SJ || {};
 
   var RECORD_KEY = "sperm-journey-best-v1";
 
-  SJ.rules.loadRecord = function () {
+  // 2D와 3D는 난이도가 달라 기록을 따로 센다. key를 생략하면 2D 기록이다.
+  SJ.rules.loadRecord = function (key) {
     try {
-      var raw = window.localStorage.getItem(RECORD_KEY);
+      var raw = window.localStorage.getItem(key || RECORD_KEY);
       if (!raw) return null;
       var parsed = JSON.parse(raw);
       if (!parsed || typeof parsed.seconds !== "number") return null;
@@ -207,15 +208,15 @@ window.SJ = window.SJ || {};
     }
   };
 
-  SJ.rules.saveRecord = function (record) {
-    var best = SJ.rules.loadRecord();
+  SJ.rules.saveRecord = function (record, key) {
+    var best = SJ.rules.loadRecord(key);
     var better =
       !best ||
       record.energy > best.energy ||
       (record.energy === best.energy && record.seconds < best.seconds);
     var next = better ? record : best;
     try {
-      window.localStorage.setItem(RECORD_KEY, JSON.stringify(next));
+      window.localStorage.setItem(key || RECORD_KEY, JSON.stringify(next));
     } catch (err) {
       // 저장이 막혀 있어도(사생활 보호 모드 등) 게임 진행에는 지장이 없다.
     }

@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>정자의 여행 3D — 난자를 찾아서</title>
+    <meta name="description" content="블렌더로 만든 3D 에셋으로 통로를 헤엄쳐 난자까지 가는 가족용 미니게임." />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>" />
+    <link rel="stylesheet" href="../styles.css" />
+    <link rel="stylesheet" href="./styles-3d.css" />
+  </head>
+  <body>
+    <main class="wrap">
+      <header class="head">
+        <div>
+          <h1>정자의 여행 <span class="badge">3D</span></h1>
+          <p class="sub">블렌더로 만든 3D 에셋 · 통로를 직접 헤엄쳐 난자까지</p>
+        </div>
+        <p class="sub"><a href="../index.html">2D 버전으로</a></p>
+      </header>
+
+      <div class="stage stage-3d">
+        <canvas id="scene"></canvas>
+
+        <div class="hud">
+          <div class="hud-row">
+            <div class="bar"><div id="bar-fill"></div></div>
+            <span id="pct">0%</span>
+          </div>
+          <div class="hud-row right">
+            <span id="hearts">❤️❤️❤️</span>
+            <span id="energy">⚡ 0</span>
+          </div>
+        </div>
+        <div id="banner" class="banner" hidden></div>
+
+        <div id="overlay" class="overlay">
+          <div class="card">
+            <div id="overlay-body"></div>
+            <button id="start-btn" type="button" class="btn">출발하기</button>
+            <p class="dim tiny">스페이스바 또는 화면 터치로도 시작해요.</p>
+          </div>
+        </div>
+      </div>
+
+      <section class="panel">
+        <h2>이 버전의 3D는 이렇게 만들었습니다</h2>
+        <ul>
+          <li>
+            <strong>에셋</strong> · 정자·백혈구·산성 방울·에너지·난자·점액 고리를 블렌더 파이썬
+            스크립트(<code>tools/make_assets.py</code>)로 생성해 glTF(.glb)로 내보냅니다. 손으로
+            만든 바이너리가 아니라 스크립트가 원본이라, 숫자만 고쳐 다시 돌리면 모양이 바뀝니다.
+          </li>
+          <li>
+            <strong>애니메이션</strong> · 정자 꼬리에 뼈대 8개를 심고 파동을 프레임마다 구워
+            넣었습니다. 재생 속도는 게임에서 조절해, 에너지를 먹으면 꼬리가 더 빨리 움직입니다.
+          </li>
+          <li><strong>렌더링</strong> · three.js(로컬에 포함) + WebGL. 빌드 도구는 쓰지 않습니다.</li>
+        </ul>
+        <p class="dim tiny">
+          조작: 마우스·손가락으로 상하좌우 / 방향키 · 3D 버전은 <code>file://</code>로 열면
+          브라우저 보안 정책에 막히므로 로컬 서버(<code>python3 -m http.server</code>)로 여세요.
+        </p>
+      </section>
+    </main>
+
+    <!-- 구간 이름과 생명 상식은 2D판과 같은 파일을 그대로 읽는다. -->
+    <script src="../js/rules.js"></script>
+    <script type="importmap">
+      { "imports": { "three": "./vendor/three.module.js" } }
+    </script>
+    <script type="module" src="./js/game3d.js"></script>
+  </body>
+</html>

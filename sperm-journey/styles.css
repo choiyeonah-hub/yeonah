@@ -188,3 +188,7 @@ canvas {
     gap: 2px;
   }
 }
+
+.head a {
+  color: var(--accent);
+}
