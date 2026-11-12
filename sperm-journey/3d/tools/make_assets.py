@@ -302,6 +302,26 @@ def build_ring():
     export("ring")
 
 
+def write_bundle():
+    """모든 .glb를 base64로 묶어 하나의 JSON으로 만든다.
+
+    .glb 확장자를 서빙하지 않는 정적 호스팅이 있어서, 게임은 이 번들 하나만 읽는다.
+    요청도 여섯 번에서 한 번으로 준다.
+    """
+    import base64
+    import json
+
+    bundle = {}
+    for name in ("sperm", "cell", "acid", "energy", "egg", "ring"):
+        path = os.path.normpath(os.path.join(OUT_DIR, name + ".glb"))
+        with open(path, "rb") as f:
+            bundle[name] = base64.b64encode(f.read()).decode("ascii")
+    out = os.path.normpath(os.path.join(OUT_DIR, "models.json"))
+    with open(out, "w") as f:
+        json.dump(bundle, f)
+    print("wrote", out, os.path.getsize(out), "bytes")
+
+
 def main():
     build_sperm()
     build_cell()
@@ -309,6 +329,7 @@ def main():
     build_energy()
     build_egg()
     build_ring()
+    write_bundle()
     print("done")
 
 

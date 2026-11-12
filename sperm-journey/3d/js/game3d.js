@@ -85,10 +85,27 @@ const dust = (() => {
 const loader = new GLTFLoader();
 const ASSETS = ["sperm", "cell", "acid", "energy", "egg", "ring"];
 
-function load(name) {
-  return new Promise((resolve, reject) =>
-    loader.load(`./assets/${name}.glb`, resolve, undefined, reject),
+/**
+ * 모형은 assets/models.json 번들 하나로 읽는다. .glb 확장자를 서빙하지 않는 정적 호스팅이
+ * 있어서다. 번들은 tools/make_assets.py 가 .glb와 함께 만든다.
+ */
+async function loadAssets() {
+  const res = await fetch("./assets/models.json");
+  if (!res.ok) throw new Error(`모형 번들을 읽지 못했습니다 (HTTP ${res.status})`);
+  const bundle = await res.json();
+
+  const parsed = await Promise.all(
+    ASSETS.map(
+      (name) =>
+        new Promise((resolve, reject) => {
+          const binary = atob(bundle[name]);
+          const bytes = new Uint8Array(binary.length);
+          for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+          loader.parse(bytes.buffer, "", resolve, reject);
+        }),
+    ),
   );
+  return Object.fromEntries(ASSETS.map((name, i) => [name, parsed[i]]));
 }
 
 /* -------------------------------- 게임 상태 -------------------------------- */
@@ -444,8 +461,7 @@ function frame(ts) {
 /* --------------------------------- 시작 --------------------------------- */
 
 async function boot() {
-  const loaded = await Promise.all(ASSETS.map(load));
-  assets = Object.fromEntries(ASSETS.map((name, i) => [name, loaded[i]]));
+  assets = await loadAssets();
 
   scene.add(buildTunnelMesh(STAGE_COLORS));
 
