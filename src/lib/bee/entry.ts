@@ -2,4 +2,5 @@
 import { mount } from "./standalone";
 
 const el = document.getElementById("app");
-if (el) mount(el);
+// 3D 번들과 모델은 이 HTML 과 같은 폴더에 놓인다.
+if (el) mount(el, { wedding3dBase: "./" });

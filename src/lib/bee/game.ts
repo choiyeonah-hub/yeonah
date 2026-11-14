@@ -391,6 +391,8 @@ export class BeeGame {
   private particles: Particle[] = [];
   private drones: Drone[] = [];
   private weddingTime = 0;
+  /** 엔딩으로 넘어가는 시점은 실제 시계로 잰다. 아래 updateWedding 의 주석 참고. */
+  private weddingStartedAt = 0;
   private climateNoted = false;
 
   private camX = 0;
@@ -1171,6 +1173,7 @@ export class BeeGame {
   private beginWedding() {
     this.status = "wedding";
     this.weddingTime = 0;
+    this.weddingStartedAt = performance.now();
     this.audio.startFlight();
     this.say("수벌들이 몰려온다 — 혼인비행이다!", 5);
     this.drones = [];
@@ -1190,6 +1193,11 @@ export class BeeGame {
   private updateWedding(dt: number) {
     this.weddingTime += dt;
     const t = this.weddingTime;
+    // 게임 시간은 프레임이 느려지면 같이 느려진다(dt 를 0.1 로 자르고 한 프레임에
+    // 최대 5 스텝만 돌린다). 3D 혼인비행이 켜지면 그 차이가 커져서, 게임 시간으로
+    // 재면 11 초 엔딩이 수십 초가 된다. 연출은 게임 시간으로 두고 넘어가는 시점만
+    // 실제 시계로 잰다.
+    const wall = (performance.now() - this.weddingStartedAt) / 1000;
     for (const d of this.drones) {
       const spin = t * 1.15 + d.angle;
       const px = this.cx + Math.cos(spin) * d.radius;
@@ -1214,7 +1222,7 @@ export class BeeGame {
         });
       }
     }
-    if (this.status === "wedding" && t > 11) {
+    if (this.status === "wedding" && wall > 11) {
       this.status = "ending";
       this.pendingFact = this.region.fact;
       this.factTimer = 9;
