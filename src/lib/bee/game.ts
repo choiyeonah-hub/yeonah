@@ -1175,6 +1175,16 @@ export class BeeGame {
     }
   }
 
+  /**
+   * 시작 화면에서 혼인비행만 바로 보여 준다.
+   * 3D 연출이 마지막 단계에만 있어서, 끝까지 가 본 사람이 아니면 그런 게 있는 줄도 모른다.
+   */
+  previewWedding() {
+    this.stage = STAGES.length - 1;
+    if (this.cy > TILE) this.box.y = TILE - this.box.h / 2;
+    this.beginWedding();
+  }
+
   private beginWedding() {
     this.status = "wedding";
     this.weddingTime = 0;

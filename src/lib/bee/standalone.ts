@@ -125,6 +125,7 @@ export function mount(root: HTMLElement, opts: MountOptions = {}): () => void {
       </p>
       <div class="kingdoms" id="kingdoms"></div>
       <p class="hint">방향키로 비행 · Space 부스터 · 몸으로 부딪히면 일이 된다 · 한 왕국에 약 5분</p>
+      <button id="peekBtn" class="peek">혼인비행 미리보기 — 3D 엔딩만 바로 보기</button>
     </div>
 
     <div id="card" class="overlay sheet hidden">
@@ -163,6 +164,8 @@ export function mount(root: HTMLElement, opts: MountOptions = {}): () => void {
   });
 
   let started = false;
+  // 미리보기로 본 엔딩은 왕국을 열어 주지 않는다. 그건 끝까지 간 사람의 몫이다.
+  let previewing = false;
   let muted = false;
 
   // ── 혼인비행 3D (지연 로딩, 실패하면 2D 혼인비행이 그대로 보인다) ───────────
@@ -297,6 +300,7 @@ export function mount(root: HTMLElement, opts: MountOptions = {}): () => void {
   }
 
   function startRegion(r: Region) {
+    previewing = false;
     game.clearInput();
     game.reset(Math.floor(Math.random() * 1e9), r.id);
     started = true;
@@ -375,12 +379,21 @@ export function mount(root: HTMLElement, opts: MountOptions = {}): () => void {
   });
   $("#fact").addEventListener("click", () => game.dismissFact());
   $("#againBtn").addEventListener("click", () => {
+    previewing = false;
     game.clearInput();
     game.reset();
   });
+  $("#peekBtn").addEventListener("click", () => {
+    previewing = true;
+    game.clearInput();
+    game.reset(Math.floor(Math.random() * 1e9), REGIONS[0].id);
+    started = true;
+    $("#intro").classList.add("hidden");
+    game.previewWedding();
+  });
   $("#swarmBtn").addEventListener("click", () => {
     const next = game.swarm();
-    if (!next) return;
+    if (!next || previewing) return;
     if (!unlocked.includes(next.id)) {
       unlocked = [...unlocked, next.id];
       saveUnlocked(unlocked);

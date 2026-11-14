@@ -80,6 +80,13 @@ export const STYLES = String.raw`
     margin-left: 8px; letter-spacing: .12em;
   }
   .task { margin: 1px 0 0; font-size: 12px; color: var(--muted); }
+  .peek {
+    display: block; margin: 10px auto 0; padding: 7px 14px;
+    font: inherit; font-size: 12px; color: #ffd75e; cursor: pointer;
+    background: rgba(255,215,94,0.08); border: 1px solid rgba(255,215,94,0.45);
+    border-radius: 999px;
+  }
+  .peek:hover { background: rgba(255,215,94,0.18); }
   .task .how {
     display: block; margin-top: 2px; font-style: normal;
     font-size: 11px; color: #c8a85f; opacity: 0.85;
