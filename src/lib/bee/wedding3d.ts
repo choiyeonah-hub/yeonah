@@ -34,6 +34,8 @@ import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
+// 모델은 이 번들에 심는다. 따로 두면 호스트마다 경로를 맞춰야 하고, 그 경로가 틀리면 조용히 실패한다.
+import BEE_GLB from "../../../assets/bee2.glb";
 
 export type Wedding3DHandle = {
   resize(w: number, h: number): void;
@@ -42,7 +44,6 @@ export type Wedding3DHandle = {
 
 export type Wedding3DOptions = {
   canvas: HTMLCanvasElement;
-  glbUrl: string;
   /** 지역의 하늘·능선·잔디 색을 그대로 받아 2D 와 색감을 맞춘다 */
   sky: [string, string];
   hills: [string, string];
@@ -129,7 +130,7 @@ function disposeScene(scene: Scene) {
 }
 
 export async function mountWedding3D(o: Wedding3DOptions): Promise<Wedding3DHandle> {
-  const gltf: GLTF = await new GLTFLoader().loadAsync(o.glbUrl);
+  const gltf: GLTF = await new GLTFLoader().loadAsync(BEE_GLB);
 
   const renderer = new WebGLRenderer({ canvas: o.canvas, antialias: true });
   renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));

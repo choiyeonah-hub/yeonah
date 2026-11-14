@@ -1,6 +1,6 @@
 // src/lib/bee 를 단일 HTML 한 장으로 묶는다 (설치·서버 없이 링크만으로 플레이).
 import { build } from "esbuild";
-import { copyFile, mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 
 const out = process.argv[2] ?? "dist/manuka.html";
@@ -30,6 +30,7 @@ const three = await build({
   format: "iife",
   globalName: "__beeWedding3D",
   target: ["es2019"],
+  loader: { ".glb": "dataurl" },
   write: false,
 });
 const js3d = three.outputFiles[0].text;
@@ -38,9 +39,6 @@ const sizes = [`${out} — ${(html.length / 1024).toFixed(0)}KB`];
 for (const dir of [outDir, resolve("public")]) {
   await mkdir(dir, { recursive: true });
   await writeFile(resolve(dir, "wedding3d.js"), js3d, "utf8");
-  await copyFile(resolve("assets/bee2.glb"), resolve(dir, "bee2.glb"));
 }
-for (const f of ["wedding3d.js", "bee2.glb"]) {
-  sizes.push(`${f} — ${((await stat(resolve(outDir, f))).size / 1024).toFixed(0)}KB`);
-}
+sizes.push(`wedding3d.js — ${((await stat(resolve(outDir, "wedding3d.js"))).size / 1024).toFixed(0)}KB`);
 console.log(sizes.join("\n"));

@@ -15,4 +15,3 @@ next-env.d.ts
 tsconfig.tsbuildinfo
 dist/
 public/wedding3d.js
-public/bee2.glb

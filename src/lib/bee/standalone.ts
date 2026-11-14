@@ -185,7 +185,6 @@ export function mount(root: HTMLElement, opts: MountOptions = {}): () => void {
       .then((mountWedding3D) =>
         mountWedding3D({
           canvas: cv3d,
-          glbUrl: `${base}bee2.glb`,
           sky: r.sky,
           hills: r.hills,
           grass: r.grass,
