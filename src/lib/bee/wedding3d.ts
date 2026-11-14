@@ -138,7 +138,7 @@ export async function mountWedding3D(o: Wedding3DOptions): Promise<Wedding3DHand
 
   const pmrem = new PMREMGenerator(renderer);
   const envScene = new RoomEnvironment();
-  const envMap = pmrem.fromScene(envScene, 0.05).texture;
+  const envMap = pmrem.fromScene(envScene, 0.04).texture;
   pmrem.dispose();
 
   const scene = new Scene();

@@ -9,7 +9,7 @@ export default function BeePage() {
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    return mount(el);
+    return mount(el, { wedding3dBase: "/" });
   }, []);
 
   return <div id="app" ref={ref} />;

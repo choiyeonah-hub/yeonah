@@ -105,6 +105,9 @@ export const STYLES = String.raw`
     box-shadow: 0 18px 40px rgba(0,0,0,.5);
   }
   canvas { display: block; width: 100%; height: 100%; }
+  .cv3d { position: absolute; inset: 0; opacity: 0; transition: opacity .6s; pointer-events: none; }
+  .cv3d.show { opacity: 1; }
+  .cv3d.hidden { display: none; }
 
   .zone, .msg {
     position: absolute; left: 50%; transform: translateX(-50%);

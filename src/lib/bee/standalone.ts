@@ -2,6 +2,8 @@
 import { BeeGame, BeeState, InputName, STAGES, VIEW_H, VIEW_W } from "./game";
 import { REGIONS, Region } from "./regions";
 import { STYLES } from "./styles";
+import { loadWedding3D } from "./wedding3d-loader";
+import type { Wedding3DHandle } from "./wedding3d";
 
 const KEY_MAP: Record<string, InputName> = {
   ArrowLeft: "left",
@@ -54,7 +56,12 @@ function ensureHead() {
   }
 }
 
-export function mount(root: HTMLElement): () => void {
+export type MountOptions = {
+  /** wedding3d.js 와 bee2.glb 가 놓인 URL 접두사 (끝에 / 포함). 없으면 3D 혼인비행을 시도하지 않는다. */
+  wedding3dBase?: string;
+};
+
+export function mount(root: HTMLElement, opts: MountOptions = {}): () => void {
   ensureHead();
   let unlocked = loadUnlocked();
 
@@ -85,6 +92,7 @@ export function mount(root: HTMLElement): () => void {
 
     <div class="frame" id="frame">
       <canvas id="cv"></canvas>
+      <canvas id="cv3d" class="cv3d hidden"></canvas>
       <div id="zone" class="zone"></div>
       <div id="msg" class="msg"></div>
 
@@ -157,6 +165,59 @@ export function mount(root: HTMLElement): () => void {
   let started = false;
   let muted = false;
 
+  // ── 혼인비행 3D (지연 로딩, 실패하면 2D 혼인비행이 그대로 보인다) ───────────
+  let cv3d = $<HTMLCanvasElement>("#cv3d");
+  let handle3d: Wedding3DHandle | null = null;
+  let weddingSeen = false;
+  let weddingRun = 0;
+  let revealTimer = 0;
+
+  function fit3d() {
+    handle3d?.resize(frame.clientWidth, frame.clientHeight);
+  }
+
+  function startWedding3D() {
+    const base = opts.wedding3dBase;
+    if (!base) return;
+    const run = ++weddingRun;
+    const r = game.currentRegion;
+    loadWedding3D(base)
+      .then((mountWedding3D) =>
+        mountWedding3D({
+          canvas: cv3d,
+          glbUrl: `${base}bee2.glb`,
+          sky: r.sky,
+          hills: r.hills,
+          grass: r.grass,
+        })
+      )
+      .then((h) => {
+        // 로딩 중에 리셋됐거나 화면을 떠났다면 늦게 온 장면은 버린다.
+        if (run !== weddingRun) return h.dispose();
+        handle3d = h;
+        cv3d.classList.remove("hidden");
+        fit3d();
+        requestAnimationFrame(() => cv3d.classList.add("show"));
+        revealTimer = window.setTimeout(() => {
+          canvas.style.opacity = "0";
+        }, 600);
+      })
+      .catch((e) => console.warn("혼인비행 3D 를 건너뛰고 2D 로 보여 준다:", e));
+  }
+
+  function stopWedding3D() {
+    weddingRun++;
+    window.clearTimeout(revealTimer);
+    handle3d?.dispose();
+    handle3d = null;
+    canvas.style.opacity = "";
+    // 컨텍스트를 잃은 캔버스는 다시 쓸 수 없으니 새 캔버스로 갈아 끼운다.
+    const fresh = cv3d.cloneNode(false) as HTMLCanvasElement;
+    fresh.className = "cv3d hidden";
+    cv3d.replaceWith(fresh);
+    cv3d = fresh;
+  }
+
   const render = (s: BeeState) => {
     const st = STAGES[Math.min(s.stage, STAGES.length - 1)];
     $("#regionTag").textContent = `— ${s.regionName}`;
@@ -178,6 +239,14 @@ export function mount(root: HTMLElement): () => void {
     if (s.dizzy) carry.push("😵 방향 감각 상실");
     if (s.isQueen) carry.push("👑 여왕벌");
     $("#carry").textContent = carry.join("  ");
+
+    if (s.status === "wedding" && !weddingSeen) {
+      weddingSeen = true;
+      startWedding3D();
+    } else if (s.status === "playing" && weddingSeen) {
+      weddingSeen = false;
+      stopWedding3D();
+    }
 
     $("#zone").textContent = s.zone;
     $("#zone").classList.toggle("show", !!s.zone);
@@ -248,6 +317,7 @@ export function mount(root: HTMLElement): () => void {
     const cssH = Math.round(Math.max(cssW * 0.5, Math.min(Math.max(avail, 210), cap)));
     frame.style.height = `${cssH}px`;
     game.resize(VIEW_W, Math.max(260, Math.min(700, Math.round((VIEW_W * cssH) / cssW))), cssW);
+    fit3d();
   }
   fit();
 
@@ -348,5 +418,6 @@ export function mount(root: HTMLElement): () => void {
     window.removeEventListener("resize", fit);
     window.removeEventListener("orientationchange", fit);
     game.stop();
+    stopWedding3D();
   };
 }
