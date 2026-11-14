@@ -944,6 +944,11 @@ export class BeeGame {
       }
     }
 
+    // 아직 육아벌이 아닌데 웅덩이에 닿으면, 반응이 없는 이유를 알려 준다
+    if (this.stage === 0 && this.messageTimer <= 0 && near(px, py, h.jellyPool.x, h.jellyPool.y, 32)) {
+      this.say("로열젤리는 육아벌이 되어야 쓴다. 먼저 방을 다 닦자", 2.4);
+    }
+
     // 1. 육아벌 — 젤리를 떠서 애벌레와 왕대에
     if (this.stage === 1) {
       if (this.jelly < 3 && near(px, py, h.jellyPool.x, h.jellyPool.y, 32)) {
@@ -1744,9 +1749,13 @@ export class BeeGame {
     // 로열젤리 웅덩이
     const j = this.hive.jellyPool;
     if (vis(j.x, j.y) && this.stage <= 1) {
+      // 청소벌일 때는 아직 쓸 수 없다. 멀쩡해 보이면 닿아 보고 고장으로 오해한다.
+      const usable = this.stage === 1;
       const bob = Math.sin(this.elapsed * 2) > 0 ? 1 : 0;
       const jx = Math.round(j.x);
       const jy = Math.round(j.y);
+      ctx.save();
+      if (!usable) ctx.globalAlpha = 0.34;
       // 계단으로 쌓은 웅덩이
       const rows: Array<[number, number]> = [
         [10, 3],
@@ -1771,7 +1780,8 @@ export class BeeGame {
       ctx.roundRect(j.x - jw / 2 - 6, j.y - 26, jw + 12, 15, 7);
       ctx.fill();
       ctx.fillStyle = "rgba(255,247,220,0.95)";
-      ctx.fillText("로열젤리", j.x, j.y - 15);
+      ctx.fillText(usable ? "로열젤리" : "로열젤리 (육아벌부터)", j.x, j.y - 15);
+      ctx.restore();
     }
 
     // 왕대 (소비 아래 가장자리에 매달린 땅콩 모양)
