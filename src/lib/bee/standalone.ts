@@ -76,7 +76,7 @@ export function mount(root: HTMLElement, opts: MountOptions = {}): () => void {
         <div class="stage">
           <p class="title"><b id="stageName">청소벌</b> <i id="stageAge">1~2일령</i>
             <em id="stageWhere">육아권</em></p>
-          <p class="task" id="stageTask">갓 나온 방을 청소하자</p>
+          <p class="task"><span id="stageTask">갓 나온 방을 청소하자</span><em class="how">버튼 없음 — 목표에 닿으면 저절로 된다</em></p>
         </div>
         <div class="prog">
           <div class="track"><div id="progBar"></div></div>

@@ -1706,8 +1706,9 @@ export class BeeGame {
     for (const c of this.hive.brood) {
       if (!vis(c.x, c.y)) continue;
       if (c.dirty) {
-        this.hex(c.x, c.y, 15, "rgba(64,48,28,0.9)", "rgba(150,120,70,0.7)");
-        ctx.fillStyle = "rgba(120,100,70,0.9)";
+        // 배경 벌집과 색이 비슷하면 청소할 방을 못 찾는다. 안은 더 어둡게, 테는 더 밝게.
+        this.hex(c.x, c.y, 15, "rgba(38,27,14,0.95)", "rgba(222,176,96,0.95)");
+        ctx.fillStyle = "rgba(176,150,104,0.95)";
         for (let i = 0; i < 4; i++) {
           const n = hash2(c.x + i, c.y);
           ctx.fillRect(c.x - 7 + n * 14, c.y - 6 + ((n * 13) % 12), 2.6, 2.2);
@@ -2003,13 +2004,41 @@ export class BeeGame {
     ctx.fillRect(0, 0, this.vw, this.vh);
   }
 
+  /**
+   * 화면 안에 있는 목표를 네 귀퉁이 꺾쇠로 감싼다.
+   * 누를 버튼이 없는 게임이라 "여기로 가라"를 그림으로 말해 주지 않으면 조작법을 찾아 헤맨다.
+   */
+  private drawTargetMark(tx: number, ty: number) {
+    const ctx = this.ctx;
+    const r = 20 + Math.round(Math.sin(this.elapsed * 3) * 2);
+    const len = 6;
+    const t = 2;
+    const x = Math.round(tx);
+    const y = Math.round(ty);
+    ctx.save();
+    ctx.globalAlpha = 0.8;
+    ctx.fillStyle = "#ffd75e";
+    for (const sx of [-1, 1]) {
+      for (const sy of [-1, 1]) {
+        const ex = x + sx * r;
+        const ey = y + sy * r;
+        ctx.fillRect(sx < 0 ? ex : ex - len, sy < 0 ? ey : ey - t, len, t);
+        ctx.fillRect(sx < 0 ? ex : ex - t, sy < 0 ? ey : ey - len, t, len);
+      }
+    }
+    ctx.restore();
+  }
+
   private drawCompass(camX: number, camY: number) {
     if (this.status !== "playing" || this.pendingFact) return;
     const t = this.target();
     if (!t) return;
     const tx = t.x - camX;
     const ty = t.y - camY;
-    if (tx > 24 && tx < this.vw - 24 && ty > 24 && ty < this.vh - 24) return;
+    if (tx > 24 && tx < this.vw - 24 && ty > 24 && ty < this.vh - 24) {
+      this.drawTargetMark(tx, ty);
+      return;
+    }
     const cx = this.vw / 2;
     const cy = this.vh / 2;
     const a = Math.atan2(ty - cy, tx - cx);

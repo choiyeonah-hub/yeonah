@@ -80,6 +80,10 @@ export const STYLES = String.raw`
     margin-left: 8px; letter-spacing: .12em;
   }
   .task { margin: 1px 0 0; font-size: 12px; color: var(--muted); }
+  .task .how {
+    display: block; margin-top: 2px; font-style: normal;
+    font-size: 11px; color: #c8a85f; opacity: 0.85;
+  }
 
   .prog { display: flex; align-items: center; gap: 8px; }
   .track {
