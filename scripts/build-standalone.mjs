@@ -15,13 +15,6 @@ const result = await build({
 });
 
 const js = result.outputFiles[0].text;
-const shell = await readFile(resolve("scripts/standalone.html"), "utf8");
-const html = shell.replace("/*BUNDLE*/", () => js);
-
-await mkdir(dirname(resolve(out)), { recursive: true });
-await writeFile(resolve(out), html, "utf8");
-
-// 혼인비행 3D 는 본편 HTML 에 섞지 않고 따로 낸다. 본편이 즉시 뜨는 게 이 게임의 전제다.
 const outDir = dirname(resolve(out));
 const three = await build({
   entryPoints: [resolve("src/lib/bee/wedding3d.ts")],
@@ -35,10 +28,27 @@ const three = await build({
 });
 const js3d = three.outputFiles[0].text;
 
-const sizes = [`${out} — ${(html.length / 1024).toFixed(0)}KB`];
+// 3D 번들을 옆 파일로 두면 호스트마다 경로 규칙이 달라 조용히 2D 로 떨어진다.
+// 그 실패는 플레이어에게 보이지 않아서 신고도 늦는다. 한 장에 같이 심는다.
+// 본편 스크립트 뒤에 두기 때문에 화면은 3D 번들을 파싱하기 전에 이미 떠 있다.
+const shell = await readFile(resolve("scripts/standalone.html"), "utf8");
+// 번들 안에 </script 가 들어 있으면 인라인 스크립트가 거기서 잘린다.
+const inline = (code) => code.replace(/<\/script/gi, "<\\/script");
+const html = shell
+  .replace("/*BUNDLE*/", () => inline(js))
+  .replace("/*WEDDING3D*/", () => inline(js3d));
+
+await mkdir(dirname(resolve(out)), { recursive: true });
+await writeFile(resolve(out), html, "utf8");
+
+// Next 쪽은 /wedding3d.js 를 그대로 쓴다.
 for (const dir of [outDir, resolve("public")]) {
   await mkdir(dir, { recursive: true });
   await writeFile(resolve(dir, "wedding3d.js"), js3d, "utf8");
 }
-sizes.push(`wedding3d.js — ${((await stat(resolve(outDir, "wedding3d.js"))).size / 1024).toFixed(0)}KB`);
-console.log(sizes.join("\n"));
+console.log(
+  [
+    `${out} — ${(html.length / 1024).toFixed(0)}KB (3D 포함)`,
+    `wedding3d.js — ${((await stat(resolve(outDir, "wedding3d.js"))).size / 1024).toFixed(0)}KB`,
+  ].join("\n")
+);

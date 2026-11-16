@@ -11,7 +11,13 @@ declare global {
 
 const pending = new Map<string, Promise<Mount>>();
 
-export function loadWedding3D(baseUrl: string): Promise<Mount> {
+export function loadWedding3D(baseUrl?: string): Promise<Mount> {
+  // 단일 HTML 빌드는 3D 번들을 같은 페이지에 심어 둔다. 그러면 받을 것이 없다.
+  const inPage = window.__beeWedding3D;
+  if (inPage) return Promise.resolve(inPage.mountWedding3D);
+  if (!baseUrl) {
+    return Promise.reject(new Error("3D 번들이 페이지에 없고 받아올 주소도 없다"));
+  }
   const src = `${baseUrl}wedding3d.js`;
   const hit = pending.get(src);
   if (hit) return hit;

@@ -93,6 +93,7 @@ export function mount(root: HTMLElement, opts: MountOptions = {}): () => void {
     <div class="frame" id="frame">
       <canvas id="cv"></canvas>
       <canvas id="cv3d" class="cv3d hidden"></canvas>
+      <p id="note3d" class="note3d hidden"></p>
       <div id="zone" class="zone"></div>
       <div id="msg" class="msg"></div>
 
@@ -181,7 +182,6 @@ export function mount(root: HTMLElement, opts: MountOptions = {}): () => void {
 
   function startWedding3D() {
     const base = opts.wedding3dBase;
-    if (!base) return;
     const run = ++weddingRun;
     const r = game.currentRegion;
     loadWedding3D(base)
@@ -204,11 +204,20 @@ export function mount(root: HTMLElement, opts: MountOptions = {}): () => void {
           canvas.style.opacity = "0";
         }, 600);
       })
-      .catch((e) => console.warn("혼인비행 3D 를 건너뛰고 2D 로 보여 준다:", e));
+      .catch((e: unknown) => {
+        // 조용히 2D 로 떨어지면 플레이어는 3D 가 원래 없는 줄 안다. 이유를 띄운다.
+        if (run !== weddingRun) return;
+        const why = e instanceof Error ? e.message : String(e);
+        const note = $("#note3d");
+        note.textContent = `3D 를 띄우지 못해 2D 로 보여 준다 — ${why}`;
+        note.classList.remove("hidden");
+        console.warn("혼인비행 3D 실패:", e);
+      });
   }
 
   function stopWedding3D() {
     weddingRun++;
+    $("#note3d").classList.add("hidden");
     window.clearTimeout(revealTimer);
     handle3d?.dispose();
     handle3d = null;

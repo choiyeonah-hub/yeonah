@@ -119,6 +119,12 @@ export const STYLES = String.raw`
   .cv3d { position: absolute; inset: 0; opacity: 0; transition: opacity .6s; pointer-events: none; }
   .cv3d.show { opacity: 1; }
   .cv3d.hidden { display: none; }
+  .note3d {
+    position: absolute; left: 10px; right: 10px; top: 10px; margin: 0;
+    padding: 6px 10px; border-radius: 8px; font-size: 11px; line-height: 1.4;
+    color: #ffd0a0; background: rgba(60,20,20,0.82); pointer-events: none;
+  }
+  .note3d.hidden { display: none; }
 
   .zone, .msg {
     position: absolute; left: 50%; transform: translateX(-50%);
