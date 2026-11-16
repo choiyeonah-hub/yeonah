@@ -35,7 +35,7 @@ import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 // 모델은 이 번들에 심는다. 따로 두면 호스트마다 경로를 맞춰야 하고, 그 경로가 틀리면 조용히 실패한다.
-import BEE_GLB from "../../../assets/bee2.glb";
+import BEE_GLB_B64 from "../../../assets/bee2.glb";
 
 export type Wedding3DHandle = {
   resize(w: number, h: number): void;
@@ -129,8 +129,22 @@ function disposeScene(scene: Scene) {
   });
 }
 
+/**
+ * data: URL 을 GLTFLoader 에 넘기면 로더가 그걸 fetch 한다.
+ * 사파리와 샌드박스 iframe 은 그 요청을 막는다 ("Load failed"). 네트워크를 아예
+ * 타지 않도록 base64 를 여기서 풀어 메모리째 넘긴다.
+ */
+function glbBuffer(b64: string): ArrayBuffer {
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes.buffer;
+}
+
 export async function mountWedding3D(o: Wedding3DOptions): Promise<Wedding3DHandle> {
-  const gltf: GLTF = await new GLTFLoader().loadAsync(BEE_GLB);
+  const gltf: GLTF = await new Promise<GLTF>((resolve, reject) => {
+    new GLTFLoader().parse(glbBuffer(BEE_GLB_B64), "", resolve, reject);
+  });
 
   const renderer = new WebGLRenderer({ canvas: o.canvas, antialias: true });
   renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));

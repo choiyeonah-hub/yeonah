@@ -23,7 +23,7 @@ const three = await build({
   format: "iife",
   globalName: "__beeWedding3D",
   target: ["es2019"],
-  loader: { ".glb": "dataurl" },
+  loader: { ".glb": "base64" },
   write: false,
 });
 const js3d = three.outputFiles[0].text;
