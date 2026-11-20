@@ -2,6 +2,8 @@
 # Works both here (app under element-lock/) and after moving element-lock/ to its own repository
 # (app at the root): the first step of every job detects the folder.
 # Public repository: standard GitHub-hosted runners (including macOS) cost nothing.
+# Private repository: macOS minutes count 10x against the free quota, so the two iOS jobs run
+# only when started by hand (Actions > Element Lock > Run workflow > "Build iOS" checked).
 name: Element Lock
 
 on:
@@ -10,6 +12,11 @@ on:
   pull_request:
     paths: ["element-lock/**", ".github/workflows/element-lock.yml"]
   workflow_dispatch:
+    inputs:
+      ios:
+        description: "Build iOS (macOS runner; counts 10x minutes in a private repository)"
+        type: boolean
+        default: true
 
 concurrency:
   group: element-lock-${{ github.ref }}
@@ -87,6 +94,7 @@ jobs:
 
   ios:
     name: iOS compile (simulator + unsigned device) & tests
+    if: ${{ !github.event.repository.private || (github.event_name == 'workflow_dispatch' && inputs.ios) }}
     runs-on: macos-latest
     timeout-minutes: 45
     steps:
@@ -154,6 +162,7 @@ jobs:
 
   ios-legacy-sdk:
     name: iOS fallback build with Xcode SDK < 26.5
+    if: ${{ !github.event.repository.private || (github.event_name == 'workflow_dispatch' && inputs.ios) }}
     runs-on: macos-latest
     timeout-minutes: 30
     steps:

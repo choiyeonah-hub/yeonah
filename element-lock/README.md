@@ -29,7 +29,7 @@ element-lock/
   design/          아이콘 생성 스크립트
   docs/            ios.md, android.md, testflight.md, store-and-pricing.md, test-plan.md, privacy-policy.md
   tools/           export-to-new-repo.sh (별도 저장소로 옮길 준비, 이 저장소는 변경하지 않음)
-CI: 저장소 루트 .github/workflows/element-lock.yml (element-lock/ 변경 시에만 실행)
+CI: 저장소 루트 .github/workflows/element-lock.yml (element-lock/ 변경 시에만 실행). 비공개 저장소에서는 iOS(macOS) 작업이 수동 실행(Run workflow)일 때만 돕니다.
 ```
 
 ## 바로 실행할 수 있는 명령
